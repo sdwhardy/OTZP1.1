@@ -19,41 +19,39 @@ mutable struct gps
 end
 gps()=gps(69.69,69.69)
 ###################################################################
-mutable struct cntr
+mutable struct node
       gps::gps
       xy::xy
 end
-cntr()=cntr(gps(),xy())
+node()=node(gps(),xy())
 ###################################################################
 mutable struct circle
       radius::Float64
       area::Float64
+      pnts::Array{node}
+      periPnts::Array{node}
 end
-circle()=circle(69.69,69.69)
+circle()=circle(69.69,69.69,node[],node[])
 ###################################################################
 mutable struct bus
       mvas::Array{Float64}
-      wnds::Array{String}
+      wnds::Array{wind}
       inputs::Array{Int64}
       outputs::Array{Int64}
-      cntr::cntr
-      area::circle
-      mv_area::circle
+      name::String
+      node::node
+      zone::circle
+      mv_zone::circle
       num::Int64
       id::Int64
 end
-bus()=bus(Float64[],String[],Int64[],Int64[],cntr(),circle(),circle(),69,69)
-###################################################################
-mutable struct node
-      cntr::cntr
-end
-node()=node(cntr())
+bus()=bus(Float64[],wind[],Int64[],Int64[],"sixty-nine",node(),circle(),circle(),69,69)
 ###################################################################
 mutable struct conductor
       head::bus
       tail::bus
       lngth::Float64
-      mva::Float64#Only used for displaying solution
+      mva::Float64
       num::Int64
       id::Int64
       #xfo_in
@@ -91,8 +89,9 @@ nogo()=nogo(node[])
 mutable struct system
       nogoNum::Int64
       prec::Float64
+      mwPerKm::Float64
 end
-system()=system(69,69.69)
+system()=system(69,69.69,69.69)
 ####################################################################
 mutable struct eez
       osss::Array{bus}
@@ -108,10 +107,11 @@ mutable struct eez
       nogos::Array{nogo}
       discretedom::domain
       sys::system
+      finance::cstS_ks
       theta::Float64
       offset::Float64
       base::gps
       id_count::Int64
 end
-eez()=eez(bus[],bus[],bus[],bus[],conductor[],conductor[],conductor[],conductor[],conductor[],node[],nogo[],domain(),system(),69.69,69.69,gps(),69)
+eez()=eez(bus[],bus[],bus[],bus[],conductor[],conductor[],conductor[],conductor[],conductor[],node[],nogo[],domain(),system(),cstS_ks(),69.69,69.69,gps(),69)
 ###################################################################
