@@ -48,6 +48,8 @@ function lof_layoutEez()
     return ocean
 end
 
+
+
 function lof_nogoZones(ocn)
     for i=1:ocn.sys.nogoNum
         nogoT=nogo()
@@ -58,29 +60,144 @@ end
 
 function lof_mVrng(ocn)
     for owpp in ocn.owpps
-        owpp.mv_zone.radius=cstF_mVrng(owpp.zone.radius,owpp.mvas[1],owpp.wnds[1],ocn.finance,ocn.sys.prec)
-        owpp.mv_zone.area=pi*(owpp.mv_zone.radius)^2
+        mvrng=cstF_mVrng(5,owpp.mvas[1],owpp.wnds[1],ocn.finance,ocn.sys.prec)
+        owpp.mv_zone.pos_height=deepcopy(mvrng)+owpp.zone.pos_height
+        owpp.mv_zone.pos_width=deepcopy(mvrng)+owpp.zone.pos_width
+        owpp.mv_zone.neg_height=deepcopy(mvrng)+owpp.zone.neg_height
+        owpp.mv_zone.neg_width=deepcopy(mvrng)+owpp.zone.neg_width
+        owpp.mv_zone.area=(owpp.mv_zone.pos_height+owpp.mv_zone.neg_height)*(owpp.mv_zone.pos_width+owpp.mv_zone.neg_width)
     end
 end
 
 function lof_setAreaOwpp(ocn)
-    for owpp in ocn.owpps
-        owpp.zone.area=owpp.mvas[1]/ocn.sys.mwPerKm
-        owpp.zone.radius=sqrt(owpp.zone.area/pi)
+    #find dominant axis
+    if (abs(ocn.owpps[1].node.xy.y-ocn.owpps[length(ocn.owpps)].node.xy.y)>abs(ocn.owpps[1].node.xy.x-ocn.owpps[length(ocn.owpps)].node.xy.x))
+        y_axisDominant=true
+    else
+        y_axisDominant=false
+    end
+
+    if y_axisDominant==true
+        #set areas, heights and widths
+        dif=abs(ocn.owpps[1].node.xy.y-ocn.owpps[2].node.xy.y)
+        ocn.owpps[1].zone.area=ocn.owpps[1].mvas[1]/ocn.sys.mwPerKm
+        if (sqrt(ocn.owpps[1].zone.area) < dif)
+            dif=sqrt(ocn.owpps[1].zone.area)
+        else
+        end
+        ocn.owpps[1].zone.pos_height=dif/2-ocn.sys.prec/2
+        ocn.owpps[1].zone.neg_height=dif/2-ocn.sys.prec/2
+        ocn.owpps[1].zone.pos_width=ocn.owpps[1].zone.area/((ocn.owpps[1].zone.pos_height+ocn.owpps[1].zone.neg_height)*2)
+        ocn.owpps[1].zone.neg_width=ocn.owpps[1].zone.pos_width
+
+        dif=abs(ocn.owpps[length(ocn.owpps)].node.xy.y-ocn.owpps[length(ocn.owpps)-1].node.xy.y)
+        ocn.owpps[length(ocn.owpps)].zone.area=ocn.owpps[length(ocn.owpps)].mvas[1]/ocn.sys.mwPerKm
+        if (sqrt(ocn.owpps[length(ocn.owpps)].zone.area) < dif)
+            dif=sqrt(ocn.owpps[length(ocn.owpps)].zone.area)
+        else
+        end
+        ocn.owpps[length(ocn.owpps)].zone.pos_height=dif/2-ocn.sys.prec/2
+        ocn.owpps[length(ocn.owpps)].zone.neg_height=dif/2-ocn.sys.prec/2
+        ocn.owpps[length(ocn.owpps)].zone.pos_width=ocn.owpps[length(ocn.owpps)].zone.area/((ocn.owpps[length(ocn.owpps)].zone.pos_height+ocn.owpps[length(ocn.owpps)].zone.neg_height)*2)
+        ocn.owpps[length(ocn.owpps)].zone.neg_width=ocn.owpps[length(ocn.owpps)].zone.pos_width
+
+        for indx=2:length(ocn.owpps)-1
+
+            dif=abs(ocn.owpps[indx].node.xy.y-ocn.owpps[indx+1].node.xy.y)
+            ocn.owpps[indx].zone.area=ocn.owpps[indx].mvas[1]/ocn.sys.mwPerKm
+            if (sqrt(ocn.owpps[indx].zone.area) < dif)
+                dif=sqrt(ocn.owpps[indx].zone.area)
+            else
+            end
+            #area, height and width
+            ocn.owpps[indx].zone.neg_height=ocn.owpps[indx-1].zone.pos_height
+            ocn.owpps[indx].zone.pos_height=dif/2-ocn.sys.prec/2
+            ocn.owpps[indx].zone.pos_width=ocn.owpps[indx].zone.area/((ocn.owpps[indx].zone.pos_height+ocn.owpps[indx].zone.neg_height)*2)
+            ocn.owpps[indx].zone.neg_width=ocn.owpps[indx].zone.pos_width
+        end
+    else
+        #set areas, heights and widths
+        dif=abs(ocn.owpps[1].node.xy.x-ocn.owpps[2].node.xy.x)
+        ocn.owpps[1].zone.area=ocn.owpps[1].mvas[1]/ocn.sys.mwPerKm
+        if (sqrt(ocn.owpps[1].zone.area) < dif)
+            dif=sqrt(ocn.owpps[1].zone.area)
+        else
+        end
+        ocn.owpps[1].zone.pos_width=dif/2-ocn.sys.prec/2
+        ocn.owpps[1].zone.neg_width=dif/2-ocn.sys.prec/2
+        ocn.owpps[1].zone.pos_height=ocn.owpps[1].zone.area/((ocn.owpps[1].zone.pos_width+ocn.owpps[1].zone.neg_width)*2)
+        ocn.owpps[1].zone.neg_height=ocn.owpps[1].zone.pos_height
+
+        dif=abs(ocn.owpps[length(ocn.owpps)].node.xy.x-ocn.owpps[length(ocn.owpps)-1].node.xy.x)
+        ocn.owpps[length(ocn.owpps)].zone.area=ocn.owpps[length(ocn.owpps)].mvas[1]/ocn.sys.mwPerKm
+        if (sqrt(ocn.owpps[length(ocn.owpps)].zone.area) < dif)
+            dif=sqrt(ocn.owpps[length(ocn.owpps)].zone.area)
+        else
+        end
+        ocn.owpps[length(ocn.owpps)].zone.pos_width=dif/2-ocn.sys.prec/2
+        ocn.owpps[length(ocn.owpps)].zone.neg_width=dif/2-ocn.sys.prec/2
+        ocn.owpps[length(ocn.owpps)].zone.pos_height=ocn.owpps[length(ocn.owpps)].zone.area/((ocn.owpps[length(ocn.owpps)].zone.pos_width+ocn.owpps[length(ocn.owpps)].zone.neg_width)*2)
+        ocn.owpps[length(ocn.owpps)].zone.neg_height=ocn.owpps[length(ocn.owpps)].zone.pos_height
+
+        for indx=2:length(ocn.owpps)-1
+
+            dif=abs(ocn.owpps[indx].node.xy.x-ocn.owpps[indx+1].node.xy.x)
+            ocn.owpps[indx].zone.area=ocn.owpps[indx].mvas[1]/ocn.sys.mwPerKm
+            if (sqrt(ocn.owpps[indx].zone.area) < dif)
+                dif=sqrt(ocn.owpps[indx].zone.area)
+            else
+            end
+            #area, height and width
+            ocn.owpps[indx].zone.neg_width=ocn.owpps[indx-1].zone.pos_width
+            ocn.owpps[indx].zone.pos_width=dif/2-ocn.sys.prec/2
+            ocn.owpps[indx].zone.pos_height=ocn.owpps[indx].zone.area/((ocn.owpps[indx].zone.pos_width+ocn.owpps[indx].zone.neg_width)*2)
+            ocn.owpps[indx].zone.neg_height=ocn.owpps[indx].zone.pos_height
+        end
     end
 end
-
+#=
+ocn=ocean
+=#
 function lof_nodify(ocn)
     wbnd,ebnd=lof_bndPerimeter(ocn.bndryPnts)
     Allnodes=lof_addNodes(ocn,wbnd,ebnd)
-    ocn.discretedom.nodes=lof_deleteNgNodes(ocn,Allnodes)
+    Allnodes=lof_deleteNgNodes(ocn.nogos,Allnodes)
+    ngs_dummy=owppNGnodes(ocn)
+    ocn.discretedom.nodes=lof_deleteNgNodes(ngs_dummy,Allnodes)
 
 
-    lof_busPlaceOnNodes(ocn.owpps,ocn.discretedom.nodes)
-    lof_busPlaceOnNodes(ocn.pccs,ocn.discretedom.nodes)
+    #lof_busPlaceOnNodes(ocn.owpps,ocn.discretedom.nodes)
+    #lof_busPlaceOnNodes(ocn.pccs,ocn.discretedom.nodes)
     #lof_nogoAreaNodes(ocn)
     lof_owppAreaNodes(ocn)
     lof_mvAreaNodes(ocn)
+end
+
+function owppNGnodes(ocn)
+    ngs_dummy=Array{nogo,1}()
+    for owpp in ocn.owpps
+        nogo_dummy=nogo()
+        node_dummy=node()
+
+        node_dummy.xy.y=owpp.node.xy.y-owpp.zone.neg_height
+        node_dummy.xy.x=owpp.node.xy.x-owpp.zone.neg_width
+        push!(nogo_dummy.nodes,deepcopy(node_dummy))
+
+        node_dummy.xy.y=owpp.node.xy.y-owpp.zone.neg_height
+        node_dummy.xy.x=owpp.node.xy.x+owpp.zone.pos_width
+        push!(nogo_dummy.nodes,deepcopy(node_dummy))
+
+        node_dummy.xy.y=owpp.node.xy.y+owpp.zone.pos_height
+        node_dummy.xy.x=owpp.node.xy.x+owpp.zone.pos_width
+        push!(nogo_dummy.nodes,deepcopy(node_dummy))
+
+        node_dummy.xy.y=owpp.node.xy.y+owpp.zone.pos_height
+        node_dummy.xy.x=owpp.node.xy.x-owpp.zone.neg_width
+        push!(nogo_dummy.nodes,deepcopy(node_dummy))
+
+        push!(ngs_dummy,deepcopy(nogo_dummy))
+    end
+    return ngs_dummy
 end
 
 #=
@@ -107,14 +224,14 @@ function lof_nogoAreaNodes(ocn)
             if km2owpp<=owpp.zone.radius
                 push!(owpp.zone.pnts,node)
                 if km2owpp+ocn.sys.prec>owpp.zone.radius
-                    push!(owpp.zone.periPnts,node)
+                    push!(owpp.zone.pnts,node)
                 end
             end
         end
     end
 end
 
-
+#=
 function lof_busPlaceOnNodes(buses,nodes)
     dummy_node=node()
     for bus in buses
@@ -129,37 +246,84 @@ function lof_busPlaceOnNodes(buses,nodes)
         bus.node=deepcopy(dummy_node)
     end
 end
+=#
 
 function lof_owppAreaNodes(ocn)
-    for node in ocn.discretedom.nodes
-        for owpp in ocn.owpps
-            km2owpp=lof_pnt2pnt_dist(node.xy,owpp.node.xy)
-            if km2owpp<=owpp.zone.radius
-                push!(owpp.zone.pnts,node)
-                if km2owpp+ocn.sys.prec>owpp.zone.radius
-                    push!(owpp.zone.periPnts,node)
+    for owpp in ocn.owpps
+
+        const_sy=owpp.node.xy.y-owpp.zone.neg_height
+        const_ny=owpp.node.xy.y+owpp.zone.pos_height
+        mn_y=const_sy
+        mx_y=const_ny
+
+        const_wx=owpp.node.xy.x-owpp.zone.neg_width
+        const_ex=owpp.node.xy.x+owpp.zone.pos_width
+        mn_x=const_wx
+        mx_x=const_ex
+
+        for indy=mn_y:ocn.sys.prec/2:mx_y
+            dummy_wnode=Int8
+            dummy_enode=Int8
+            wbsf_km=Inf
+            ebsf_km=Inf
+            for (val, node) in enumerate(ocn.discretedom.nodes)
+                km2w=lof_pnt2pnt_dist(node.xy,xy(const_wx,indy))
+                km2e=lof_pnt2pnt_dist(node.xy,xy(const_ex,indy))
+                if (km2e<ebsf_km)
+                    ebsf_km=deepcopy(km2e)
+                    dummy_enode=deepcopy(val)
+                end
+                if (km2w<wbsf_km)
+                    wbsf_km=deepcopy(km2w)
+                    dummy_wnode=deepcopy(val)
                 end
             end
+            push!(owpp.zone.pnts,ocn.discretedom.nodes[dummy_enode])
+            push!(owpp.zone.pnts,ocn.discretedom.nodes[dummy_wnode])
         end
+        for indx=mn_x:ocn.sys.prec/2:mx_x
+            dummy_nnode=Int8
+            dummy_snode=Int8
+            nbsf_km=Inf
+            sbsf_km=Inf
+            for (val,node) in enumerate(ocn.discretedom.nodes)
+                km2n=lof_pnt2pnt_dist(node.xy,xy(indx,const_ny))
+                km2s=lof_pnt2pnt_dist(node.xy,xy(indx,const_sy))
+                if (km2n<nbsf_km)
+                    nbsf_km=deepcopy(km2n)
+                    dummy_nnode=deepcopy(val)
+                end
+                if (km2s<sbsf_km)
+                    sbsf_km=deepcopy(km2s)
+                    dummy_snode=deepcopy(val)
+                end
+            end
+            push!(owpp.zone.pnts,ocn.discretedom.nodes[dummy_snode])
+            push!(owpp.zone.pnts,ocn.discretedom.nodes[dummy_nnode])
+        end
+        unique!(owpp.zone.pnts)
     end
 end
 
 function lof_mvAreaNodes(ocn)
     for node in ocn.discretedom.nodes
         for owpp in ocn.owpps
-            km2owpp=lof_pnt2pnt_dist(node.xy,owpp.node.xy)
-            if km2owpp<=owpp.mv_zone.radius
+            s=owpp.node.xy.y-owpp.mv_zone.neg_height
+            n=owpp.node.xy.y+owpp.mv_zone.pos_height
+            w=owpp.node.xy.x-owpp.mv_zone.neg_width
+            e=owpp.node.xy.x+owpp.mv_zone.pos_width
+            if ((node.xy.y<n) && (node.xy.y>s) && (node.xy.x < e) && (node.xy.x > w))
                 push!(owpp.mv_zone.pnts,node)
-                if km2owpp+ocn.sys.prec>owpp.mv_zone.radius
-                    push!(owpp.mv_zone.periPnts,node)
-                end
             end
         end
     end
 end
-
-function lof_deleteNgNodes(ocn,Allnodes)
-    for ngs in ocn.nogos
+#=
+nogoReg=ngs_dummy
+ngs=nogoReg[2]
+=#
+function lof_deleteNgNodes(nogoReg,Allnodes)
+    for ngs in nogoReg
         wbnd,ebnd=lof_bndPerimeter(ngs.nodes)
         ymx=wbnd[length(wbnd)].ymax
         ymn=wbnd[1].ymn
@@ -168,16 +332,17 @@ function lof_deleteNgNodes(ocn,Allnodes)
         lnth=length(Allnodes)
         i=1
         while i<lnth
-            if Allnodes[i].xy.y<=ymx && Allnodes[i].xy.y>=ymn
-                while Allnodes[i].xy.y>wbnd[windex].ymax
+
+            if ((Allnodes[i].xy.y < ymx) && (Allnodes[i].xy.y > ymn))
+                while (Allnodes[i].xy.y >= wbnd[windex].ymax)
                     windex=windex+1
                 end
-                while Allnodes[i].xy.y>ebnd[eindex].ymax
+                while (Allnodes[i].xy.y >= ebnd[eindex].ymax)
                     eindex=eindex+1
                 end
                 xmx=Allnodes[i].xy.y*ebnd[eindex].m+ebnd[eindex].b
                 xmn=Allnodes[i].xy.y*wbnd[windex].m+wbnd[windex].b
-                if Allnodes[i].xy.x>xmn && Allnodes[i].xy.x<xmx
+                if ((Allnodes[i].xy.x > xmn) && (Allnodes[i].xy.x < xmx))
                     deleteat!(Allnodes,i)
                     i=i-1
                     lnth=lnth-1
@@ -219,8 +384,13 @@ function lof_addNodes(ocn,wbnd,ebnd)
     return dummy_nodes
 end
 
+#=
+bnd=ngs.nodes
+bnd=ocn.bndryPnts
+=#
 function lof_bndPerimeter(bnd)
     #finds mid line dividing east and west regions
+
     ys=Array{Float64,1}()
     for xys in bnd
         push!(ys,xys.xy.y)
@@ -234,24 +404,42 @@ function lof_bndPerimeter(bnd)
     epntsT=Array{xy,1}()
     wys=Array{Float64,1}()
     eys=Array{Float64,1}()
+    wxs=Array{Float64,1}()
+    exs=Array{Float64,1}()
     push!(wpntsT,bnd[mnY[2]].xy)
     push!(epntsT,bnd[mnY[2]].xy)
-    push!(wys, bnd[mnY[2]].xy.y)
-    push!(eys, bnd[mnY[2]].xy.y)
+    push!(wxs, bnd[mnY[2]].xy.x)
+    push!(exs, bnd[mnY[2]].xy.x)
     for xys in bnd
-        if xys.xy.x<(xys.xy.y*midLn[2]+midLn[1])
+        if xys.xy.x < (xys.xy.y*midLn[2]+midLn[1])
             push!(wpntsT, xys.xy)
-            push!(wys, xys.xy.y)
-        elseif xys.xy.x>(xys.xy.y*midLn[2]+midLn[1])
+            push!(wxs, xys.xy.x)
+        elseif xys.xy.x > (xys.xy.y*midLn[2]+midLn[1])
             push!(epntsT, xys.xy)
-            push!(eys, xys.xy.y)
+            push!(exs, xys.xy.x)
         else
         end
     end
     push!(wpntsT,bnd[mxY[2]].xy)
     push!(epntsT,bnd[mxY[2]].xy)
-    push!(wys, bnd[mxY[2]].xy.y)
-    push!(eys, bnd[mxY[2]].xy.y)
+    push!(wxs, bnd[mxY[2]].xy.x)
+    push!(exs, bnd[mxY[2]].xy.x)
+
+    #orders points xmin to xmax
+    xwpnts=Array{xy,1}()
+    xepnts=Array{xy,1}()
+    for i =1:length(wxs)
+        index=findmin(wxs)[2]
+        wxs[index]=Inf
+        push!(xwpnts,wpntsT[index])
+        push!(wys,wpntsT[index].y)
+    end
+    for i =1:length(exs)
+        index=findmin(exs)[2]
+        exs[index]=Inf
+        push!(xepnts,epntsT[index])
+        push!(eys,epntsT[index].y)
+    end
 
     #orders points ymin to ymax
     wpnts=Array{xy,1}()
@@ -259,31 +447,45 @@ function lof_bndPerimeter(bnd)
     for i =1:length(wys)
         index=findmin(wys)[2]
         wys[index]=Inf
-        push!(wpnts,wpntsT[index])
+        push!(wpnts,xwpnts[index])
     end
     for i =1:length(eys)
         index=findmin(eys)[2]
         eys[index]=Inf
-        push!(epnts,epntsT[index])
+        push!(epnts,xepnts[index])
     end
+
+    #Keep only unique entries
+    unique!(epnts)
+    unique!(wpnts)
 
     #constructs line boundaries for limits
     wbnd=Array{line,1}()
     ebnd=Array{line,1}()
     for i = 1:length(wpnts)-1
         dummy_line=line()
-        alpha_beta=reverse([[wpnts[i+1].y,wpnts[i].y] ones(2)]\[wpnts[i+1].x,wpnts[i].x])
-        dummy_line.b=alpha_beta[1]
-        dummy_line.m=alpha_beta[2]
+        if (wpnts[i+1].y != wpnts[i].y)
+            alpha_beta=reverse([[wpnts[i+1].y,wpnts[i].y] ones(2)]\[wpnts[i+1].x,wpnts[i].x])
+            dummy_line.b=alpha_beta[1]
+            dummy_line.m=alpha_beta[2]
+        else
+            dummy_line.b=wpnts[i].y
+            dummy_line.m=0
+        end
         dummy_line.ymax=wpnts[i+1].y
         dummy_line.ymn=wpnts[i].y
         push!(wbnd,deepcopy(dummy_line))
     end
     for i = 1:length(epnts)-1
         dummy_line=line()
-        alpha_beta=reverse([[epnts[i+1].y,epnts[i].y] ones(2)]\[epnts[i+1].x,epnts[i].x])
-        dummy_line.b=alpha_beta[1]
-        dummy_line.m=alpha_beta[2]
+        if (epnts[i+1].y != epnts[i].y)
+            alpha_beta=reverse([[epnts[i+1].y,epnts[i].y] ones(2)]\[epnts[i+1].x,epnts[i].x])
+            dummy_line.b=alpha_beta[1]
+            dummy_line.m=alpha_beta[2]
+        else
+            dummy_line.b=epnts[i].y
+            dummy_line.m=0
+        end
         dummy_line.ymax=epnts[i+1].y
         dummy_line.ymn=epnts[i].y
         push!(ebnd,deepcopy(dummy_line))
@@ -497,9 +699,5 @@ end
 #minimum distance for a path is 1km
 function lof_pnt2pnt_dist(pnt1,pnt2)
     hyp=sqrt((pnt2.x-pnt1.x)^2+(pnt2.y-pnt1.y)^2)
-    if hyp < 1
-        hyp=1
-        #println("Arc distance is less than 1km, set to 1km.")
-    end
     return hyp
 end

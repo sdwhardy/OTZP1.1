@@ -25,13 +25,20 @@ mutable struct node
 end
 node()=node(gps(),xy())
 ###################################################################
-mutable struct circle
-      radius::Float64
+mutable struct farm
+      pos_height::Float64
+      pos_width::Float64
+      neg_width::Float64
+      neg_height::Float64
       area::Float64
+      #nbnd::line
+      #ebnd::line
+      #sbnd::line
+      #wbnd::line
       pnts::Array{node}
-      periPnts::Array{node}
 end
-circle()=circle(69.69,69.69,node[],node[])
+#farm()=farm(69.69,69.69,69.69,69.69,69.69,line(),line(),line(),line(),node[])
+farm()=farm(69.69,69.69,69.69,69.69,69.69,node[])
 ###################################################################
 mutable struct bus
       mvas::Array{Float64}
@@ -40,12 +47,12 @@ mutable struct bus
       outputs::Array{Int64}
       name::String
       node::node
-      zone::circle
-      mv_zone::circle
+      zone::farm
+      mv_zone::farm
       num::Int64
       id::Int64
 end
-bus()=bus(Float64[],wind[],Int64[],Int64[],"sixty-nine",node(),circle(),circle(),69,69)
+bus()=bus(Float64[],wind[],Int64[],Int64[],"sixty-nine",node(),farm(),farm(),69,69)
 ###################################################################
 mutable struct conductor
       head::bus

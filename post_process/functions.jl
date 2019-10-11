@@ -1,14 +1,16 @@
 
 function ppf_printOcnXY(ocean)
+	Owpp_peri=Array{nogo,1}()
 	pcc=Array{Tuple,1}()
 	gen=Array{Tuple,1}()
 	bnd=Array{Tuple,1}()
-	nogo=Array{Tuple,1}()
+	domOwpps_peri=Array{Tuple,1}()
+	ng=Array{Tuple,1}()
 	domNodes=Array{Tuple,1}()
 	domOwpps=Array{Tuple,1}()
-	domOwpps_peri=Array{Tuple,1}()
 	domOwppsMV=Array{Tuple,1}()
 	domOwpps_MVperi=Array{Tuple,1}()
+
 
 	for i in ocean.pccs
 		txt=text(string(i.num),12,:black,:right)
@@ -17,8 +19,32 @@ function ppf_printOcnXY(ocean)
 	end
 
 	for i in ocean.owpps
+		dummy_peri=nogo()
 		txt=text(string(i.num),12,:red,:right)
 		push!(gen,(i.node.xy.x,i.node.xy.y,txt))
+		dummy_node=node()
+		dummy_node.xy.x=i.node.xy.x-i.zone.neg_width
+		dummy_node.xy.y=i.node.xy.y-i.zone.neg_height
+		push!(dummy_peri.nodes,deepcopy(dummy_node))
+
+
+		dummy_node=node()
+		dummy_node.xy.x=i.node.xy.x+i.zone.pos_width
+		dummy_node.xy.y=i.node.xy.y-i.zone.neg_height
+		push!(dummy_peri.nodes,deepcopy(dummy_node))
+
+
+		dummy_node=node()
+		dummy_node.xy.x=i.node.xy.x+i.zone.pos_width
+		dummy_node.xy.y=i.node.xy.y+i.zone.pos_height
+		push!(dummy_peri.nodes,deepcopy(dummy_node))
+
+		dummy_node=node()
+		dummy_node.xy.x=i.node.xy.x-i.zone.neg_width
+		dummy_node.xy.y=i.node.xy.y+i.zone.pos_height
+		push!(dummy_peri.nodes,deepcopy(dummy_node))
+
+		push!(Owpp_peri,deepcopy(dummy_peri))
 	end
 
 	for i in ocean.bndryPnts
@@ -30,34 +56,35 @@ function ppf_printOcnXY(ocean)
 		push!(domNodes,(i.xy.x,i.xy.y))
 	end
 
-	#for i in ocean.owpps
-		i=ocean.owpps[length(ocean.owpps)-4]
+	for i in ocean.owpps
+		#i=ocean.owpps[length(ocean.owpps)]
+		#i=ocean.owpps[1]
+		#for j in i.zone.pnts
+		#	push!(domOwpps,(j.xy.x,j.xy.y))
+		#end
 		for j in i.zone.pnts
-			push!(domOwpps,(j.xy.x,j.xy.y))
-		end
-		for j in i.zone.periPnts
 			push!(domOwpps_peri,(j.xy.x,j.xy.y))
 		end
 		for j in i.mv_zone.pnts
 			push!(domOwppsMV,(j.xy.x,j.xy.y))
 		end
-		for j in i.mv_zone.periPnts
-			push!(domOwpps_MVperi,(j.xy.x,j.xy.y))
-		end
-	#end
+		#for j in i.mv_zone.pnts
+		#	push!(domOwpps_MVperi,(j.xy.x,j.xy.y))
+		#end
+	end
 
 	for h in ocean.nogos
 		for i in h.nodes
-			push!(nogo,(i.xy.x,i.xy.y))
+			push!(ng,(i.xy.x,i.xy.y))
 		end
-		push!(nogo,(h.nodes[1].xy.x,h.nodes[1].xy.y))
+		push!(ng,(h.nodes[1].xy.x,h.nodes[1].xy.y))
 	end
 	os=0
 
 	Xpcc=[x[1] for x in pcc]
 	Xgen=[x[1] for x in gen]
 	Xbnd=[x[1] for x in bnd]
-	Xnogo=[x[1] for x in nogo]
+	Xnogo=[x[1] for x in ng]
 	Xdom=[x[1] for x in domNodes]
 	Xowpp=[x[1] for x in domOwpps]
 	Xowpp_peri=[x[1] for x in domOwpps_peri]
@@ -67,7 +94,7 @@ function ppf_printOcnXY(ocean)
 	Ypcc=[x[2] for x in pcc]
 	Ygen=[x[2] for x in gen]
 	Ybnd=[x[2] for x in bnd]
-	Ynogo=[x[2] for x in nogo]
+	Ynogo=[x[2] for x in ng]
 	Ydom=[x[2] for x in domNodes]
 	Yowpp=[x[2] for x in domOwpps]
 	Yowpp_peri=[x[2] for x in domOwpps_peri]
@@ -83,7 +110,7 @@ function ppf_printOcnXY(ocean)
 	p=plot(Xpcc,Ypcc,annotations=pcc,color = :green,seriestype=:scatter,label="PCC",xaxis = ("km", font(15, "Courier")),yaxis = ("km", font(15, "Courier")))
 	plot!(p,Xdom,Ydom,color = :black,seriestype=:scatter,markersize = 1,label="")
 	plot!(p,XowppMV,YowppMV,color = :yellow,seriestype=:scatter,markersize = 2,label="")
-	plot!(p,Xowpp_MVperi,Yowpp_MVperi,color = :orange,seriestype=:scatter,markersize = 2,label="")
+	#plot!(p,Xowpp_MVperi,Yowpp_MVperi,color = :orange,seriestype=:scatter,markersize = 2,label="")
 	plot!(p,Xowpp,Yowpp,color = :blue,seriestype=:scatter,markersize = 2,label="")
 	plot!(p,Xowpp_peri,Yowpp_peri,color = :red,seriestype=:scatter,markersize = 2,label="")
 	plot!(p,Xgen,Ygen,annotations=gen,color = :blue,seriestype=:scatter,label="OWPP")
@@ -92,6 +119,18 @@ function ppf_printOcnXY(ocean)
 	plot!(p,Xbnd,Ybnd,color = :green,label="")
 	#plot!(p,Xnogo,Ynogo,color = :black,seriestype=:scatter,label="NOGO")
 	plot!(p,Xnogo,Ynogo,color = :black,label="")
+
+	for nds in Owpp_peri
+		Xperi=Array{Float64,1}()
+		Yperi=Array{Float64,1}()
+		for nd in nds.nodes
+			push!(Xperi,deepcopy(nd.xy.x))
+			push!(Yperi,deepcopy(nd.xy.y))
+		end
+		push!(Xperi,deepcopy(nds.nodes[1].xy.x))
+		push!(Yperi,deepcopy(nds.nodes[1].xy.y))
+		plot!(p,Xperi,Yperi,color = :black,label="")
+	end
 	p
 end
 
@@ -119,16 +158,16 @@ function ppf_printOcnGPS(ocean)
 
 	for h in ocean.nogos
 		for i in h.nodes
-			push!(nogo,(i.gps.lng,i.gps.lat))
+			push!(ng,(i.gps.lng,i.gps.lat))
 		end
-		push!(nogo,(h.nodes[1].gps.lng,h.nodes[1].gps.lat))
+		push!(ng,(h.nodes[1].gps.lng,h.nodes[1].gps.lat))
 	end
 	os=0
 
 	Xpcc=[x[1] for x in pcc]
 	Xgen=[x[1] for x in gen]
 	Xbnd=[x[1] for x in bnd]
-	Xnogo=[x[1] for x in nogo]
+	Xnogo=[x[1] for x in ng]
 
 	Ypcc=[x[2] for x in pcc]
 	Ygen=[x[2] for x in gen]
