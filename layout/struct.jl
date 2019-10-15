@@ -19,11 +19,26 @@ mutable struct gps
 end
 gps()=gps(69.69,69.69)
 ###################################################################
+mutable struct edge
+      head::Int64
+      tail::Int64
+      lngth::Float64
+end
+edge()=edge(69,69,69.69)
+###################################################################
 mutable struct node
       gps::gps
       xy::xy
+      edges::Array{edge}
+      G_cost::Float64
+      H_cost::Float64
+      F_cost::Float64
+      num::Int64
+      openQ::Bool
+      closedQ::Bool
+      parent::node
+      node()=(x=new();x.gps=gps();x.xy=xy();x.edges=Array{edge,1}();x.G_cost=Inf;x.H_cost=Inf;x.F_cost=Inf;x.num=69;x.openQ=false;x.closedQ=false; x.parent=x)
 end
-node()=node(gps(),xy())
 ###################################################################
 mutable struct farm
       pos_height::Float64
@@ -31,14 +46,11 @@ mutable struct farm
       neg_width::Float64
       neg_height::Float64
       area::Float64
-      #nbnd::line
-      #ebnd::line
-      #sbnd::line
-      #wbnd::line
       pnts::Array{node}
+      edges::Array{edge}
 end
 #farm()=farm(69.69,69.69,69.69,69.69,69.69,line(),line(),line(),line(),node[])
-farm()=farm(69.69,69.69,69.69,69.69,69.69,node[])
+farm()=farm(69.69,69.69,69.69,69.69,69.69,node[],edge[])
 ###################################################################
 mutable struct bus
       mvas::Array{Float64}
@@ -69,24 +81,12 @@ mutable struct conductor
       #kv
 end
 conductor()=conductor(bus(),bus(),69.69,69.69,69,69)
-###################################################################
-mutable struct edge
-      head::node
-      tail::node
-      lngth::Float64
-      build::Bool
-end
-edge()=edge(node(),node(),69.69,true)
 ####################################################################
 mutable struct domain
       nodes::Array{node}
       edges::Array{edge}
-      okNodes::Array{node}
-      okEdges::Array{edge}
-      nogoNodes::Array{node}
-      nogoEdges::Array{edge}
 end
-domain()=domain(node[],edge[],node[],edge[],node[],edge[])
+domain()=domain(node[],edge[])
 ####################################################################
 mutable struct nogo
       nodes::Array{node}

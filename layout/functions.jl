@@ -27,10 +27,20 @@ function lof_layoutEez()
     #set range of MV
     lof_mVrng(ocean)
 
-    #build domain "mesh"
+    #Add all background nodes
     lof_nodify(ocean)
 
+    #eliminate extra pcc nodes
+    lof_posPccs(ocean)
+
+    #number all nodes
+    lof_numNodes(ocean)
+
+    #add all background edges
+    lof_edgeify(ocean)
+
     ocean.buses=vcat(ocean.pccs, ocean.owpps)#collects all buses
+
 
     ##########Printing
     for value in ocean.pccs
@@ -48,7 +58,61 @@ function lof_layoutEez()
     return ocean
 end
 
+function lof_posPccs(ocn)
+    for node in ocn.discretedom.nodes
+        for pcc in ocn.pccs
+            if lof_pnt2pnt_dist(pcc.node.xy,node.xy) < ocn.sys.prec/2
+                node=pcc.node
+            end
+        end
+    end
+end
 
+function lof_numNodes(ocn)
+    for pcc in ocn.pccs
+        push!(ocn.discretedom.nodes,pcc.node)
+    end
+    for (indx,nd) in enumerate(ocn.discretedom.nodes)
+        nd.num=deepcopy(indx)
+    end
+end
+
+function lof_edgeify(ocn)
+    hyp=2*ocn.sys.prec
+    for (indx0,nd0) in enumerate(ocn.discretedom.nodes)
+        for indx1 = indx0+1:1:length(ocn.discretedom.nodes)
+            lnth=lof_pnt2pnt_dist(nd0.xy,ocn.discretedom.nodes[indx1].xy)
+            if (lnth < hyp)
+                dummy_edgeAB=edge()
+                dummy_edgeBA=edge()
+
+                dummy_edgeAB.tail=nd0.num
+                dummy_edgeAB.head=ocn.discretedom.nodes[indx1].num
+                dummy_edgeAB.lngth=lnth
+
+                dummy_edgeBA.tail=ocn.discretedom.nodes[indx1].num
+                dummy_edgeBA.head=nd0.num
+                dummy_edgeBA.lngth=lnth
+
+                push!(nd0.edges,deepcopy(dummy_edgeAB))
+                push!(ocn.discretedom.nodes[indx1].edges,deepcopy(dummy_edgeBA))
+                push!(ocn.discretedom.edges,nd0.edges[length(nd0.edges)])
+                push!(ocn.discretedom.edges,ocn.discretedom.nodes[indx1].edges[length(ocn.discretedom.nodes[indx1].edges)])
+            end
+        end
+    end
+    for (ind0,owpp) in enumerate(ocn.owpps)
+        owpp.node.num=length(ocn.discretedom.nodes)+1
+        push!(ocn.discretedom.nodes,owpp.node)
+        for (ind1,periNd) in enumerate(owpp.zone.pnts)
+            dummy_edge=edge()
+            dummy_edge.tail=owpp.node.num
+            dummy_edge.head=periNd.num
+            dummy_edge.lngth=0.5#length to connect to any point on perimeter of windfarm
+            push!(owpp.node.edges,dummy_edge)
+        end
+    end
+end
 
 function lof_nogoZones(ocn)
     for i=1:ocn.sys.nogoNum

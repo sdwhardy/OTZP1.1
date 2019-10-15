@@ -131,6 +131,29 @@ function ppf_printOcnXY(ocean)
 		push!(Yperi,deepcopy(nds.nodes[1].xy.y))
 		plot!(p,Xperi,Yperi,color = :black,label="")
 	end
+
+
+		for edge in ocean.discretedom.edges
+			Xedge=Array{Float64,1}()
+			Yedge=Array{Float64,1}()
+			push!(Xedge,ocean.discretedom.nodes[edge.tail].xy.x)
+			push!(Yedge,ocean.discretedom.nodes[edge.tail].xy.y)
+			push!(Xedge,ocean.discretedom.nodes[edge.head].xy.x)
+			push!(Yedge,ocean.discretedom.nodes[edge.head].xy.y)
+			#push!(nm,text(string(edge.tail),5,:black,:right))
+			plot!(p,Xedge,Yedge,color = :orange,label="")
+		end
+		for owpp in ocean.owpps
+			Xedge=Array{Float64,1}()
+			Yedge=Array{Float64,1}()
+			for edge in owpp.node.edges
+				push!(Xedge,ocean.discretedom.nodes[edge.tail].xy.x)
+				push!(Yedge,ocean.discretedom.nodes[edge.tail].xy.y)
+				push!(Xedge,ocean.discretedom.nodes[edge.head].xy.x)
+				push!(Yedge,ocean.discretedom.nodes[edge.head].xy.y)
+			end
+			plot!(p,Xedge,Yedge,color = :orange,label="")
+		end
 	p
 end
 
