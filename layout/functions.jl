@@ -59,19 +59,22 @@ function lof_layoutEez()
 end
 
 function lof_posPccs(ocn)
-    for node in ocn.discretedom.nodes
-        for pcc in ocn.pccs
-            if lof_pnt2pnt_dist(pcc.node.xy,node.xy) < ocn.sys.prec/2
-                node=pcc.node
+    for pcc in ocn.pccs
+        bsf_distance=Inf
+        bsf_node=Int64
+        for (indx,node) in enumerate(ocn.discretedom.nodes)
+            distance=lof_pnt2pnt_dist(pcc.node.xy,node.xy)
+            if  distance < bsf_distance
+                bsf_distance=deepcopy(distance)
+                bsf_node=deepcopy(indx)
             end
         end
+        println("bsf: "*string(bsf_node)*"at "*string(bsf_distance))
+        ocn.discretedom.nodes[bsf_node]=pcc.node
     end
 end
 
 function lof_numNodes(ocn)
-    for pcc in ocn.pccs
-        push!(ocn.discretedom.nodes,pcc.node)
-    end
     for (indx,nd) in enumerate(ocn.discretedom.nodes)
         nd.num=deepcopy(indx)
     end

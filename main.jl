@@ -16,11 +16,14 @@ include("cost/functions.jl")#
 include("layout/functions.jl")#
 include("eqp/functions.jl")#
 include("post_process/functions.jl")#costs
-
+include("astar/functions.jl")
 function main()
     ocean=lof_layoutEez()
-    ppf_printOcnGPS(ocean)
-    ppf_printOcnXY(ocean)
+    start=ocean.owpps[6].node
+    goal=ocean.pccs[2].node
+    path=as_Astar(start,goal,ocean)
+    #ppf_printOcnGPS(ocean)
+    ppf_printOcnXY(ocean,path,start)
 end
 
 main()

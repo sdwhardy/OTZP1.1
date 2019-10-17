@@ -1,5 +1,5 @@
 
-function ppf_printOcnXY(ocean)
+function ppf_printOcnXY(ocean,pth,goal)
 	Owpp_peri=Array{nogo,1}()
 	pcc=Array{Tuple,1}()
 	gen=Array{Tuple,1}()
@@ -132,7 +132,7 @@ function ppf_printOcnXY(ocean)
 		plot!(p,Xperi,Yperi,color = :black,label="")
 	end
 
-
+#=
 		for edge in ocean.discretedom.edges
 			Xedge=Array{Float64,1}()
 			Yedge=Array{Float64,1}()
@@ -153,6 +153,33 @@ function ppf_printOcnXY(ocean)
 				push!(Yedge,ocean.discretedom.nodes[edge.head].xy.y)
 			end
 			plot!(p,Xedge,Yedge,color = :orange,label="")
+		end=#
+		nd=pth
+		full=pth.G_cost
+		strtXY=pth.xy
+		while nd.num != goal.num
+			rough=full-nd.G_cost
+			if(nd.parent.parent.parent.num != goal.num && nd.parent.parent.num != goal.num && nd.parent.num != goal.num)
+				crow=lof_pnt2pnt_dist(nd.xy,nd.parent.parent.parent.xy)
+				road=nd.G_cost-nd.parent.parent.parent.G_cost
+				if (((road-crow)/crow) >= 0.08)
+					println("road: "*string(road))
+					println("crow: "*string(crow))
+					println(string(nd.num)*" dist: "*string((road-crow)/crow)*"%")
+				end
+			end
+			Xedge=Array{Float64,1}()
+			Yedge=Array{Float64,1}()
+			push!(Xedge,nd.xy.x)
+			push!(Yedge,nd.xy.y)
+			push!(Xedge,nd.parent.xy.x)
+			push!(Yedge,nd.parent.xy.y)
+			#push!(nm,text(string(edge.tail),5,:black,:right))
+			#println("node: "*string(nd.num)*" is roughly "*string(rough)*" km from goal")
+			#println("node: "*string(nd.num)*" is "*string(nd.H_cost)*" km from goal")
+			#println(string((rough-nd.H_cost)/nd.H_cost)*"%")
+			plot!(p,Xedge,Yedge,color = :blue,label="")
+			nd=nd.parent
 		end
 	p
 end
