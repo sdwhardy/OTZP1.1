@@ -1,3 +1,4 @@
+
 function as_Astar(start,goal,ocn)#node
     as_infCsts(ocn)
     openQ=Array{Tuple{Float64,Float64,Int64},1}()

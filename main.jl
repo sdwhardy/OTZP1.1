@@ -1,6 +1,9 @@
+using JuliaInterpreter
+using Debugger
 using DataFrames,XLSX,CSV
 using StatsPlots, SpecialFunctions
 using Polynomials
+
 
 include("wind/struct.jl")
 include("cost/struct.jl")#
@@ -19,11 +22,13 @@ include("post_process/functions.jl")#costs
 include("astar/functions.jl")
 function main()
     ocean=lof_layoutEez()
-    start=ocean.owpps[6].node
-    goal=ocean.pccs[2].node
+    start=ocean.owpps[3].node
+    goal=ocean.pccs[1].node
     path=as_Astar(start,goal,ocean)
     #ppf_printOcnGPS(ocean)
     ppf_printOcnXY(ocean,path,start)
+
+    ppf_printOcnXY(ocean)
 end
 
 main()

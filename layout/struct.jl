@@ -1,11 +1,15 @@
 ###################################################################
 mutable struct line
       ymn::Float64
-      ymax::Float64
-      m::Float64
-      b::Float64
+      ymx::Float64
+      xmn::Float64
+      xmx::Float64
+      m_findx::Float64
+      b_findx::Float64
+      m_findy::Float64
+      b_findy::Float64
 end
-line()=line(69.69,69.69,69.69,69.69)
+line()=line(69.69,69.69,69.69,69.69,69.69,69.69,69.69,69.69)
 ###################################################################
 mutable struct xy
       x::Float64
@@ -46,17 +50,21 @@ mutable struct farm
       neg_width::Float64
       neg_height::Float64
       area::Float64
-      pnts::Array{node}
+      nodes::Array{node}
       edges::Array{edge}
+      ebnd::Array{line}
+      wbnd::Array{line}
+      sbnd::Array{line}
+      nbnd::Array{line}
 end
 #farm()=farm(69.69,69.69,69.69,69.69,69.69,line(),line(),line(),line(),node[])
-farm()=farm(69.69,69.69,69.69,69.69,69.69,node[],edge[])
+farm()=farm(69.69,69.69,69.69,69.69,69.69,node[],edge[],line[],line[],line[],line[])
 ###################################################################
 mutable struct bus
-      mvas::Array{Float64}
-      wnds::Array{wind}
-      inputs::Array{Int64}
-      outputs::Array{Int64}
+      mva::Float64
+      wnd::wind
+      #inputs::Array{Int64}
+      #outputs::Array{Int64}
       name::String
       node::node
       zone::farm
@@ -64,9 +72,9 @@ mutable struct bus
       num::Int64
       id::Int64
 end
-bus()=bus(Float64[],wind[],Int64[],Int64[],"sixty-nine",node(),farm(),farm(),69,69)
+bus()=bus(69.69,wind(),"sixty-nine",node(),farm(),farm(),69,69)
 ###################################################################
-mutable struct conductor
+#=mutable struct conductor
       head::bus
       tail::bus
       lngth::Float64
@@ -80,7 +88,7 @@ mutable struct conductor
       #cost
       #kv
 end
-conductor()=conductor(bus(),bus(),69.69,69.69,69,69)
+conductor()=conductor(bus(),bus(),69.69,69.69,69,69)=#
 ####################################################################
 mutable struct domain
       nodes::Array{node}
@@ -90,8 +98,13 @@ domain()=domain(node[],edge[])
 ####################################################################
 mutable struct nogo
       nodes::Array{node}
+      bndryPnts::Array{node}
+      wbnd::Array{line}
+      ebnd::Array{line}
+      sbnd::Array{line}
+      nbnd::Array{line}
 end
-nogo()=nogo(node[])
+nogo()=nogo(node[],node[],line[],line[],line[],line[])
 ####################################################################
 mutable struct system
       nogoNum::Int64
@@ -105,12 +118,16 @@ mutable struct eez
       owpps::Array{bus}
       pccs::Array{bus}
       buses::Array{bus}
-      wp2pccs::Array{conductor}
-      wp2osss::Array{conductor}
-      oss2osss::Array{conductor}
-      oss2pccs::Array{conductor}
-      conductors::Array{conductor}
+      #wp2pccs::Array{conductor}
+      #wp2osss::Array{conductor}
+      #oss2osss::Array{conductor}
+      #oss2pccs::Array{conductor}
+      #conductors::Array{conductor}
       bndryPnts::Array{node}
+      ebnd::Array{line}
+      wbnd::Array{line}
+      nbnd::Array{line}
+      sbnd::Array{line}
       nogos::Array{nogo}
       discretedom::domain
       sys::system
@@ -120,5 +137,6 @@ mutable struct eez
       base::gps
       id_count::Int64
 end
-eez()=eez(bus[],bus[],bus[],bus[],conductor[],conductor[],conductor[],conductor[],conductor[],node[],nogo[],domain(),system(),cstS_ks(),69.69,69.69,gps(),69)
+#eez()=eez(bus[],bus[],bus[],bus[],conductor[],conductor[],conductor[],conductor[],conductor[],node[],nogo[],domain(),system(),cstS_ks(),69.69,69.69,gps(),69)
+eez()=eez(bus[],bus[],bus[],bus[],node[],line[],line[],line[],line[],nogo[],domain(),system(),cstS_ks(),69.69,69.69,gps(),69)
 ###################################################################
