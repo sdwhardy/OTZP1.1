@@ -40,8 +40,9 @@ mutable struct node
       num::Int64
       openQ::Bool
       closedQ::Bool
+      goal::Int64
       parent::node
-      node()=(x=new();x.gps=gps();x.xy=xy();x.edges=Array{edge,1}();x.G_cost=Inf;x.H_cost=Inf;x.F_cost=Inf;x.num=69;x.openQ=false;x.closedQ=false; x.parent=x)
+      node()=(x=new();x.gps=gps();x.xy=xy();x.edges=Array{edge,1}();x.G_cost=Inf;x.H_cost=Inf;x.F_cost=Inf;x.num=69;x.openQ=false;x.closedQ=false; x.goal=0; x.parent=x)
 end
 ###################################################################
 mutable struct farm
@@ -130,6 +131,7 @@ mutable struct eez
       sbnd::Array{line}
       nogos::Array{nogo}
       discretedom::domain
+      constrain::constraints
       sys::system
       finance::cstS_ks
       theta::Float64
@@ -138,5 +140,5 @@ mutable struct eez
       id_count::Int64
 end
 #eez()=eez(bus[],bus[],bus[],bus[],conductor[],conductor[],conductor[],conductor[],conductor[],node[],nogo[],domain(),system(),cstS_ks(),69.69,69.69,gps(),69)
-eez()=eez(bus[],bus[],bus[],bus[],node[],line[],line[],line[],line[],nogo[],domain(),system(),cstS_ks(),69.69,69.69,gps(),69)
+eez()=eez(bus[],bus[],bus[],bus[],node[],line[],line[],line[],line[],nogo[],domain(),constraints(),system(),cstS_ks(),69.69,69.69,gps(),69)
 ###################################################################

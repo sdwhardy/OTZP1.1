@@ -184,7 +184,7 @@
 	p
 end=#
 
-function ppf_printOcnXY(ocn,pth,goal)
+function ppf_printOcnXY(ocn,pths)
 
 	plotly()
 	p=plot([ocean.discretedom.nodes[1].xy.x],[ocean.discretedom.nodes[1].xy.y],color = :red,markersize=2,seriestype=:scatter,label="",xaxis = ("km", font(15, "Courier")),yaxis = ("km", font(15, "Courier")))
@@ -200,6 +200,26 @@ function ppf_printOcnXY(ocn,pth,goal)
 		plot!(p,[owpp.node.xy.x],[owpp.node.xy.y],color = :blue,seriestype=:scatter,label="")
 	end
 
+	#=for constraint in ocean.constrain.ellipses
+		exs=Array{Float64,1}()
+		wys_p=Array{Float64,1}()
+		wys_n=Array{Float64,1}()
+		for x=(constraint.x0-constraint.rx):ocean.sys.prec:(constraint.x0+constraint.rx)
+			y=(constraint.ry/constraint.rx)*sqrt(constraint.rx^2-(x-constraint.x0)^2)
+			push!(exs,x)
+			push!(wys_n,constraint.y0-y)
+			push!(wys_p,constraint.y0+y)
+
+		end
+		x=(constraint.x0+constraint.rx)
+		y=(constraint.ry/constraint.rx)*sqrt(constraint.rx^2-(x-constraint.x0)^2)
+		push!(exs,x)
+		push!(wys_n,constraint.y0-y)
+		push!(wys_p,constraint.y0+y)
+		plot!(p,exs,wys_n,color = :purple,label="")
+		plot!(p,exs,wys_p,color = :purple,label="")
+	end=#
+
 	#=for edge in ocean.discretedom.edges
 		plot!(p,[ocean.discretedom.nodes[edge.head].xy.x,ocean.discretedom.nodes[edge.tail].xy.x],[ocean.discretedom.nodes[edge.head].xy.y,ocean.discretedom.nodes[edge.tail].xy.y],color = :blue,label="")
 	end
@@ -210,32 +230,35 @@ function ppf_printOcnXY(ocn,pth,goal)
 		end
 	end=#
 
-	nd=pth
-	full=pth.G_cost
-	strtXY=pth.xy
-	while nd.num != goal.num
-		rough=full-nd.G_cost
-		if(nd.parent.parent.parent.num != goal.num && nd.parent.parent.num != goal.num && nd.parent.num != goal.num)
-			crow=lof_pnt2pnt_dist(nd.xy,nd.parent.parent.parent.xy)
-			road=nd.G_cost-nd.parent.parent.parent.G_cost
-			if (((road-crow)/crow) >= 0.08)
-				println("road: "*string(road))
-				println("crow: "*string(crow))
-				println(string(nd.num)*" dist: "*string((road-crow)/crow)*"%")
+	for pth in pths
+		nd=pth
+		full=pth.G_cost
+		strtXY=pth.xy
+		goal=deepcopy(nd.goal)
+		while nd.num != goal
+			rough=full-nd.G_cost
+			if(nd.parent.parent.parent.num != goal && nd.parent.parent.num != goal && nd.parent.num != goal)
+				crow=lof_pnt2pnt_dist(nd.xy,nd.parent.parent.parent.xy)
+				road=nd.G_cost-nd.parent.parent.parent.G_cost
+				if (((road-crow)/crow) >= 0.08)
+					println("road: "*string(road))
+					println("crow: "*string(crow))
+					println(string(nd.num)*" dist: "*string((road-crow)/crow)*"%")
+				end
 			end
+			Xedge=Array{Float64,1}()
+			Yedge=Array{Float64,1}()
+			push!(Xedge,nd.xy.x)
+			push!(Yedge,nd.xy.y)
+			push!(Xedge,nd.parent.xy.x)
+			push!(Yedge,nd.parent.xy.y)
+			#push!(nm,text(string(edge.tail),5,:black,:right))
+			#println("node: "*string(nd.num)*" is roughly "*string(rough)*" km from goal")
+			#println("node: "*string(nd.num)*" is "*string(nd.H_cost)*" km from goal")
+			#println(string((rough-nd.H_cost)/nd.H_cost)*"%")
+			plot!(p,Xedge,Yedge,color = :black,label="")
+			nd=nd.parent
 		end
-		Xedge=Array{Float64,1}()
-		Yedge=Array{Float64,1}()
-		push!(Xedge,nd.xy.x)
-		push!(Yedge,nd.xy.y)
-		push!(Xedge,nd.parent.xy.x)
-		push!(Yedge,nd.parent.xy.y)
-		#push!(nm,text(string(edge.tail),5,:black,:right))
-		#println("node: "*string(nd.num)*" is roughly "*string(rough)*" km from goal")
-		#println("node: "*string(nd.num)*" is "*string(nd.H_cost)*" km from goal")
-		#println(string((rough-nd.H_cost)/nd.H_cost)*"%")
-		plot!(p,Xedge,Yedge,color = :blue,label="")
-		nd=nd.parent
 	end
 
 	p

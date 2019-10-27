@@ -49,7 +49,11 @@ function lof_layoutEez()
 
     ocean.buses=vcat(ocean.pccs, ocean.owpps)#collects all buses
 
+    #calculate constraint ellipse approximations for owpps
+    opt_owppConstraints(ocean)
 
+    #calculate constraint ellipse approximations for nogos
+    opt_nogoConstraints(ocean)
 
 
     ##########Printing
@@ -102,7 +106,7 @@ function lof_edgeifySparse(ocn)
                 if verln == true
                     for y=str8line.ymn:ocn.sys.prec:str8line.ymx
                         x=y*str8line.m_findx+str8line.b_findx
-                        buildSection=lof_test4pnt(x,y,ocn)
+                        buildSection,area=lof_test4pnt(x,y,ocn)
                         #println("Prior: "*string(buildSection)*" - y= "*string(y)*" - x= "*string(x))
                         if (buildSection == false)
                             #println("Post y: "*string(buildSection)*" - y= "*string(y)*" - x= "*string(x))
@@ -117,7 +121,7 @@ function lof_edgeifySparse(ocn)
                     =#
                     for x=str8line.xmn:ocn.sys.prec:str8line.xmx
                         y=x*str8line.m_findy+str8line.b_findy
-                        buildSection=lof_test4pnt(x,y,ocn)
+                        buildSection,area=lof_test4pnt(x,y,ocn)
                         if (buildSection == false)
                             #println("Post x: "*string(buildSection)*" - y= "*string(y)*" - x= "*string(x))
                             buildEdge = false
@@ -133,6 +137,57 @@ function lof_edgeifySparse(ocn)
             @label no_str8line
             buildEdge = true
         end
+    end
+end
+
+#=
+oss=oss_nodeA
+nodes=domainA
+edges=edgesA
+lof_edgeifyOss(oss_nodeA,ocn,domainA,edgesA)
+=#
+function lof_edgeifyOss(oss,ocn,nodes,edges)
+    buildEdge = true
+    buildSection = true
+    nd_tail=oss
+    for indx1=1:1:length(nodes)-1
+        nd_head=nodes[indx1]
+        if (nd_tail != nd_head)
+            verln=lof_lineDirection(nd_tail,nd_head)
+            str8line=lof_getStr8line(nd_head,nd_tail)
+            if verln == true
+                for y=str8line.ymn:ocn.sys.prec:str8line.ymx
+                    x=y*str8line.m_findx+str8line.b_findx
+                    buildSection,area=lof_test4pnt(x,y,ocn)
+                    #println("Prior: "*string(buildSection)*" - y= "*string(y)*" - x= "*string(x))
+                    if (buildSection == false)
+                        #println("Post y: "*string(buildSection)*" - y= "*string(y)*" - x= "*string(x))
+                        #Post y: false - y= 43.76099727078574 - x= 22.99177624324488
+                        buildEdge = false
+                        @goto no_str8line
+                    end
+                end
+            else
+                #=
+                x=str8line.xmn+ocn.sys.prec
+                =#
+                for x=str8line.xmn:ocn.sys.prec:str8line.xmx
+                    y=x*str8line.m_findy+str8line.b_findy
+                    buildSection,area=lof_test4pnt(x,y,ocn)
+                    if (buildSection == false)
+                        #println("Post x: "*string(buildSection)*" - y= "*string(y)*" - x= "*string(x))
+                        buildEdge = false
+                        @goto no_str8line
+                    end
+                end
+            end
+        end
+        if (buildEdge == true)
+            #println("Building Edge!!")
+            lof_addEdge(nd_tail,nd_head,edges)
+        end
+        @label no_str8line
+        buildEdge = true
     end
 end
 
@@ -231,10 +286,15 @@ end
 function lof_test4pnt(x,y,ocn)
     within = false
     outside = true
+    area=nogo()
     #check owpps
     for owpp in ocn.owpps
         within=lof_pntWithin(x,y,owpp.zone)
         if (within == true)
+            area.ebnd=owpp.zone.ebnd
+            area.wbnd=owpp.zone.wbnd
+            area.nbnd=owpp.zone.nbnd
+            area.sbnd=owpp.zone.sbnd
             outside=false
             @goto pnt_inside
         end
@@ -244,12 +304,16 @@ function lof_test4pnt(x,y,ocn)
     for nogo in ocn.nogos
         within=lof_pntWithin(x,y,nogo)
         if (within == true)
+            area.ebnd=nogo.ebnd
+            area.wbnd=nogo.wbnd
+            area.nbnd=nogo.nbnd
+            area.sbnd=nogo.sbnd
             outside=false
             @goto pnt_inside
         end
     end
     @label pnt_inside
-    return outside
+    return outside,area
 end
 
 function lof_lineDirection(nd_tail,nd_head)
