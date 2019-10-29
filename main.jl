@@ -26,10 +26,12 @@ include("astar/functions.jl")
 include("optimization/functions.jl")
 include("topology/functions.jl")
 
+
+
 function main()
     ocean=lof_layoutEez()
     test=opt_mvOSSplacement(ocean,ocean.owpps,ocean.pccs[1])
-    ppf_printOcnXY(ocean,test)
+    ppf_printOcnXY(ocean,test[5])
     start=ocean.owpps[3].node
     goal=ocean.pccs[1].node
     path=as_Astar(start,goal,ocean.discretedom.nodes)

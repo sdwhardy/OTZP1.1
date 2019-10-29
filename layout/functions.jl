@@ -295,6 +295,7 @@ function lof_test4pnt(x,y,ocn)
             area.wbnd=owpp.zone.wbnd
             area.nbnd=owpp.zone.nbnd
             area.sbnd=owpp.zone.sbnd
+            area.nodes=owpp.zone.nodes
             outside=false
             @goto pnt_inside
         end
@@ -308,6 +309,7 @@ function lof_test4pnt(x,y,ocn)
             area.wbnd=nogo.wbnd
             area.nbnd=nogo.nbnd
             area.sbnd=nogo.sbnd
+            area.nodes=nogo.nodes
             outside=false
             @goto pnt_inside
         end

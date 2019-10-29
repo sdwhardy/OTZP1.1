@@ -1,11 +1,13 @@
+
 #=
 ocn=ocean
 owpps=ocn.owpps
 pcc=ocn.pccs[1]
-
-
-
+paths=opt_mvOSSplacement(ocn,owpps,pcc)
 =#
+
+
+
 function opt_mvOSSplacement(ocn,owpps,pcc)
     #owpps is an array of owpps ordered closest to farthest from the designated pcc
     owpps_tbl=top_mvTopos(owpps)
@@ -13,7 +15,7 @@ function opt_mvOSSplacement(ocn,owpps,pcc)
     oss_system=Array{node,1}()
     oss_systems=Array{Array{node,1},1}()
     for indx0=1:length(owpps_tbl[:,1])
-    #for indx0=1:2
+    #for indx0=1:5
         bus_dummies=bus[]
         mv_square=opt_mvConstraints(ocn,owpps_tbl[indx0,:])
         for (indx1,owpp) in enumerate(owpps_tbl[indx0,:])
@@ -26,89 +28,130 @@ function opt_mvOSSplacement(ocn,owpps,pcc)
     end
     return oss_systems
 end
-#=
-busesA=bus_dummies
-=#
-function opt_mvOssSystem(mv_square,busesA,pcc,ocn)
+
+#buses=bus_dummies
+
+function opt_mvOssSystem(mv_square,buses,pcc,ocn)
     #each owpp path
-    pathsA=Array{node,1}()
-    xys,owp=opt_buses2nodes4MVoptLocal(mv_square,busesA,pcc,ocn.owpps)
-    oss_nodeA=opt_mvOssOptimalLocal(xys,ocn.constrain.ellipses[owp.num],owp)
-    domainA=ocn.discretedom.nodes
-    edgesA=ocn.discretedom.edges
-    push!(pathsA,deepcopy(as_Astar(pcc.node,oss_nodeA,domainA)))
-    for owpp in busesA
-        push!(pathsA,deepcopy(as_Astar(owpp.node,oss_nodeA,domainA)))
+    paths=node[]
+    for owpp in buses
+        push!(paths,deepcopy(as_Astar(owpp.node,pcc.node,ocn.discretedom.nodes)))
     end
 
     #pick first node in each owpp path
-    xysB=Array{xy,1}()
-    push!(xysB,pcc.node.xy)
-    for path=2:length(pathsA)
-        pathsParent=pathsA[path].parent
-        while pathsParent.parent.num != busesA[path-1].node.num
+    xys=xy[]
+    push!(xys,pcc.node.xy)
+    for path=1:length(paths)
+        pathsParent=paths[path].parent
+        while pathsParent.parent.num != buses[path].node.num
             pathsParent=pathsParent.parent
         end
-        push!(xysB,pathsParent.xy)
+        push!(xys,deepcopy(pathsParent.xy))
+    end
+
+    paths=node[]
+    owp=opt_buses2nodes4MVoptLocal(mv_square,buses)
+    oss_node=opt_mvOssOptimalLocal(xys,ocn.constrain.ellipses,owp,length(ocn.owpps))
+    domain_oss=deepcopy(ocn.discretedom.nodes)
+    edges_oss=deepcopy(ocn.discretedom.edges)
+    bs,oss_node=opt_ifIn2Out(oss_node,ocn)
+    if bs==true
+        oss_node.num=deepcopy(length(domain_oss)+1)
+        push!(domain_oss,oss_node)
+        lof_edgeifyOss(oss_node,ocn,domain_oss,edges_oss)
+    end
+    push!(paths,deepcopy(as_Astar(domain_oss[pcc.node.num],oss_node,domain_oss)))
+    for owpp in buses
+        push!(paths,deepcopy(as_Astar(domain_oss[owpp.node.num],oss_node,domain_oss)))
+    end
+
+    #pick first node in each owpp path
+    xys=xy[]
+    push!(xys,pcc.node.xy)
+    #for path=2:length(pathsA)
+    for path=2:length(paths)
+        pathsParent=paths[path].parent
+        while pathsParent.parent.num != buses[path-1].node.num
+            pathsParent=pathsParent.parent
+        end
+        push!(xys,deepcopy(pathsParent.xy))
     end
 
     #re calculate the path
-    pathsB=Array{node,1}()
-    oss_nodeB=opt_mvOssOptimalLocal(xysB,ocn.constrain.ellipses[owp.num],owp)
-    domainB=ocn.discretedom.nodes
-    edgesB=ocn.discretedom.edges
-    push!(pathsB,deepcopy(as_Astar(pcc.node,oss_nodeB,domainB)))
-    for owpp in busesA
-        push!(pathsB,deepcopy(as_Astar(owpp.node,oss_nodeB,domainB)))
+    paths=node[]
+    oss_node=opt_mvOssOptimalLocal(xys,ocn.constrain.ellipses,owp,length(ocn.owpps))
+    domain_oss=deepcopy(ocn.discretedom.nodes)
+    edges_oss=deepcopy(ocn.discretedom.edges)
+    bs,oss_node=opt_ifIn2Out(oss_node,ocn)
+    if bs==true
+        oss_node.num=deepcopy(length(domain_oss)+1)
+        push!(domain_oss,oss_node)
+        lof_edgeifyOss(oss_node,ocn,domain_oss,edges_oss)
+    end
+    push!(paths,deepcopy(as_Astar(domain_oss[pcc.node.num],oss_node,domain_oss)))
+    for owpp in buses
+        push!(paths,deepcopy(as_Astar(domain_oss[owpp.node.num],oss_node,domain_oss)))
     end
 
-    #calculate path to 2nd from last of pcc to oss
-    pathsC=Array{node,1}()
-    domainC=ocn.discretedom.nodes
-    push!(pathsC,deepcopy(as_Astar(pcc.node,pathsB[1].parent,domainC)))
-    for owpp in busesA
-        push!(pathsC,deepcopy(as_Astar(owpp.node,pathsB[1].parent,domainC)))
+    #pick first node in each owpp path
+    xys=xy[]
+    for path=1:length(paths)
+        push!(xys,deepcopy(paths[path].parent.xy))
     end
-    #=
-    pthC=pathsC[2]
 
-    for indx=2:length(pathsC)
-        while pathsC[indx].parent.num != pathsC[indx].parent.parent.num
-            pathsC[indx]=pathsC[indx].parent
-        end
-        pathsC[indx].parent=ocn.owpps[indx].node
-    end=#
+    #re calculate the path
+    paths=node[]
+    oss_node=opt_mvOssOptimalLocal(xys,ocn.constrain.ellipses,owp,length(ocn.owpps))
+    domain_oss=deepcopy(ocn.discretedom.nodes)
+    edges_oss=deepcopy(ocn.discretedom.edges)
+    bs,oss_node=opt_ifIn2Out(oss_node,ocn)
+    if bs==true
+        oss_node.num=deepcopy(length(domain_oss)+1)
+        push!(domain_oss,oss_node)
+        lof_edgeifyOss(oss_node,ocn,domain_oss,edges_oss)
+    end
+    push!(paths,deepcopy(as_Astar(domain_oss[pcc.node.num],oss_node,domain_oss)))
+    for owpp in buses
+        push!(paths,deepcopy(as_Astar(domain_oss[owpp.node.num],oss_node,domain_oss)))
+    end
 
-    return pathsC
+    return paths
 end
 
-function opt_buses2nodes4MVoptLocal(mv_square,buses,pcc,owps)
-    xys=Array{xy,1}()
-    xy0=xy()
-    xy0.x=pcc.node.xy.x
-    xy0.y=pcc.node.xy.y
-    push!(xys,xy0)
+function opt_ifIn2Out(oss_node,ocn)
+    bs,a=lof_test4pnt(oss_node.xy.x,oss_node.xy.y,ocn)
+    dummy_dist=Float64
+    bsf_dist=Inf
+    bsf_indx=1
+    if bs==false
+        for (indx,pnt) in enumerate(a.nodes)
+            dummy_dist=lof_pnt2pnt_dist(oss_node.xy,pnt.xy)
+            if dummy_dist<bsf_dist
+                bsf_dist=deepcopy(dummy_dist)
+                bsf_indx=deepcopy(indx)
+            end
+        end
+        oss_node=a.nodes[bsf_indx]
+    else
+    end
+    return bs,oss_node
+end
+
+function opt_buses2nodes4MVoptLocal(mv_square,buses)
     target_owpp=1
     owp=bus()
+    owp=buses[target_owpp]
     for (indx,bs) in enumerate(buses)
-        xy0=xy()
-        xy0.x=bs.node.xy.x
-        xy0.y=bs.node.xy.y
-        push!(xys,xy0)
-    end
-
-    for (indx,bs) in enumerate(owps)
-        if owps[target_owpp].node.xy.y<mv_square.ymn
+        if buses[target_owpp].node.xy.y<mv_square.ymn
             target_owpp=deepcopy(indx)
-            owp=owps[target_owpp]
+            owp=buses[target_owpp]
         end
     end
-
-    return xys,owp
+    return owp
 end
 
-function opt_mvOssOptimalLocal(xys,constrain,owpp)
-    m = Model(with_optimizer(Ipopt.Optimizer))
+function opt_mvOssOptimalLocal(xys,constrain,owp,num_owpp)
+    m = Model(with_optimizer(Ipopt.Optimizer, print_level=0))
     @variable(m, x)
     @variable(m, y)
     @variable(m, lamda)
@@ -117,26 +160,32 @@ function opt_mvOssOptimalLocal(xys,constrain,owpp)
     #@NLconstraint(m, sum((x-xys[i].x)/(sqrt((xys[i].x-x)^2+(xys[i].y-y)^2)+eps) for i in 1:length(xys))==2*x*lamda)
     #@NLconstraint(m, sum((y-xys[i].y)/(sqrt((xys[i].x-x)^2+(xys[i].y-y)^2)+eps) for i in 1:length(xys))==2*y*lamda)
     @NLobjective(m, Min,sum((sqrt((xys[i].x-x)^2+(xys[i].y-y)^2)+eps) for i in 1:length(xys)))
-    @NLconstraint(m, (x-constrain.x0)^2/(constrain.rx)^2 + (y-constrain.y0)^2/(constrain.ry)^2 == 1)
-    #=for ellipse in constrain.ellipses[5:5]
+    #@NLconstraint(m, (x-constrain.x0)^2/(constrain.rx)^2 + (y-constrain.y0)^2/(constrain.ry)^2 == 1)
+    #@NLconstraint(m, (x-constrain.x0)^2/(constrain.rx)^2 + (y-constrain.y0)^2/(constrain.ry)^2 >= 1)
+    #@NLconstraint(m, (x-constrain.x0)^2/(owpp.zone.pos_width)^2 + (y-constrain.y0)^2/(constrain.ry)^2 <= 1)
+    for ellipse in constrain[1:length(constrain)-num_owpp]
         #println(ellipse)
-        @NLconstraint(m, (x-ellipse.x0)^2/(ellipse.rx)^2 + (y-ellipse.y0)^2/(ellipse.ry)^2 == 1)
+        @NLconstraint(m, (x-ellipse.x0)^2/(ellipse.rx)^2 + (y-ellipse.y0)^2/(ellipse.ry)^2 >= 1)
     end
+        @NLconstraint(m, (x-constrain[length(constrain)-num_owpp+owp.num].x0)^2/(constrain[length(constrain)-num_owpp+owp.num].rx)^2 + (y-constrain[length(constrain)-num_owpp+owp.num].y0)^2/(constrain[length(constrain)-num_owpp+owp.num].ry)^2 >= 1)
     #println(mv_square.ymx)
-    println(mv_square.ymn)
+    #=println(mv_square.ymn)
     println(mv_square.xmx)
     println(mv_square.xmn)
 
     println(xys)=#
     #@constraint(m, x >= mv_square.xmn)
-    #@constraint(m, y == mv_square.ymn)
+    @constraint(m, y == owp.node.xy.y)
     #@constraint(m, x <= mv_square.xmx)
     #@constraint(m, y <= mv_square.ymx)
     optimize!(m)
     temp_xy=xy()
     temp_xy.x=JuMP.value.((x))
     temp_xy.y=JuMP.value.((y))
-    node_oss=opt_findClosestNode(temp_xy,owpp.zone.nodes)
+    node_oss=node()
+    node_oss.xy=temp_xy
+
+    #node_oss=opt_findClosestNode(temp_xy,owpp.zone.nodes)
     return node_oss
 end
 

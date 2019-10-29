@@ -44,6 +44,7 @@ mutable struct node
       parent::node
       node()=(x=new();x.gps=gps();x.xy=xy();x.edges=Array{edge,1}();x.G_cost=Inf;x.H_cost=Inf;x.F_cost=Inf;x.num=69;x.openQ=false;x.closedQ=false; x.goal=0; x.parent=x)
 end
+#node()=(gps(),xy(),edge[],Inf,Inf,Inf,69,false,false,0,node())
 ###################################################################
 mutable struct farm
       pos_height::Float64
