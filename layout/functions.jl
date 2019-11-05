@@ -1051,6 +1051,7 @@ function lof_getPccData(id_count)
         dummy_bus=bus()
         dummy_bus.node.gps.lng=df.longitude[index]
         dummy_bus.node.gps.lat=df.latitude[index]
+        dummy_bus.kV=df.kv[index]
         dummy_bus.id=id_count
         push!(pccs,deepcopy(dummy_bus))
         pccs[length(pccs)].num=length(pccs)

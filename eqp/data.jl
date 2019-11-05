@@ -27,7 +27,7 @@ function eqpD_MAXcbls(kv)
     return pll
 end
 
-
+#km=50
 #33kV cables
 function eqpD_33cbl_opt(km)
     p2e=cstD_xchg()#exchange rate
@@ -142,8 +142,15 @@ function eqpD_300cbl_opt(cbls)
 end
 
 #Sets the limits that cables will be sized as a % of OWPP capacity
-function eqpD_eqp_lims()
-    return [0.99,1.1]
+function eqpD_eqp_lims(S)
+    #if S<=500
+        range=[0.99,1.6]
+    #elseif (S>350 && S<500)
+        #range=[0.95,3]
+    #else
+        #range=[0.95,3]
+    #end
+    return range
 end
 
 #failure data for cables

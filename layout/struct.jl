@@ -71,10 +71,11 @@ mutable struct bus
       node::node
       zone::farm
       mv_zone::farm
+      kV::Int64
       num::Int64
       id::Int64
 end
-bus()=bus(69.69,wind(),"sixty-nine",node(),farm(),farm(),69,69)
+bus()=bus(69.69,wind(),"sixty-nine",node(),farm(),farm(),69,69,69)
 ###################################################################
 #=mutable struct conductor
       head::bus
@@ -115,6 +116,20 @@ mutable struct system
 end
 system()=system(69,69.69,69.69)
 ####################################################################
+mutable struct circuit
+      binary::Array{Int8}
+      decimal::Int64
+      pcc::bus
+      owpps::Array{bus}
+      pths::Array{node}
+      cost::Float64
+      lengths::Array{Float64}
+      cbls::Array{cbl}
+      xfmrs::Array{xfo}
+      base_owp::bus
+end
+circuit()=circuit(Int8[],69,bus(),bus[],node[],69.69,Float64[],cbl[],xfo[],bus())
+#######################################################################################
 mutable struct eez
       osss::Array{bus}
       owpps::Array{bus}
@@ -135,11 +150,12 @@ mutable struct eez
       constrain::constraints
       sys::system
       finance::cstS_ks
+      circuits::Array{circuit}
       theta::Float64
       offset::Float64
       base::gps
       id_count::Int64
 end
 #eez()=eez(bus[],bus[],bus[],bus[],conductor[],conductor[],conductor[],conductor[],conductor[],node[],nogo[],domain(),system(),cstS_ks(),69.69,69.69,gps(),69)
-eez()=eez(bus[],bus[],bus[],bus[],node[],line[],line[],line[],line[],nogo[],domain(),constraints(),system(),cstS_ks(),69.69,69.69,gps(),69)
+eez()=eez(bus[],bus[],bus[],bus[],node[],line[],line[],line[],line[],nogo[],domain(),constraints(),system(),cstS_ks(),circuit[],69.69,69.69,gps(),69)
 ###################################################################

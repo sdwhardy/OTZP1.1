@@ -79,12 +79,12 @@ function eqpF_cbl_struct(cb,km,num)
     eqpD_cbl_fail(cbl_data)#Set failure data
     return cbl_data
 end
-
+#cbls=eqpF_cbl_opt(kv,l)
 #Selects sets of cables that satisfy ampacity requirements given by limits
 function eqpF_cbl_sel(cbls,S,l)
     cbls_2use=Array{cbl,1}()
 #Get limits and max cables possible in parallel - specified in eqp_data.jl
-    lims=eqpD_eqp_lims()
+    lims=eqpD_eqp_lims(S)
     parCmax=eqpD_MAXcbls(cbls[1][1])
     for i in cbls
         for j=1:parCmax
@@ -123,7 +123,7 @@ end
 #Selects sets of transformers that satisfy power requirements given limits
 function eqpF_xfo_sel(xfos,S)
     xfms_2use=Array{xfo,1}()
-    lims=eqpD_eqp_lims()#Get limits and max xfos possible in parallel - specified in eqp_data.jl
+    lims=eqpD_eqp_lims(S)#Get limits and max xfos possible in parallel - specified in eqp_data.jl
     parXmax=eqpD_MAXxfos()
     for i in xfos
         for j=1:parXmax

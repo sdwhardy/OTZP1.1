@@ -300,7 +300,7 @@ function cstF_dcCblCon_ttl(l,S,wp)
 end
 
 #Removes AC OSS cost if DC is used
-function cstF_correctDc(cbcn,oss,gens,ocn)
+#=function cstF_correctDc(cbcn,oss,gens,ocn)
     #makes all oss to gen distances
     genDists=Array{Float64,1}()
     mvConects=Array{Int64,1}()
@@ -323,7 +323,7 @@ function cstF_correctDc(cbcn,oss,gens,ocn)
         cbcn.costs.ttl=cbcn.costs.ttl-oppc+xfm
     end
     cbcn.costs.ttl=cbcn.costs.ttl-(cstD_cfs().FC_ac*(length(gens)-length(mvConects)))
-end
+end=#
 
 function cstF_mvConnect(l,gen,oss,ocn)
     S=gen.mva
@@ -421,6 +421,100 @@ function cstF_mVrng(rd,S,wp,ks,prec)
     end
     return (l+rd)
 end
+
+#no realistic scenario exists where 33kV is a better option
+function cstF_MvCbl3366(l,S,wp,ks)
+    kv=66
+    c66=cstF_MvCbl(l,S,kv,wp,ks)
+#=    kv=33
+    c33=cstF_MvCbl(l,S,kv,wp,ks)
+    cbls=[c33,c66]
+    low_cost=findmin([c33.costs.ttl,c66.costs.ttl])[2]
+    return cbls[low_cost]=#
+    return c66
+end
+
+function cstF_MvHvCblpcc(l,S,wp,ks,pcc)
+    cmv=cstF_MvCbl3366(l,S,wp,ks)
+    xpccMV=cstF_xfo_pcc(S,wp,ks)
+    xOss=cstF_xfo_oss(S,wp,ks)
+    cmv_05=cstF_MvCbl3366(0.5,S,wp,ks)
+    chv=cstF_HvCblallKvo2o(l-0.5,S,wp,ks)
+    xpccHV=xfo()
+    xpccHV.costs.ttl=0
+    if (pcc.kV != chv.elec.volt)
+        xpccHV=xpccMV
+    end
+    hvCst=cmv_05.costs.ttl+chv.costs.ttl+xpccHV.costs.ttl+xOss.costs.ttl
+    mvCst=cmv.costs.ttl+xpccMV.costs.ttl
+    cbls=[cmv,chv]
+    low_cost=findmin([mvCst,hvCst])[2]
+    return [cbls[low_cost]]
+end
+
+function cstF_MvHvCbloss(l,S,wp,ks,oss,kv)
+    #MV
+    cmv=cstF_MvCbl3366(l,S,wp,ks)
+    xOss=cstF_xfo_oss(S,wp,ks)
+    #HV
+    cmv_05=cstF_MvCbl3366(0.5,S,wp,ks)
+    chv=cstF_HvCblallKvo2o(l-0.5,S,wp,ks)
+    xMVHV=cstF_xfo_oss(10,wp,ks)
+    if (kv != chv.elec.volt)
+        xMVHV=xOss
+    end
+    hvCst=cmv_05.costs.ttl+chv.costs.ttl+xOss.costs.ttl+xMVHV.costs.ttl
+    mvCst=cmv.costs.ttl+xOss.costs.ttl
+    cbls=[[cmv],[cmv_05,chv]]
+
+    xfs=[[xOss],[xOss,xMVHV]]
+    low_cost=findmin([mvCst,hvCst])[2]
+    return cbls[low_cost],xfs[low_cost]
+end
+
+function cstF_HvCblallKvo2o(l,S,wp,ks)
+    kv=132
+    c132=cstF_HvCblo2o(l,S,kv,wp,ks)
+    kv=220
+    c220=cstF_HvCblo2o(l,S,kv,wp,ks)
+    kv=400
+    c400=cstF_HvCblo2o(l,S,kv,wp,ks)
+    cbls=[c132,c220,c400]
+    low_cost=findmin([c132.costs.ttl,c220.costs.ttl,c400.costs.ttl])[2]
+    return cbls[low_cost]
+end
+
+function cstF_HvCblallKvo2p(l,S,wp,ks,pcc)
+    x0=xfo()
+    x0.costs.ttl=0
+    x1=cstF_xfo_pcc(S,wp,ks)
+    kv=132
+    c132=cstF_HvCblo2p(l,S,kv,wp,ks)
+    if (kv == pcc.kV)
+        x132=x0
+    else
+        x132=x1
+    end
+    kv=220
+    c220=cstF_HvCblo2p(l,S,kv,wp,ks)
+    if (kv == pcc.kV)
+        x220=x0
+    else
+        x220=x1
+    end
+    kv=400
+    c400=cstF_HvCblo2p(l,S,kv,wp,ks)
+    if (kv == pcc.kV)
+        x400=x0
+    else
+        x400=x1
+    end
+    xfs=[x132,x220,x400]
+    cbls=[c132,c220,c400]
+    low_cost=findmin([c132.costs.ttl+x132.costs.ttl,c220.costs.ttl+x220.costs.ttl,c400.costs.ttl+x400.costs.ttl])[2]
+    return cbls[low_cost],xfs[low_cost]
+end
+
 #Cost of optimal cable under l,S,kv,wp
 function cstF_MvCbl(l,S,kv,wp,ks)
     cb=cbl()#create 1 object of type cbl_costs
@@ -441,7 +535,11 @@ function cstF_MvCbl(l,S,kv,wp,ks)
     end
     return cb#return optimal cable object
 end
-
+#=l=50
+S=250
+kv=400
+wp=ocean.owpps[1].wnd
+ks=ocean.finance=#
 #Cost of optimal cable under l,S,kv,wp
 function cstF_HvCblo2o(l,S,kv,wp,ks)
     cb=cbl()#create 1 object of type cbl_costs
@@ -484,10 +582,10 @@ end
 
 
 function cstF_xfo_oss(S,wp,ks)
-    if S <=100
+    #=if S <=100
         S=100
     else
-    end
+    end=#
     xfm=xfo()#create transformer object
     xfm.costs.ttl=Inf
     xfos_all=eqpD_xfo_opt()#get all available xformer sizes
@@ -506,7 +604,15 @@ function cstF_xfo_oss(S,wp,ks)
     end
     return xfm
 end
-
+#=
+S=500
+wp=ocean.owpps[1].wnd
+ks=ocean.finance
+=#
+#
+#
+#x=cstF_xfo_pcc(S,wp,ks)
+#plot(wp.ce)
 function cstF_xfo_pcc(S,wp,ks)
     if S <=100
         S=100
@@ -524,7 +630,7 @@ function cstF_xfo_pcc(S,wp,ks)
         value.costs.eens=eensF_eqp_eens(value,S,ks,wp)#eens calculation
         value.costs.ttl=cstF_xfo_sum(value.costs)#totals the xfo cost
         #store lowest cost option
-        if value.costs.ttl<xfm.costs.ttl
+        if (value.costs.ttl<xfm.costs.ttl)
             xfm=deepcopy(value)
         end
     end

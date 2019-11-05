@@ -14,7 +14,7 @@ function top_mvTopos(owpps)
     lngth=length(empty_tbl[:,1])
     indx=1
     while indx <= lngth
-        if (sum(empty_tbl[indx,:]) <= 1)
+        if (sum(empty_tbl[indx,:]) < 1)
             empty_tbl=empty_tbl[1:size(empty_tbl,1) .!= indx,: ]
             indx=indx-1
         end
@@ -46,3 +46,26 @@ function top_mvTopos(owpps)
 
     return empty_tbl
 end
+############################################################################
+#=
+bn=[1,1,1,0,1,1]
+dec=cir_bin2dec(bn)
+bn=cir_dec2bin(dec)
+=#
+function top_bin2dec(bn)
+    dec=0.0
+    for (i,bt) in enumerate(bn)
+        dec=dec+bt*(2^(i-1))
+    end
+    return dec
+end
+############################################################################
+function top_dec2bin(dec)
+    bn=Int8[]
+    while (dec != 0)
+        push!(bn,mod(dec,2))
+        dec=floor(Int64, dec/2)
+    end
+    return bn
+end
+############################################################################

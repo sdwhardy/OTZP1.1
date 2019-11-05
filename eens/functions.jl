@@ -1,6 +1,10 @@
 ################################################################################
 ################# EENS of identical equipment in parallel ######################
 ################################################################################
+#=
+eqp=xfos_2use[1]
+=#
+
 function eensF_eqp_eens(eqp, S, ks, wp)
     cpt_tbl=eensF_eqp_cpt(eqp,S)#make capacity probability table
     eens_all=[]#Create eens array
@@ -9,12 +13,13 @@ function eensF_eqp_eens(eqp, S, ks, wp)
     for i=1:length(cpt_tbl[:,1])#loop through rows of cpt
         ratio_curt=cpt_tbl[i,1]/S#find PU curtailment ratio
         diff=wp.pu.-ratio_curt#find closest PU of wind power series to PU curtail ratio
-        i_min=argmin(sqrt.((diff[:]).^2))
-
-        if i_min == length(diff) && diff[i_min]<0#check if curt ratio is at or above full power and set ce=curtailed energy to 0
-            ce=0
-        elseif i_min == 1 && diff[i_min]>0#check if curt ratio is at or below zero power and set ce to max
+        #i_min=argmin(sqrt.((diff[:]).^2))diff[5240]
+        i_min=argmin(abs.((diff[:])))
+#i_min=argmin(diff[:])
+        if ratio_curt>=1#check if curt ratio is at or above full power and set ce=curtailed energy to 0
             ce=wp.ce[1]
+        elseif ratio_curt<=0#check if curt ratio is at or below zero power and set ce to max
+            ce=wp.ce[length(wp.ce)]
         elseif i_min < length(diff) && diff[i_min]<0#if curt ratio is a mid point interpolate ce
             ce=eensF_intPole(ratio_curt,wp.pu[i_min],wp.pu[i_min+1],wp.ce[i_min],wp.ce[i_min+1])
         elseif i_min > 1 && diff[i_min]>0
@@ -81,7 +86,7 @@ end
 
 #creates a blank capacity probability table
 function eensF_blankTbl(rows,clms)
-    XFM_CBL=zeros(rows,clms)
+    XFM_CBL=trunc.(Int8,zeros(rows,clms))
 #=create all combinations ie
 transpose(
 11101000

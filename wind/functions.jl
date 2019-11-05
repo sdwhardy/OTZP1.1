@@ -1,4 +1,8 @@
 #Imports the Corwind data and calculates load loss/ constrained energy
+#ord=reverse(sort(wp.pu))
+#profiles=[getproperty(df,Symbol("Thornton"))]
+#wp=wndF_wndPrf(profiles)
+#plot(wp.pu,wp.ce./wp.ce[length(wp.ce)])
 function wndF_wndPrf(profiles)
     wp=Array{Float64,1}()
     dummy=Array{Float64,1}()
@@ -11,12 +15,8 @@ function wndF_wndPrf(profiles)
     wnd=wind()
     mx=findmax(wp)[1]
     ord=reverse(sort(wp))./mx
-    is=Array{Int,1}()
-    for i=1:length(ord)
-            push!(is,i)
-    end
-    wndF_conEng([is ord],wnd,mx)#constraint energy calc
-    wndF_ldLss([is ord], wnd)#calculates loss factor
+    wndF_conEng(ord,wnd)#constraint energy calc
+    wndF_ldLss(ord, wnd)#calculates loss factor
     wnd
     return wnd
 end
@@ -70,20 +70,60 @@ end=#
 
 #Calculates the loss factor associated with the wind profile
 function wndF_ldLss(div, wind)
-  wind.lf=(sum(div[:,2]))*0.85/length(div[:,2])#saves loss factor, 0.85 is wake penalization
+  wind.lf=(sum(div))*0.85/length(div)#saves loss factor, 0.85 is wake penalization
   #loss factor/llf formula ref: Guidelines on the calculation and use of loss factors Te Mana Hiko Electricity Authority
   #0.85 for wake effect from Evaluation of the wind direction uncertainty and its impact on wake modeling at the Horns Rev offshore wind farm
 #M. Gaumond  P.‐E. Réthoré  S. Ott  A. Peña  A. Bechmann  K. S. Hansen
   llf=0.0
-  for pu in div[:,2]
+  for pu in div
     llf=llf+(pu*0.85)^2
     #llf=llf+(pu)^2
   end
-  wind.delta=llf/length(div[:,2])#saves load loss factor
+  wind.delta=llf/length(div)#saves load loss factor
 end
 
+function wndF_conEng(graph,wnd)
+#create sized arrays
+    ce=Float64[]
+    for hr=1:length(graph)
+        smPu=0
+        for pu=1:hr
+            smPu=smPu+graph[pu]
+        end
+        smPu=smPu-(graph[hr]*hr)
+        push!(ce,smPu)
+    end
+    #wnd.ce=deepcopy(ce./ce[length(ce)])
+    wnd.ce=deepcopy(ce)
+    wnd.pu=deepcopy(graph)
+    return nothing
+end
+
+#graph=ord
+
 #calc for constrained energy
-function wndF_conEng(graph,wind,max)
+#=function wndF_conEng(graph,wnd)
+#create sized arrays
+    ce=Float64[]
+    for (i1,v1) in enumerate(graph)
+        if (v1>=1)
+            push!(ce,0)
+        else
+            sm=0
+            for i=1:1:i1
+                sm=sm+i/length(graph)
+            end
+            push!(ce,deepcopy(sm))
+        end
+    end
+    #wnd.ce=deepcopy(ce./ce[length(ce)])
+    wnd.ce=deepcopy(ce)
+    wnd.pu=deepcopy(graph)
+    return nothing
+end=#
+
+#calc for constrained energy
+#=function wndF_conEng(graph,wnd)
 #create sized arrays
     B=zeros(length(graph[:,2]),2)
     conENG=zeros(length(graph[:,2]),2)
@@ -95,7 +135,7 @@ function wndF_conEng(graph,wind,max)
     y_axis=reverse(area[:,1],2)#reverse x and y axis
     B=[x_axis y_axis]
     conENG=sortslices(B,dims=1)#sort by x axis
-    wind.ce=conENG[:,2]
-    wind.pu=conENG[:,1]#store pu and constraind energy in wind object
+    wnd.ce=conENG[:,2]
+    wnd.pu=conENG[:,1]#store pu and constraind energy in wind object
     return nothing
-end
+end=#
