@@ -417,7 +417,7 @@ function cstF_mVrng(rd,S,wp,ks,prec)
     while cst_mv < cst_hv
         l=l+prec
         cst_mv=cstF_MvCbl(l,S,mv,wp,ks).costs.ttl
-        cst_hv=cstF_HvCblo2o(l,S,hv,wp,ks).costs.ttl+cstF_xfo_oss(0,wp,ks).costs.ttl
+        cst_hv=cstF_HvCblo2o(l,S,hv,wp,ks).costs.ttl+cstF_xfo_oss(100,wp,ks).costs.ttl
     end
     return (l+rd)
 end

@@ -1,5 +1,5 @@
-using JuliaInterpreter
-using Debugger
+#using JuliaInterpreter
+#using Debugger
 using DataFrames,XLSX,CSV
 using StatsPlots, SpecialFunctions
 using Polynomials
@@ -33,8 +33,8 @@ function main()
     @time ocean=lof_layoutEez()
     @time ocean.circuits=opt_mvOSSplacement(ocean,ocean.owpps,ocean.pccs[2])
     #Working here returning the wrong equipment I think (drunk desu) choosing hv cables when mv are better
-    test=opt_hvOSSplacement(ocean,ocean.pccs[2])
-    ppf_printOcnXY(ocean,ocean.circuits[225].pths)
+    test[1]=opt_hvOSSplacement(ocean,ocean.pccs[2])
+    ppf_printOcnXY(ocean,ocean.circuits[1].pths)
 
     #start=ocean.owpps[3].node
     #goal=ocean.pccs[1].node
@@ -63,14 +63,14 @@ testing(ocean,test)
 main()
 
 
-l=38.156
+l=5
 km=l
-S=30
+S=250
 kv=66
-cstF_HvCblallKvo2p(l,S,ocean.owpps[1].wnd,ocean.finance)
-cb=cstF_MvCbl(l,S,kv,ocean.owpps[1].wnd,ocean.finance)
+cstF_HvCblallKvo2p(l,S,wnd,ocean.finance)
+cb=cstF_MvCbl(l,S,kv,wnd,cstD_cfs())
 kv=132
-cbo=cstF_HvCblo2o(l,S,kv,ocean.owpps[1].wnd,ocean.finance)
+cbo=cstF_HvCblo2o(l,S,kv,wnd,cstD_cfs())
 kv=220
 cb1=cstF_HvCblo2p(l,S,kv,ocean.owpps[1].wnd,ocean.finance)
 kv=400

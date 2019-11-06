@@ -124,11 +124,15 @@ mutable struct circuit
       pths::Array{node}
       cost::Float64
       lengths::Array{Float64}
-      cbls::Array{cbl}
-      xfmrs::Array{xfo}
+      owp_cbls::Array{cbl}
+      oss_cbls::Array{cbl}
+      pcc_cbls::Array{cbl}
+      owp_xfmrs::Array{xfo}
+      oss_xfmrs::Array{xfo}
+      pcc_xfmrs::Array{xfo}
       base_owp::bus
 end
-circuit()=circuit(Int8[],69,bus(),bus[],node[],69.69,Float64[],cbl[],xfo[],bus())
+circuit()=circuit(Int8[],69,bus(),bus[],node[],69.69,Float64[],cbl[],cbl[],cbl[],xfo[],xfo[],xfo[],bus())
 #######################################################################################
 mutable struct eez
       osss::Array{bus}

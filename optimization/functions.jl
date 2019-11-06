@@ -26,7 +26,24 @@ function opt_hvOSSplacement(ocn,pcc)
         oss_system=opt_hvOssSystem(bus_dummies,pcc,ocn,owpps_tbl_hv[indx0])
         push!(oss_systems,deepcopy(oss_system))
     end
+    ocn.circuits=opt_keepBestMvHv(mv_circs,oss_systems)
     return oss_systems
+end
+
+function opt_keepLowCostMvHv(mv_cs,hv_cs)
+    oss_stms=Array{circuit,1}()
+    for mv_c in mv_cs
+        for hv_c in hv_cs
+            if (mv_c.decimal==hv_c.decimal)
+                if (mv_c.cost <=  hv_c.cost)
+                    push!(oss_stms,deepcopy(mv_c))
+                else
+                    push!(oss_stms,deepcopy(hv_c))
+                end
+            else
+        end
+    end
+    return oss_stms
 end
 #length(owpps_tbl[:,1])
 #length(owpps_tbl_hv[:,1])
@@ -74,16 +91,20 @@ function opt_str8Connect(owp,pcc,ocn,bn)
     push!(circ.lengths,circ.pths[1].G_cost)
     #not necessarily MV
     cs=cstF_MvHvCblpcc(circ.lengths[length(circ.lengths)],owp.mva,owp.wnd,ocn.finance,pcc)
-    for c in cs
-        push!(circ.cbls,c)
+    for (i,c) in enumerate(cs)
+        if i == 1
+            push!(circ.owp_cbls,c)
+        elseif i == 2
+            push!(circ.oss_cbls,c)
+        end
     end
     circ.base_owp=owp
 
-    if (length(circ.cbls) > 1)
-        push!(circ.xfmrs,cstF_xfo_oss(owp.mva,owp.wnd,ocean.finance))
+    if (length(cs) > 1)
+        push!(circ.owp_xfmrs,cstF_xfo_oss(owp.mva,owp.wnd,ocean.finance))
     end
-    if (circ.cbls[1].elec.volt != pcc.kV)
-        push!(circ.xfmrs,cstF_xfo_pcc(owp.mva,owp.wnd,ocean.finance))
+    if (cs[length(cs)].elec.volt != pcc.kV)
+        push!(circ.pcc_xfmrs,cstF_xfo_pcc(owp.mva,owp.wnd,ocean.finance))
     end
     opt_ttlMvCirc(circ)
     return circ
@@ -100,7 +121,7 @@ function opt_hvOssSystem(buses,pcc,ocn,bn)
     push!(circ.lengths,circ.pths[length(circ.pths)].G_cost)
     println("mva: "*string(power_sum))
     cbl_xfo=cstF_HvCblallKvo2p(circ.lengths[length(circ.lengths)],power_sum,wind_sum,ocn.finance,pcc)
-    push!(circ.cbls,cbl_xfo[1])
+    push!(circ.pcc_cbls,cbl_xfo[1])
     pSum_hv=0
     pSum_hv132=0
     pSum_hv220=0
@@ -124,8 +145,12 @@ function opt_hvOssSystem(buses,pcc,ocn,bn)
         push!(circ.pths,deepcopy(as_Astar(domain_oss[owp.node.num],oss_node,domain_oss)))
         push!(circ.lengths,circ.pths[length(circ.pths)].G_cost)
         cs,xs=cstF_MvHvCbloss(circ.lengths[length(circ.lengths)],owp.mva,owp.wnd,ocn.finance,pcc,cbl_xfo[1].elec.volt)
-        for c in cs
-            push!(circ.cbls,c)
+        for (i,c) in enumerate(cs)
+            if (i==1)
+                push!(circ.owp_cbls,c)
+            elseif (i==2)
+                push!(circ.oss_cbls,c)
+            end
         end
         if length(cs) == 1
             iSum_mv=iSum_mv+1
@@ -135,7 +160,7 @@ function opt_hvOssSystem(buses,pcc,ocn,bn)
             wind_sumMv.delta=deepcopy((wind_sumMv.delta+owp.wnd.delta))
             wind_sumMv.lf=deepcopy((wind_sumMv.lf+owp.wnd.lf))
         elseif cs[2].elec.volt == cbl_xfo[1].elec.volt
-            push!(circ.xfmrs,xs[1])
+            push!(circ.owp_xfmrs,xs[1])
             iSum_hv=iSum_hv+1
             pSum_hv=pSum_hv+10
             wind_sumHv.pu=(wind_sumHv.pu.+deepcopy(owp.wnd.pu))
@@ -143,7 +168,7 @@ function opt_hvOssSystem(buses,pcc,ocn,bn)
             wind_sumHv.delta=(wind_sumHv.delta+deepcopy(owp.wnd.delta))
             wind_sumHv.lf=(wind_sumHv.lf+deepcopy(owp.wnd.lf))
         elseif cs[2].elec.volt == 132
-            push!(circ.xfmrs,xs[1])
+            push!(circ.owp_xfmrs,xs[1])
             iSum_hv132=iSum_hv132+1
             pSum_hv132=pSum_hv132+deepcopy(owp.mva)
             wind_sum132.pu=(wind_sum132.pu.+deepcopy(owp.wnd.pu))
@@ -151,7 +176,7 @@ function opt_hvOssSystem(buses,pcc,ocn,bn)
             wind_sum132.delta=(wind_sum132.delta+deepcopy(owp.wnd.delta))
             wind_sum132.lf=(wind_sum132.lf+deepcopy(owp.wnd.lf))
         elseif cs[2].elec.volt == 220
-            push!(circ.xfmrs,xs[1])
+            push!(circ.owp_xfmrs,xs[1])
             iSum_hv220=iSum_hv220+1
             pSum_hv220=pSum_hv220+deepcopy(owp.mva)
             wind_sum220.pu=(wind_sum220.pu.+deepcopy(owp.wnd.pu))
@@ -159,7 +184,7 @@ function opt_hvOssSystem(buses,pcc,ocn,bn)
             wind_sum220.delta=(wind_sum220.delta+deepcopy(owp.wnd.delta))
             wind_sum220.lf=(wind_sum220.lf+deepcopy(owp.wnd.lf))
         elseif cs[2].elec.volt == 400
-            push!(circ.xfmrs,xs[1])
+            push!(circ.owp_xfmrs,xs[1])
             iSum_hv400=iSum_hv400+1
             pSum_hv400=pSum_hv400+deepcopy(owp.mva)
             wind_sum400.pu=(wind_sum400.pu.+deepcopy(owp.wnd.pu))
@@ -195,29 +220,29 @@ function opt_hvOssSystem(buses,pcc,ocn,bn)
 
     if (pSum_hv132 == 0 && pSum_hv220 == 0 && pSum_hv400 == 0 && pSum_mv == 0)
         pSum_hv=pSum_hv+100
-        push!(circ.xfmrs,cstF_xfo_oss(pSum_hv,wind_sumHv,ocean.finance))
+        push!(circ.oss_xfmrs,cstF_xfo_oss(pSum_hv,wind_sumHv,ocean.finance))
     elseif pSum_hv != 0
-        push!(circ.xfmrs,cstF_xfo_oss(pSum_hv,wind_sumHv,ocean.finance))
+        push!(circ.oss_xfmrs,cstF_xfo_oss(pSum_hv,wind_sumHv,ocean.finance))
     end
 
     if pSum_mv != 0
-        push!(circ.xfmrs,cstF_xfo_oss(pSum_mv,wind_sumMv,ocean.finance))
+        push!(circ.owp_xfmrs,cstF_xfo_oss(pSum_mv,wind_sumMv,ocean.finance))
     end
 
     if pSum_hv132 != 0
-        push!(circ.xfmrs,cstF_xfo_oss(pSum_hv132,wind_sum132,ocean.finance))
+        push!(circ.oss_xfmrs,cstF_xfo_oss(pSum_hv132,wind_sum132,ocean.finance))
     end
 
     if pSum_hv220 != 0
-        push!(circ.xfmrs,cstF_xfo_oss(pSum_hv220,wind_sum220,ocean.finance))
+        push!(circ.oss_xfmrs,cstF_xfo_oss(pSum_hv220,wind_sum220,ocean.finance))
     end
 
     if pSum_hv400 != 0
-        push!(circ.xfmrs,cstF_xfo_oss(pSum_hv400,wind_sum400,ocean.finance))
+        push!(circ.oss_xfmrs,cstF_xfo_oss(pSum_hv400,wind_sum400,ocean.finance))
     end
 
-    if (pcc.kV != circ.cbls[1].elec.volt)
-        push!(circ.xfmrs,cstF_xfo_pcc(power_sum,wind_sum,ocean.finance))
+    if (pcc.kV != circ.pcc_cbls[1].elec.volt)
+        push!(circ.pcc_xfmrs,cstF_xfo_pcc(power_sum,wind_sum,ocean.finance))
     end
 
 
@@ -242,15 +267,15 @@ function opt_mvOssSystem(mv_square,buses,pcc,ocn,bn)
     #################### This needs to be a high voltage cable!!!
     println("mva: "*string(power_sum))
     cbl_xfo=cstF_HvCblallKvo2p(circ.lengths[length(circ.lengths)],power_sum,wind_sum,ocn.finance,pcc)
-    push!(circ.cbls,cbl_xfo[1])
-    push!(circ.xfmrs,cstF_xfo_oss(power_sum,wind_sum,ocean.finance))
-    if (circ.cbls[length(circ.cbls)].elec.volt != pcc.kV)
-        push!(circ.xfmrs,cbl_xfo[2])
+    push!(circ.pcc_cbls,cbl_xfo[1])
+    push!(circ.oss_xfmrs,cstF_xfo_oss(power_sum,wind_sum,ocean.finance))
+    if (circ.pcc_cbls[length(circ.pcc_cbls)].elec.volt != pcc.kV)
+        push!(circ.pcc_xfmrs,cbl_xfo[2])
     end
     for owp in buses
         push!(circ.pths,deepcopy(as_Astar(domain_oss[owp.node.num],oss_node,domain_oss)))
         push!(circ.lengths,circ.pths[length(circ.pths)].G_cost)
-        push!(circ.cbls,cstF_MvCbl3366(circ.lengths[length(circ.lengths)],owp.mva,owp.wnd,ocn.finance))
+        push!(circ.owp_cbls,cstF_MvCbl3366(circ.lengths[length(circ.lengths)],owp.mva,owp.wnd,ocn.finance))
     end
 
 
@@ -374,10 +399,22 @@ end
 
 function opt_ttlMvCirc(circ)
     circ.cost=0
-    for cb in circ.cbls
+    for cb in circ.pcc_cbls
         circ.cost=circ.cost+cb.costs.ttl
     end
-    for xf in circ.xfmrs
+    for cb in circ.oss_cbls
+        circ.cost=circ.cost+cb.costs.ttl
+    end
+    for cb in circ.owp_cbls
+        circ.cost=circ.cost+cb.costs.ttl
+    end
+    for xf in circ.pcc_xfmrs
+        circ.cost=circ.cost+xf.costs.ttl
+    end
+    for xf in circ.owp_xfmrs
+        circ.cost=circ.cost+xf.costs.ttl
+    end
+    for xf in circ.oss_xfmrs
         circ.cost=circ.cost+xf.costs.ttl
     end
 end

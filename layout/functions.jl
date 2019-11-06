@@ -20,22 +20,17 @@ function lof_layoutEez()
         lof_gps2cartesian4nodes(ocean.nogos[i].bndryPnts,ocean.base)#projects boundary points onto cartesian plane
     end
     lof_transformAxis(ocean)
-
     #set area of owpp
     lof_setAreaOwpp(ocean)
-
     #set range of MV
     lof_mVrng(ocean)
-
     #line all boundaries
     lof_bndafy(ocean)
     #Add all background nodes
     #lof_nodify(ocean)
     lof_nodifySparse(ocean)
-
     #number all nodes
     lof_numNodes(ocean)
-
     #eliminate extra pcc nodes
     #lof_posPccs(ocean)
 
@@ -43,15 +38,12 @@ function lof_layoutEez()
 
     #add all background edges
     lof_edgeifySparse(ocean)
-
     #add edges for owpp
     lof_owppEdgefy(ocean)
 
     ocean.buses=vcat(ocean.pccs, ocean.owpps)#collects all buses
-
     #calculate constraint ellipse approximations for owpps
     opt_owppConstraints(ocean)
-
     #calculate constraint ellipse approximations for nogos
     opt_nogoConstraints(ocean)
 
@@ -1047,7 +1039,7 @@ end
 function lof_getPccData(id_count)
     df = DataFrame(XLSX.readtable("layout//data.xlsx", "pcc_data")...)
     pccs=Array{bus,1}()
-    for index=1:length(df[!, 1])
+    for index=1:length(df[:, 1])
         dummy_bus=bus()
         dummy_bus.node.gps.lng=df.longitude[index]
         dummy_bus.node.gps.lat=df.latitude[index]
@@ -1063,7 +1055,7 @@ end
 function lof_getOwppData(id_count)
     df = DataFrame(XLSX.readtable("layout//data.xlsx", "owpp_data")...)
     owpps=Array{bus,1}()
-    for index=1:length(df[!, 1])
+    for index=1:length(df[:, 1])
         dummy_bus=bus()
         dummy_bus.node.gps.lng=df.longitude[index]
         dummy_bus.node.gps.lat=df.latitude[index]
@@ -1089,7 +1081,7 @@ end
 function lof_getBndData()
     df = DataFrame(XLSX.readtable("layout//data.xlsx", "domain_data")...)
     boundary=Array{node,1}()
-    for index=1:length(df[!, 1])
+    for index=1:length(df[:, 1])
         dummy_node=node()
         dummy_node.gps.lng=df.longitude[index]
         dummy_node.gps.lat=df.latitude[index]
@@ -1101,7 +1093,7 @@ end
 function lof_getNoGoData(index)
     df = DataFrame(XLSX.readtable("layout//data.xlsx", "nogo_data"*string(index))...)
     nogo=Array{node,1}()
-    for index=1:length(df[!, 1])
+    for index=1:length(df[:, 1])
         dummy_node=node()
         dummy_node.gps.lng=df.longitude[index]
         dummy_node.gps.lat=df.latitude[index]
