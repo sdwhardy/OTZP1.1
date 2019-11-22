@@ -447,9 +447,9 @@ function cstF_MvHvCblpcc(l,S,wp,ks,pcc)
     end
     hvCst=cmv_05.costs.ttl+chv.costs.ttl+xpccHV.costs.ttl+xOss.costs.ttl
     mvCst=cmv.costs.ttl+xpccMV.costs.ttl
-    cbls=[cmv,chv]
+    cbls=[[cmv],[cmv_05,chv]]
     low_cost=findmin([mvCst,hvCst])[2]
-    return [cbls[low_cost]]
+    return cbls[low_cost]
 end
 
 function cstF_MvHvCbloss(l,S,wp,ks,oss,kv)

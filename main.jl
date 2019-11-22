@@ -32,9 +32,9 @@ include("topology/functions.jl")
 function main()
     @time ocean=lof_layoutEez()
     @time ocean.circuits=opt_mvOSSplacement(ocean,ocean.owpps,ocean.pccs[2])
-    #Working here returning the wrong equipment I think (drunk desu) choosing hv cables when mv are better
-    test[1]=opt_hvOSSplacement(ocean,ocean.pccs[2])
-    ppf_printOcnXY(ocean,ocean.circuits[1].pths)
+    @time ocean.circuits=opt_hvOSSplacement(ocean,ocean.pccs[2])
+    @time ocean.circuits=opt_compoundOSS(ocean,ocean.pccs[2])
+    #ppf_printOcnXY(ocean,ocean.circuits[20].pths)
 
     #start=ocean.owpps[3].node
     #goal=ocean.pccs[1].node
@@ -44,28 +44,35 @@ function main()
 
     #ppf_printOcnXY(ocean)
 end
-function testing(ocn,tst)
+ocn=main()
+
+function testing(ocn)
     mv=0
     hv=0
+    total=0
     for i=1:length(ocn.circuits)
-        if (ocn.circuits[i].cost<tst[i].cost)
-            mv=mv+1
-            println(string(i)*" MV: "*string(ocn.circuits[i].binary)*" - "*string(ocn.circuits[i].cost))
-        else
+        println(string(ocn.circuits[i].decimal)*") Cst:"*string(ocn.circuits[i].cost)*", mvC:"*string(length(ocn.circuits[i].owp_MVcbls))*", hvC:"*string(length(ocn.circuits[i].owp_HVcbls))*", oss:"*string(length(ocn.circuits[i].osss_owp))*", mog:"*string(length(ocn.circuits[i].osss_mog))*", o2oC:"*string(length(ocn.circuits[i].oss2oss_cbls)))
+        total=total+ocn.circuits[i].cost
+        #if (ocn.circuits[i].cost>=tst[i].cost)
+        #    mv=mv+1
+            #println(string(i)*" MV: "*string(tst[i].cost)*" - "*string(bst_sys[i].cost))
+        #else
             #println("HV: "*string(ocn.circuits[i].binary)*" - "*string(tst[i].cost))
-            hv=hv+1
-        end
+        #    hv=hv+1
+        #end
     end
-    println(mv)
-    println(hv)
+    println(total)
 end
-testing(ocean,test)
+sea=eez()
+sea.circuits=deepcopy(ocn)
+testing(ocean)
 main()
-
+ocean.circuits[15]
+sea.circuits[14]
 
 l=5
 km=l
-S=250
+S=1500
 kv=66
 cstF_HvCblallKvo2p(l,S,wnd,ocean.finance)
 cb=cstF_MvCbl(l,S,kv,wnd,cstD_cfs())
@@ -76,4 +83,5 @@ cb1=cstF_HvCblo2p(l,S,kv,ocean.owpps[1].wnd,ocean.finance)
 kv=400
 cb2=cstF_HvCblo2o(l,S,kv,ocean.owpps[1].wnd,ocean.finance)
 cstF_xfo_oss(S,ocean.owpps[1].wnd,ocean.finance)
-cstF_xfo_pcc(S,ocean.owpps[1].wnd,ocean.finance)
+cstF_xfo_pcc(S,ocean.circuits[1].osss_mog[1].wnd,ocean.finance)
+cstF_xfo_pcc(power_sum,wind_sum,ocean.finance)

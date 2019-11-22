@@ -1,127 +1,151 @@
 
 #=
 ocn=ocean
-owpps=ocn.owpps
 pcc=ocn.pccs[2]
+owpps=ocn.owpps
 paths=opt_mvOSSplacement(ocn,owpps,pcc)
 =#
-function opt_hvOSSplacement(ocn,pcc)
-    mv_circs=ocn.circuits
-    owpps_tbl_hv=Array{Array{Int8, 1}, 1}()
+function opt_compoundOSS(ocn,pcc)
+    mhv_circs=ocn.circuits
+    owpps_tbl_mhv=Array{Array{Int8, 1}, 1}()
     oss_system=circuit()
-    oss_systems=Array{circuit,1}()
-    for crc in mv_circs
-        #if (crc.base_owp.num!=findfirst(x->x==true,crc.binary))
-            push!(owpps_tbl_hv,crc.binary)
-        #end
+    oss_QFl=Array{circuit,1}()
+    oss_QWrk=Array{circuit,1}()
+    rez=Array{circuit,1}()
+    term_Node=ocn.owpps[1].num
+    for crc in mhv_circs
+        if ((crc.owpps[1].num!=term_Node) && (sum(crc.binary)!=1))
+            crc.Qing=true
+            push!(oss_QFl,crc)
+        end
     end
-    for indx0=1:length(owpps_tbl_hv)
-    #for indx0=225:225
-        bus_dummies=bus[]
-        for (indx1,owp) in enumerate(owpps_tbl_hv[indx0])
-            if (owp==1)
-                push!(bus_dummies,ocn.owpps[indx1])
+    indx2=1
+    oss_QWrk=oss_QFl[indx2]
+    while (oss_QWrk.Qing != false)
+        parent_Osss=findall(x->x==1,oss_QWrk.binary)
+        least_parent=parent_Osss[1]
+        child_Osss=findall(x->x==0, oss_QWrk.binary)
+        homeless_child=findall(x->x>least_parent, child_Osss)
+        homeowning_child=findall(x->x<least_parent, child_Osss)
+        clms=trunc(Int,length(child_Osss)+1)
+        rows=trunc(Int, 2.0^clms)
+        empty_tbl_dumb=eensF_blankTbl(rows,clms)
+        empty_tbl=Array{Array{Int8, 1}, 1}()
+        for indx=1:length(empty_tbl_dumb[:,1])
+            if ((sum(empty_tbl_dumb[indx,1:length(homeowning_child)])>0)&&(empty_tbl_dumb[indx,least_parent]==1))
+                push!(empty_tbl,empty_tbl_dumb[indx,:])
             end
         end
-        oss_system=opt_hvOssSystem(bus_dummies,pcc,ocn,owpps_tbl_hv[indx0])
-        push!(oss_systems,deepcopy(oss_system))
-    end
-    ocn.circuits=opt_keepBestMvHv(mv_circs,oss_systems)
-    return oss_systems
-end
+        for indx0=1:length(empty_tbl[:,1])
+        #indx0=1
+            bs2add=bus[]
+            bn=deepcopy(oss_QWrk.binary)
+            for hoc in homeowning_child
+                if (empty_tbl[indx0][hoc]==1)
+                    bn[hoc]=1
+                    push!(bs2add,ocn.owpps[hoc])
+                end
+            end
+            for hlc in homeless_child
+                if (empty_tbl[indx0][hlc+1]==1)
+                    bn[child_Osss[hlc]]=1
+                    push!(bs2add,ocn.owpps[child_Osss[hlc]])
+                end
+            end
 
-function opt_keepLowCostMvHv(mv_cs,hv_cs)
-    oss_stms=Array{circuit,1}()
-    for mv_c in mv_cs
-        for hv_c in hv_cs
-            if (mv_c.decimal==hv_c.decimal)
-                if (mv_c.cost <=  hv_c.cost)
-                    push!(oss_stms,deepcopy(mv_c))
-                else
-                    push!(oss_stms,deepcopy(hv_c))
+            oss_system, domain_oss,domain_edges=opt_compoundOssSystem(bs2add,pcc,oss_QWrk,bn,ocn)
+            oss_QWrk.Qing=false
+            if (mhv_circs[oss_system.decimal].cost > oss_system.cost)
+                mhv_circs[oss_system.decimal]=deepcopy(oss_system)
+                ocn.discretedom.nodes=deepcopy(domain_oss)
+                ocn.discretedom.edges=deepcopy(domain_edges)
+                if (oss_system.binary[1]==0)
+                    indx1=1
+                    while (oss_system.decimal != oss_QFl[indx1].decimal)
+                        indx1=indx1+1
+                    end
+                    oss_system.Qing=true
+                    oss_QFl[indx1]=deepcopy(oss_system)
                 end
             else
-        end
-    end
-    return oss_stms
-end
-#length(owpps_tbl[:,1])
-#length(owpps_tbl_hv[:,1])
-function opt_mvOSSplacement(ocn,owpps,pcc)
-    #owpps is an array of owpps ordered closest to farthest from the designated pcc
-    owpps_tbl=top_mvTopos(owpps)
-    bus_dummies=Array{bus,1}()
-    oss_system=circuit()
-    oss_systems=Array{circuit,1}()
-    for indx0=1:length(owpps_tbl[:,1])
-    #for indx0=225:225
-        bus_dummies=bus[]
-        mv_square=opt_mvConstraints(ocn,owpps_tbl[indx0,:])
-        for (indx1,owpp) in enumerate(owpps_tbl[indx0,:])
-            if (owpp==1)
-                push!(bus_dummies,owpps[indx1])
             end
+            #=push!(rez,deepcopy(oss_system))
+            ocn.discretedom.nodes=deepcopy(domain_oss)
+            ocn.discretedom.edges=deepcopy(domain_edges)
+            if (oss_system.binary[1]==0)
+                indx1=1
+                while (oss_system.decimal != oss_QFl[indx1].decimal)
+                    indx1=indx1+1
+                end
+                oss_system.Qing=true
+                #println("oss_QFl[indx1] b4-1: "*string(length(oss_QFl[indx1].oss_wind.pu)))
+                oss_QFl[indx1]=deepcopy(oss_system)
+                #println("oss_QFl[indx1] b4-2: "*string(length(oss_QFl[indx1].oss_wind.pu)))
+            end=#
         end
-        if (sum(owpps_tbl[indx0,:])==1)
-            oss_system=opt_str8Connect(bus_dummies[1],pcc,ocn,owpps_tbl[indx0,:])
-        else
-            oss_system=opt_mvOssSystem(mv_square,bus_dummies,pcc,ocn,owpps_tbl[indx0,:])
+        oss_QWrk.Qing = false
+        while (indx2 <= length(oss_QFl) && oss_QFl[indx2].Qing==false)
+            indx2=indx2+1
         end
-        push!(oss_systems,deepcopy(oss_system))
+        if (indx2 <= length(oss_QFl))
+            oss_QWrk=oss_QFl[indx2]
+            println("position in oss_QFl: "*string(indx2)*"/"*string(length(oss_QFl)))
+        end
     end
-    return oss_systems
+    return mhv_circs
 end
 #=
-function opt_mvlnth(syss)
-    for sys in syss
-        for pth in sys.pths
-            push!(sys.lengths,pth.G_cost)
-        end
-    end
-end=#
-#owp=bus_dummies[1]
-#bn=owpps_tbl[indx0,:]
-function opt_str8Connect(owp,pcc,ocn,bn)
+buses=bs2add
+parnt=oss_QWrk
+=#
+function opt_compoundOssSystem(buses,pcc,parnt,bn,ocn)
     circ=circuit()
     circ.binary=bn
+    circ.parent_circ=parnt.decimal
     circ.decimal=top_bin2dec(bn)
-    circ.pcc=pcc
-    push!(circ.owpps,owp)
-    push!(circ.pths,as_Astar(owp.node,pcc.node,ocn.discretedom.nodes))
-    push!(circ.lengths,circ.pths[1].G_cost)
-    #not necessarily MV
-    cs=cstF_MvHvCblpcc(circ.lengths[length(circ.lengths)],owp.mva,owp.wnd,ocn.finance,pcc)
-    for (i,c) in enumerate(cs)
-        if i == 1
-            push!(circ.owp_cbls,c)
-        elseif i == 2
-            push!(circ.oss_cbls,c)
+    circ.pcc=deepcopy(pcc)
+    for (indx,owp) in enumerate(bn)
+        if (owp==1)
+            push!(circ.owpps,ocn.owpps[indx])
         end
     end
-    circ.base_owp=owp
 
-    if (length(cs) > 1)
-        push!(circ.owp_xfmrs,cstF_xfo_oss(owp.mva,owp.wnd,ocean.finance))
-    end
-    if (cs[length(cs)].elec.volt != pcc.kV)
-        push!(circ.pcc_xfmrs,cstF_xfo_pcc(owp.mva,owp.wnd,ocean.finance))
-    end
-    opt_ttlMvCirc(circ)
-    return circ
-end
-#buses=bus_dummies
-#bn=owpps_tbl_hv[indx0]
-
-function opt_hvOssSystem(buses,pcc,ocn,bn)
     xys=opt_mvhvOss1stLocal(buses,pcc,ocn)
+    oss=bus()
+    oss.node=deepcopy(parnt.osss_mog[length(parnt.osss_mog)].node)
+    oss.wnd=deepcopy(parnt.osss_mog[length(parnt.osss_mog)].wnd)
+    oss.mva=deepcopy(parnt.osss_mog[length(parnt.osss_mog)].mva)
+    push!(xys,oss.node.xy)
+    push!(buses,oss)
     owp=buses[1]
-    domain_oss,oss_node,power_sum,wind_sum=opt_adjustPath(owp,ocn,xys,buses,pcc)
-    circ=circuit()
+    domain_oss,oss_node,power_sum,wind_sum,edges_oss=opt_adjustPath(owp,ocn,xys,buses,pcc)
     push!(circ.pths,deepcopy(as_Astar(domain_oss[pcc.node.num],oss_node,domain_oss)))
     push!(circ.lengths,circ.pths[length(circ.pths)].G_cost)
-    println("mva: "*string(power_sum))
     cbl_xfo=cstF_HvCblallKvo2p(circ.lengths[length(circ.lengths)],power_sum,wind_sum,ocn.finance,pcc)
-    push!(circ.pcc_cbls,cbl_xfo[1])
+    #here
+    currentNode=circ.pths[1]
+    goalNode=circ.pths[1].goal
+    push!(cbl_xfo[1].pth,deepcopy(currentNode))
+    while currentNode.num != goalNode
+        push!(cbl_xfo[1].pth,deepcopy(currentNode.parent))
+        currentNode=currentNode.parent
+    end
+    push!(circ.pcc_cbls,deepcopy(cbl_xfo[1]))
+    circ.osss_owp=deepcopy(parnt.osss_owp)
+    circ.osss_mog=deepcopy(parnt.osss_mog)
+    circ.owp_MVcbls=deepcopy(parnt.owp_MVcbls)
+    circ.owp_HVcbls=deepcopy(parnt.owp_HVcbls)
+    circ.oss2oss_cbls=deepcopy(parnt.oss2oss_cbls)
+    push!(circ.pths,deepcopy(as_Astar(domain_oss[parnt.osss_mog[length(parnt.osss_mog)].node.num],oss_node,domain_oss)))
+    push!(circ.oss2oss_cbls,deepcopy(cstF_HvCblo2o(circ.pths[length(circ.pths)].G_cost,parnt.osss_mog[length(parnt.osss_mog)].mva,parnt.pcc_cbls[length(parnt.pcc_cbls)].elec.volt,parnt.osss_mog[length(parnt.osss_mog)].wnd,ocn.finance)))
+    currentNode=circ.pths[length(circ.pths)]
+    goalNode=circ.pths[length(circ.pths)].goal
+    push!(circ.oss2oss_cbls[length(circ.oss2oss_cbls)].pth,deepcopy(currentNode))
+    while currentNode.num != goalNode
+        push!(circ.oss2oss_cbls[length(circ.oss2oss_cbls)].pth,deepcopy(currentNode.parent))
+        currentNode=currentNode.parent
+    end
+    circ.oss2oss_cbls[length(circ.oss2oss_cbls)].pth=reverse!(circ.oss2oss_cbls[length(circ.oss2oss_cbls)].pth)
     pSum_hv=0
     pSum_hv132=0
     pSum_hv220=0
@@ -141,16 +165,61 @@ function opt_hvOssSystem(buses,pcc,ocn,bn)
     wind_sum132=deepcopy(wind_sumMv)
     wind_sum220=deepcopy(wind_sumMv)
     wind_sum400=deepcopy(wind_sumMv)
-    for owp in buses
+    if (circ.oss2oss_cbls[length(circ.oss2oss_cbls)].elec.volt==circ.pcc_cbls[length(circ.pcc_cbls)].elec.volt)
+        iSum_hv=iSum_hv+1
+        pSum_hv=pSum_hv+10
+        wind_sumHv.pu=(wind_sumHv.pu.+deepcopy(parnt.osss_mog[length(parnt.osss_mog)].wnd.pu))
+        wind_sumHv.ce=(wind_sumHv.ce.+deepcopy(parnt.osss_mog[length(parnt.osss_mog)].wnd.ce))
+        wind_sumHv.delta=(wind_sumHv.delta+deepcopy(parnt.osss_mog[length(parnt.osss_mog)].wnd.delta))
+        wind_sumHv.lf=(wind_sumHv.lf+deepcopy(parnt.osss_mog[length(parnt.osss_mog)].wnd.lf))
+    elseif (circ.oss2oss_cbls[length(circ.oss2oss_cbls)].elec.volt==132)
+        iSum_hv132=iSum_hv132+1
+        pSum_hv132=pSum_hv132+deepcopy(parnt.osss_mog[length(parnt.osss_mog)].mva)
+        wind_sum132.pu=(wind_sum132.pu.+deepcopy(parnt.osss_mog[length(parnt.osss_mog)].wnd.pu))
+        wind_sum132.ce=(wind_sum132.ce.+deepcopy(parnt.osss_mog[length(parnt.osss_mog)].wnd.ce))
+        wind_sum132.delta=(wind_sum132.delta+deepcopy(parnt.osss_mog[length(parnt.osss_mog)].wnd.delta))
+        wind_sum132.lf=(wind_sum132.lf+deepcopy(parnt.osss_mog[length(parnt.osss_mog)].wnd.lf))
+    elseif (circ.oss2oss_cbls[length(circ.oss2oss_cbls)].elec.volt==220)
+        iSum_hv220=iSum_hv220+1
+        pSum_hv220=pSum_hv220+deepcopy(parnt.osss_mog[length(parnt.osss_mog)].mva)
+        wind_sum220.pu=(wind_sum220.pu.+deepcopy(parnt.osss_mog[length(parnt.osss_mog)].wnd.pu))
+        wind_sum220.ce=(wind_sum220.ce.+deepcopy(parnt.osss_mog[length(parnt.osss_mog)].wnd.ce))
+        wind_sum220.delta=(wind_sum220.delta+deepcopy(parnt.osss_mog[length(parnt.osss_mog)].wnd.delta))
+        wind_sum220.lf=(wind_sum220.lf+deepcopy(parnt.osss_mog[length(parnt.osss_mog)].wnd.lf))
+    elseif (circ.oss2oss_cbls[length(circ.oss2oss_cbls)].elec.volt==400)
+        iSum_hv400=iSum_hv400+1
+        pSum_hv400=pSum_hv400+deepcopy(parnt.osss_mog[length(parnt.osss_mog)].mva)
+        wind_sum400.pu=(wind_sum400.pu.+deepcopy(parnt.osss_mog[length(parnt.osss_mog)].wnd.pu))
+        wind_sum400.ce=(wind_sum400.ce.+deepcopy(parnt.osss_mog[length(parnt.osss_mog)].wnd.ce))
+        wind_sum400.delta=(wind_sum400.delta+deepcopy(parnt.osss_mog[length(parnt.osss_mog)].wnd.delta))
+        wind_sum400.lf=(wind_sum400.lf+deepcopy(parnt.osss_mog[length(parnt.osss_mog)].wnd.lf))
+    else
+    end
+    for owp in buses[1:length(buses)-1]
         push!(circ.pths,deepcopy(as_Astar(domain_oss[owp.node.num],oss_node,domain_oss)))
-        push!(circ.lengths,circ.pths[length(circ.pths)].G_cost)
-        cs,xs=cstF_MvHvCbloss(circ.lengths[length(circ.lengths)],owp.mva,owp.wnd,ocn.finance,pcc,cbl_xfo[1].elec.volt)
-        for (i,c) in enumerate(cs)
-            if (i==1)
-                push!(circ.owp_cbls,c)
-            elseif (i==2)
-                push!(circ.oss_cbls,c)
+        cs,xs=cstF_MvHvCbloss(circ.pths[length(circ.pths)].G_cost,owp.mva,owp.wnd,ocn.finance,pcc,cbl_xfo[1].elec.volt)
+        currentNode=circ.pths[length(circ.pths)]
+        goalNode=circ.pths[length(circ.pths)].goal
+        if length(cs) == 1
+            while currentNode.num != goalNode
+                push!(cs[1].pth,deepcopy(currentNode))
+                currentNode=currentNode.parent
             end
+            push!(cs[1].pth,deepcopy(currentNode))
+            cs[1].pth=reverse!(cs[1].pth)
+            push!(circ.owp_MVcbls,deepcopy(cs[1]))
+        elseif length(cs) == 2
+            push!(cs[2].pth,deepcopy(currentNode))
+            while currentNode.parent.num != goalNode
+                push!(cs[2].pth,deepcopy(currentNode.parent))
+                currentNode=currentNode.parent
+            end
+            push!(cs[1].pth,deepcopy(currentNode))
+            push!(cs[1].pth,deepcopy(currentNode.parent))
+            cs[1].pth=reverse!(cs[1].pth)
+            cs[2].pth=reverse!(cs[2].pth)
+            push!(circ.owp_MVcbls,deepcopy(cs[1]))
+            push!(circ.owp_HVcbls,deepcopy(cs[2]))
         end
         if length(cs) == 1
             iSum_mv=iSum_mv+1
@@ -160,7 +229,12 @@ function opt_hvOssSystem(buses,pcc,ocn,bn)
             wind_sumMv.delta=deepcopy((wind_sumMv.delta+owp.wnd.delta))
             wind_sumMv.lf=deepcopy((wind_sumMv.lf+owp.wnd.lf))
         elseif cs[2].elec.volt == cbl_xfo[1].elec.volt
-            push!(circ.owp_xfmrs,xs[1])
+            ossBus=bus()
+            ossBus.mva=owp.mva
+            ossBus.wnd=owp.wnd
+            ossBus.node=circ.owp_MVcbls[length(circ.owp_MVcbls)].pth[length(circ.owp_MVcbls[length(circ.owp_MVcbls)].pth)]
+            push!(ossBus.xfmrs,deepcopy(xs[1]))
+            push!(circ.osss_owp,deepcopy(ossBus))
             iSum_hv=iSum_hv+1
             pSum_hv=pSum_hv+10
             wind_sumHv.pu=(wind_sumHv.pu.+deepcopy(owp.wnd.pu))
@@ -168,7 +242,12 @@ function opt_hvOssSystem(buses,pcc,ocn,bn)
             wind_sumHv.delta=(wind_sumHv.delta+deepcopy(owp.wnd.delta))
             wind_sumHv.lf=(wind_sumHv.lf+deepcopy(owp.wnd.lf))
         elseif cs[2].elec.volt == 132
-            push!(circ.owp_xfmrs,xs[1])
+            ossBus=bus()
+            ossBus.mva=owp.mva
+            ossBus.wnd=owp.wnd
+            ossBus.node=circ.owp_MVcbls[length(circ.owp_MVcbls)].pth[length(circ.owp_MVcbls[length(circ.owp_MVcbls)].pth)]
+            push!(ossBus.xfmrs,deepcopy(xs[1]))
+            push!(circ.osss_owp,deepcopy(ossBus))
             iSum_hv132=iSum_hv132+1
             pSum_hv132=pSum_hv132+deepcopy(owp.mva)
             wind_sum132.pu=(wind_sum132.pu.+deepcopy(owp.wnd.pu))
@@ -176,7 +255,12 @@ function opt_hvOssSystem(buses,pcc,ocn,bn)
             wind_sum132.delta=(wind_sum132.delta+deepcopy(owp.wnd.delta))
             wind_sum132.lf=(wind_sum132.lf+deepcopy(owp.wnd.lf))
         elseif cs[2].elec.volt == 220
-            push!(circ.owp_xfmrs,xs[1])
+            ossBus=bus()
+            ossBus.mva=owp.mva
+            ossBus.wnd=owp.wnd
+            ossBus.node=circ.owp_MVcbls[length(circ.owp_MVcbls)].pth[length(circ.owp_MVcbls[length(circ.owp_MVcbls)].pth)]
+            push!(ossBus.xfmrs,deepcopy(xs[1]))
+            push!(circ.osss_owp,deepcopy(ossBus))
             iSum_hv220=iSum_hv220+1
             pSum_hv220=pSum_hv220+deepcopy(owp.mva)
             wind_sum220.pu=(wind_sum220.pu.+deepcopy(owp.wnd.pu))
@@ -184,7 +268,12 @@ function opt_hvOssSystem(buses,pcc,ocn,bn)
             wind_sum220.delta=(wind_sum220.delta+deepcopy(owp.wnd.delta))
             wind_sum220.lf=(wind_sum220.lf+deepcopy(owp.wnd.lf))
         elseif cs[2].elec.volt == 400
-            push!(circ.owp_xfmrs,xs[1])
+            ossBus=bus()
+            ossBus.mva=owp.mva
+            ossBus.wnd=owp.wnd
+            ossBus.node=circ.owp_MVcbls[length(circ.owp_MVcbls)].pth[length(circ.owp_MVcbls[length(circ.owp_MVcbls)].pth)]
+            push!(ossBus.xfmrs,deepcopy(xs[1]))
+            push!(circ.osss_owp,deepcopy(ossBus))
             iSum_hv400=iSum_hv400+1
             pSum_hv400=pSum_hv400+deepcopy(owp.mva)
             wind_sum400.pu=(wind_sum400.pu.+deepcopy(owp.wnd.pu))
@@ -219,74 +308,429 @@ function opt_hvOssSystem(buses,pcc,ocn,bn)
     wind_sum400.lf=wind_sum400.lf/iSum_hv400
 
     if (pSum_hv132 == 0 && pSum_hv220 == 0 && pSum_hv400 == 0 && pSum_mv == 0)
+        ossMOG=bus()
         pSum_hv=pSum_hv+100
-        push!(circ.oss_xfmrs,cstF_xfo_oss(pSum_hv,wind_sumHv,ocean.finance))
+        ossMOG.node=oss_node
+        push!(ossMOG.xfmrs,cstF_xfo_oss(pSum_hv,wind_sumHv,ocn.finance))
+        push!(circ.osss_mog,deepcopy(ossMOG))
     elseif pSum_hv != 0
-        push!(circ.oss_xfmrs,cstF_xfo_oss(pSum_hv,wind_sumHv,ocean.finance))
+        ossMOG=bus()
+        ossMOG.node=oss_node
+        push!(ossMOG.xfmrs,cstF_xfo_oss(pSum_hv,wind_sumHv,ocn.finance))
+        push!(circ.osss_mog,deepcopy(ossMOG))
+    else
+        ossMOG=bus()
+        ossMOG.node=oss_node
+        push!(circ.osss_mog,ossMOG)
     end
-
     if pSum_mv != 0
-        push!(circ.owp_xfmrs,cstF_xfo_oss(pSum_mv,wind_sumMv,ocean.finance))
+        push!(circ.osss_mog[length(circ.osss_mog)].xfmrs,deepcopy(cstF_xfo_oss(pSum_mv,wind_sumMv,ocn.finance)))
     end
-
     if pSum_hv132 != 0
-        push!(circ.oss_xfmrs,cstF_xfo_oss(pSum_hv132,wind_sum132,ocean.finance))
+        push!(circ.osss_mog[length(circ.osss_mog)].xfmrs,deepcopy(cstF_xfo_oss(pSum_hv132,wind_sum132,ocn.finance)))
     end
-
     if pSum_hv220 != 0
-        push!(circ.oss_xfmrs,cstF_xfo_oss(pSum_hv220,wind_sum220,ocean.finance))
+        push!(circ.osss_mog[length(circ.osss_mog)].xfmrs,deepcopy(cstF_xfo_oss(pSum_hv220,wind_sum220,ocn.finance)))
     end
-
     if pSum_hv400 != 0
-        push!(circ.oss_xfmrs,cstF_xfo_oss(pSum_hv400,wind_sum400,ocean.finance))
+        push!(circ.osss_mog[length(circ.osss_mog)].xfmrs,deepcopy(cstF_xfo_oss(pSum_hv400,wind_sum400,ocn.finance)))
     end
-
+    circ.osss_mog[length(circ.osss_mog)].mva=power_sum
+    circ.osss_mog[length(circ.osss_mog)].wnd=deepcopy(wind_sum)
+    circ.pcc=deepcopy(pcc)
     if (pcc.kV != circ.pcc_cbls[1].elec.volt)
-        push!(circ.pcc_xfmrs,cstF_xfo_pcc(power_sum,wind_sum,ocean.finance))
+        println("power: "*string(power_sum))
+        push!(circ.pcc.xfmrs,deepcopy(cstF_xfo_pcc(power_sum,wind_sum,ocn.finance)))
     end
-
 
     circ.binary=bn
     circ.decimal=top_bin2dec(bn)
-    circ.pcc=pcc
+    circ.base_owp=owp
+    opt_ttlMvCirc(circ)
+    #println("circ return: "*string(length(circ.osss_mog[length(circ.osss_mog)].wnd.pu)))
+    return circ, domain_oss,edges_oss
+end
+
+
+function opt_hvOSSplacement(ocn,pcc)
+    mv_circs=ocn.circuits
+    owpps_tbl_hv=Array{Array{Int8, 1}, 1}()
+    oss_system=circuit()
+    oss_systems=Array{circuit,1}()
+    for crc in mv_circs
+        #if (crc.base_owp.num!=findfirst(x->x==true,crc.binary))
+        push!(owpps_tbl_hv,crc.binary)
+        #end
+    end
+    for indx0=1:length(owpps_tbl_hv)
+    #for indx0=20:20
+        bus_dummies=bus[]
+        for (indx1,owp) in enumerate(owpps_tbl_hv[indx0])
+            if (owp==1)
+                push!(bus_dummies,ocn.owpps[indx1])
+            end
+        end
+        oss_system, discrete_dom, discrete_edges=opt_hvOssSystem(bus_dummies,pcc,ocn,owpps_tbl_hv[indx0])
+        if (oss_system.cost<mv_circs[indx0].cost)
+            mv_circs[indx0]=deepcopy(oss_system)
+            ocn.discretedom.nodes=deepcopy(discrete_dom)
+            ocn.discretedom.edges=deepcopy(discrete_edges)
+        end
+    end
+    return mv_circs
+end
+
+function opt_keepBestMvHv(mv_cs,hv_cs)
+    oss_stms=Array{circuit,1}()
+    for mv_c in mv_cs
+        for hv_c in hv_cs
+            if (mv_c.decimal==hv_c.decimal)
+                if (mv_c.cost <=  hv_c.cost)
+                    push!(oss_stms,deepcopy(mv_c))
+                else
+                    push!(oss_stms,deepcopy(hv_c))
+                end
+            else
+            end
+        end
+    end
+    return oss_stms
+end
+#length(owpps_tbl[:,1])
+#length(owpps_tbl_hv[:,1])
+function opt_mvOSSplacement(ocn,owpps,pcc)
+    #owpps is an array of owpps ordered closest to farthest from the designated pcc
+    owpps_tbl=top_mvTopos(ocn.owpps)
+    owpps_tbl=owpps_tbl[end:-1:1,end:-1:1]
+    bus_dummies=Array{bus,1}()
+    oss_system=circuit()
+    oss_systems=Array{circuit,1}()
+    for indx0=1:length(owpps_tbl[:,1])
+    #for indx0=4:4
+        bus_dummies=bus[]
+        mv_square=opt_mvConstraints(ocn,owpps_tbl[indx0,:])
+        for (indx1,owpp) in enumerate(owpps_tbl[indx0,:])
+            if (owpp==1)
+                push!(bus_dummies,owpps[indx1])
+            end
+        end
+        if (sum(owpps_tbl[indx0,:])==1)
+            oss_system=opt_str8Connect(bus_dummies[1],pcc,ocn,owpps_tbl[indx0,:])
+        else
+            oss_system=opt_mvOssSystem(mv_square,bus_dummies,pcc,ocn,owpps_tbl[indx0,:])
+        end
+        push!(oss_systems,deepcopy(oss_system))
+    end
+    return oss_systems
+end
+#=
+function opt_mvlnth(syss)
+    for sys in syss
+        for pth in sys.pths
+            push!(sys.lengths,pth.G_cost)
+        end
+    end
+end=#
+#owp=bus_dummies[1]
+#bn=owpps_tbl[indx0,:]
+function opt_str8Connect(owp,pcc,ocn,bn)
+    circ=circuit()
+    circ.binary=bn
+    circ.decimal=top_bin2dec(bn)
+    circ.pcc=deepcopy(pcc)
+    push!(circ.owpps,owp)
+    push!(circ.pths,as_Astar(owp.node,pcc.node,ocn.discretedom.nodes))
+    push!(circ.lengths,circ.pths[1].G_cost)
+    #not necessarily M
+    cs=cstF_MvHvCblpcc(circ.pths[1].G_cost,owp.mva,owp.wnd,ocn.finance,pcc)
+    currentNode=circ.pths[1]
+    goalNode=circ.pths[1].goal
+    if length(cs) == 1
+        while currentNode.parent.num != goalNode
+            push!(cs[1].pth,deepcopy(currentNode))
+            currentNode=currentNode.parent
+        end
+        push!(circ.owp_MVcbls,deepcopy(cs[1]))
+    elseif length(cs) == 2
+        push!(cs[2].pth,deepcopy(currentNode))
+        while currentNode.parent.num != goalNode
+            push!(cs[2].pth,deepcopy(currentNode.parent))
+            currentNode=currentNode.parent
+        end
+        push!(cs[1].pth,deepcopy(currentNode))
+        push!(cs[1].pth,deepcopy(currentNode.parent))
+        push!(circ.owp_MVcbls,deepcopy(cs[1]))
+        push!(circ.pcc_cbls,deepcopy(cs[2]))
+    end
+    circ.base_owp=owp
+
+    if (length(cs) > 1)
+        ossmv=bus()
+        ossmv.node=currentNode
+        push!(circ.osss_owp,ossmv)
+        push!(circ.osss_owp[1].xfmrs,deepcopy(cstF_xfo_oss(owp.mva,owp.wnd,ocn.finance)))
+    end
+    pccBus=bus()
+    pccBus.node=circ.pths[1]
+    circ.pcc=pccBus
+    if (cs[length(cs)].elec.volt != pcc.kV)
+        push!(circ.pcc.xfmrs,deepcopy(cstF_xfo_pcc(owp.mva,owp.wnd,ocn.finance)))
+    end
+    opt_ttlMvCirc(circ)
+
+    return circ
+end
+#buses=bus_dummies
+#bn=owpps_tbl_hv[indx0]
+
+function opt_hvOssSystem(buses,pcc,ocn,bn)
+    xys=opt_mvhvOss1stLocal(buses,pcc,ocn)
+    owp=buses[1]
+    domain_oss,oss_node,power_sum,wind_sum,edges_oss=opt_adjustPath(owp,ocn,xys,buses,pcc)
+    circ=circuit()
+    circ.oss_wind=deepcopy(wind_sum)
+    circ.oss_mva=deepcopy(power_sum)
+    push!(circ.pths,deepcopy(as_Astar(domain_oss[pcc.node.num],oss_node,domain_oss)))
+    push!(circ.lengths,circ.pths[length(circ.pths)].G_cost)
+    println("mva: "*string(power_sum))
+    cbl_xfo=cstF_HvCblallKvo2p(circ.lengths[length(circ.lengths)],power_sum,wind_sum,ocn.finance,pcc)
+    currentNode=circ.pths[length(circ.pths)]
+    goalNode=circ.pths[length(circ.pths)].goal
+    push!(cbl_xfo[1].pth,deepcopy(currentNode))
+    while currentNode.num != goalNode
+        push!(cbl_xfo[1].pth,deepcopy(currentNode.parent))
+        currentNode=currentNode.parent
+    end
+    push!(circ.pcc_cbls,cbl_xfo[1])
+    pSum_hv=0
+    pSum_hv132=0
+    pSum_hv220=0
+    pSum_hv400=0
+    pSum_mv=0
+    iSum_hv=0
+    iSum_hv132=0
+    iSum_hv220=0
+    iSum_hv400=0
+    iSum_mv=0
+    wind_sumMv=wind()
+    wind_sumMv.pu=zeros(Float64,length(buses[1].wnd.pu))
+    wind_sumMv.ce=zeros(Float64,length(buses[1].wnd.ce))
+    wind_sumMv.delta=0
+    wind_sumMv.lf=0
+    wind_sumHv=deepcopy(wind_sumMv)
+    wind_sum132=deepcopy(wind_sumMv)
+    wind_sum220=deepcopy(wind_sumMv)
+    wind_sum400=deepcopy(wind_sumMv)
+    for owp in buses
+        push!(circ.pths,deepcopy(as_Astar(domain_oss[owp.node.num],oss_node,domain_oss)))
+        cs,xs=cstF_MvHvCbloss(circ.pths[length(circ.pths)].G_cost,owp.mva,owp.wnd,ocn.finance,pcc,cbl_xfo[1].elec.volt)
+        currentNode=circ.pths[length(circ.pths)]
+        goalNode=circ.pths[length(circ.pths)].goal
+        if length(cs) == 1
+            while currentNode.num != goalNode
+                push!(cs[1].pth,deepcopy(currentNode))
+                currentNode=currentNode.parent
+            end
+            push!(cs[1].pth,deepcopy(currentNode))
+            push!(circ.owp_MVcbls,deepcopy(cs[1]))
+        elseif length(cs) == 2
+            push!(cs[2].pth,deepcopy(currentNode))
+            while currentNode.parent.num != goalNode
+                push!(cs[2].pth,deepcopy(currentNode.parent))
+                currentNode=currentNode.parent
+            end
+            push!(cs[1].pth,deepcopy(currentNode))
+            push!(cs[1].pth,deepcopy(currentNode.parent))
+            push!(circ.owp_MVcbls,deepcopy(cs[1]))
+            push!(circ.owp_HVcbls,deepcopy(cs[2]))
+        end
+        if length(cs) == 1
+            iSum_mv=iSum_mv+1
+            pSum_mv=pSum_mv+deepcopy(owp.mva)
+            wind_sumMv.pu=deepcopy((wind_sumMv.pu.+owp.wnd.pu))
+            wind_sumMv.ce=deepcopy((wind_sumMv.ce.+owp.wnd.ce))
+            wind_sumMv.delta=deepcopy((wind_sumMv.delta+owp.wnd.delta))
+            wind_sumMv.lf=deepcopy((wind_sumMv.lf+owp.wnd.lf))
+        elseif cs[2].elec.volt == cbl_xfo[1].elec.volt
+            ossBus=bus()
+            ossBus.mva=owp.mva
+            ossBus.wnd=owp.wnd
+            ossBus.node=cs[2].pth[length(cs[2].pth)]
+            push!(ossBus.xfmrs,xs[1])
+            push!(circ.osss_owp,ossBus)
+            iSum_hv=iSum_hv+1
+            pSum_hv=pSum_hv+10
+            wind_sumHv.pu=(wind_sumHv.pu.+deepcopy(owp.wnd.pu))
+            wind_sumHv.ce=(wind_sumHv.ce.+deepcopy(owp.wnd.ce))
+            wind_sumHv.delta=(wind_sumHv.delta+deepcopy(owp.wnd.delta))
+            wind_sumHv.lf=(wind_sumHv.lf+deepcopy(owp.wnd.lf))
+        elseif cs[2].elec.volt == 132
+            ossBus=bus()
+            ossBus.mva=owp.mva
+            ossBus.wnd=owp.wnd
+            ossBus.node=cs[2].pth[length(cs[2].pth)]
+            push!(ossBus.xfmrs,xs[1])
+            push!(circ.osss_owp,ossBus)
+            iSum_hv132=iSum_hv132+1
+            pSum_hv132=pSum_hv132+deepcopy(owp.mva)
+            wind_sum132.pu=(wind_sum132.pu.+deepcopy(owp.wnd.pu))
+            wind_sum132.ce=(wind_sum132.ce.+deepcopy(owp.wnd.ce))
+            wind_sum132.delta=(wind_sum132.delta+deepcopy(owp.wnd.delta))
+            wind_sum132.lf=(wind_sum132.lf+deepcopy(owp.wnd.lf))
+        elseif cs[2].elec.volt == 220
+            ossBus=bus()
+            ossBus.mva=owp.mva
+            ossBus.wnd=owp.wnd
+            ossBus.node=cs[2].pth[length(cs[2].pth)]
+            push!(ossBus.xfmrs,xs[1])
+            push!(circ.osss_owp,ossBus)
+            iSum_hv220=iSum_hv220+1
+            pSum_hv220=pSum_hv220+deepcopy(owp.mva)
+            wind_sum220.pu=(wind_sum220.pu.+deepcopy(owp.wnd.pu))
+            wind_sum220.ce=(wind_sum220.ce.+deepcopy(owp.wnd.ce))
+            wind_sum220.delta=(wind_sum220.delta+deepcopy(owp.wnd.delta))
+            wind_sum220.lf=(wind_sum220.lf+deepcopy(owp.wnd.lf))
+        elseif cs[2].elec.volt == 400
+            ossBus=bus()
+            ossBus.mva=owp.mva
+            ossBus.wnd=owp.wnd
+            ossBus.node=cs[2].pth[length(cs[2].pth)]
+            push!(ossBus.xfmrs,xs[1])
+            push!(circ.osss_owp,ossBus)
+            iSum_hv400=iSum_hv400+1
+            pSum_hv400=pSum_hv400+deepcopy(owp.mva)
+            wind_sum400.pu=(wind_sum400.pu.+deepcopy(owp.wnd.pu))
+            wind_sum400.ce=(wind_sum400.ce.+deepcopy(owp.wnd.ce))
+            wind_sum400.delta=(wind_sum400.delta+deepcopy(owp.wnd.delta))
+            wind_sum400.lf=(wind_sum400.lf+deepcopy(owp.wnd.lf))
+        end
+    end
+    wind_sumMv.pu=wind_sumMv.pu./iSum_mv
+    wind_sumMv.ce=wind_sumMv.ce./iSum_mv
+    wind_sumMv.delta=wind_sumMv.delta/iSum_mv
+    wind_sumMv.lf=wind_sumMv.lf/iSum_mv
+
+    wind_sumHv.pu=wind_sumHv.pu./iSum_hv
+    wind_sumHv.ce=wind_sumHv.ce./iSum_hv
+    wind_sumHv.delta=wind_sumHv.delta/iSum_hv
+    wind_sumHv.lf=wind_sumHv.lf/iSum_hv
+
+    wind_sum132.pu=wind_sum132.pu./iSum_hv132
+    wind_sum132.ce=wind_sum132.ce./iSum_hv132
+    wind_sum132.delta=wind_sum132.delta/iSum_hv132
+    wind_sum132.lf=wind_sum132.lf/iSum_hv132
+
+    wind_sum220.pu=wind_sum220.pu./iSum_hv220
+    wind_sum220.ce=wind_sum220.ce./iSum_hv220
+    wind_sum220.delta=wind_sum220.delta/iSum_hv220
+    wind_sum220.lf=wind_sum220.lf/iSum_hv220
+
+    wind_sum400.pu=wind_sum400.pu./iSum_hv400
+    wind_sum400.ce=wind_sum400.ce./iSum_hv400
+    wind_sum400.delta=wind_sum400.delta/iSum_hv400
+    wind_sum400.lf=wind_sum400.lf/iSum_hv400
+
+    if (pSum_hv132 == 0 && pSum_hv220 == 0 && pSum_hv400 == 0 && pSum_mv == 0)
+        ossMOG=bus()
+        pSum_hv=pSum_hv+100
+        ossMOG.node=oss_node
+        push!(circ.osss_mog,ossMOG)
+        push!(circ.osss_mog[length(circ.osss_mog)].xfmrs,cstF_xfo_oss(pSum_hv,wind_sumHv,ocn.finance))
+    elseif pSum_hv != 0
+        ossMOG=bus()
+        ossMOG.node=oss_node
+        push!(circ.osss_mog,ossMOG)
+        push!(circ.osss_mog[length(circ.osss_mog)].xfmrs,cstF_xfo_oss(pSum_hv,wind_sumHv,ocn.finance))
+    else
+        ossMOG=bus()
+        ossMOG.node=oss_node
+        push!(circ.osss_mog,ossMOG)
+    end
+    if pSum_mv != 0
+        push!(circ.osss_mog[length(circ.osss_mog)].xfmrs,cstF_xfo_oss(pSum_mv,wind_sumMv,ocn.finance))
+    end
+    if pSum_hv132 != 0
+        push!(circ.osss_mog[length(circ.osss_mog)].xfmrs,cstF_xfo_oss(pSum_hv132,wind_sum132,ocn.finance))
+    end
+    if pSum_hv220 != 0
+        push!(circ.osss_mog[length(circ.osss_mog)].xfmrs,cstF_xfo_oss(pSum_hv220,wind_sum220,ocn.finance))
+    end
+    if pSum_hv400 != 0
+        push!(circ.osss_mog[length(circ.osss_mog)].xfmrs,cstF_xfo_oss(pSum_hv400,wind_sum400,ocn.finance))
+    end
+    ossMOG.mva=power_sum
+    ossMOG.wnd=wind_sum
+    circ.pcc=deepcopy(pcc)
+
+    if (pcc.kV != circ.pcc_cbls[1].elec.volt)
+        println("power: "*string(power_sum))
+        push!(circ.pcc.xfmrs,cstF_xfo_pcc(power_sum,wind_sum,ocn.finance))
+    end
+
+    circ.binary=bn
+    circ.decimal=top_bin2dec(bn)
     circ.owpps=buses
     circ.base_owp=owp
     opt_ttlMvCirc(circ)
-    return circ
+    return circ,domain_oss,edges_oss
 end
 
 #bn=owpps_tbl[indx0,:]
-
+#buses=bus_dummies
 function opt_mvOssSystem(mv_square,buses,pcc,ocn,bn)
     xys=opt_mvhvOss1stLocal(buses,pcc,ocn)
     owp=opt_buses2nodes4MVoptLocal(mv_square,ocn.owpps,buses)
-    domain_oss,oss_node,power_sum,wind_sum=opt_adjustPath(owp,ocn,xys,buses,pcc)
+    domain_oss,oss_node,power_sum,wind_sum,edges_oss=opt_adjustPath(owp,ocn,xys,buses,pcc)
     circ=circuit()
+    circ.oss_wind=deepcopy(wind_sum)
+    circ.oss_mva=deepcopy(power_sum)
     push!(circ.pths,deepcopy(as_Astar(domain_oss[pcc.node.num],oss_node,domain_oss)))
     push!(circ.lengths,circ.pths[length(circ.pths)].G_cost)
     #################### This needs to be a high voltage cable!!!
     println("mva: "*string(power_sum))
     cbl_xfo=cstF_HvCblallKvo2p(circ.lengths[length(circ.lengths)],power_sum,wind_sum,ocn.finance,pcc)
+    currentNode=circ.pths[1]
+    goalNode=circ.pths[1].goal
+    push!(cbl_xfo[1].pth,deepcopy(currentNode))
+    while currentNode.num != goalNode
+        push!(cbl_xfo[1].pth,deepcopy(currentNode.parent))
+        currentNode=currentNode.parent
+    end
     push!(circ.pcc_cbls,cbl_xfo[1])
-    push!(circ.oss_xfmrs,cstF_xfo_oss(power_sum,wind_sum,ocean.finance))
-    if (circ.pcc_cbls[length(circ.pcc_cbls)].elec.volt != pcc.kV)
-        push!(circ.pcc_xfmrs,cbl_xfo[2])
+    ossMOG=bus()
+    ossMOG.mva=power_sum
+    ossMOG.wnd=wind_sum
+    ossMOG.node=oss_node
+    push!(circ.osss_mog,ossMOG)
+    push!(circ.osss_mog[1].xfmrs,cstF_xfo_oss(power_sum,wind_sum,ocn.finance))
+    circ.pcc=deepcopy(pcc)
+    if (circ.pcc_cbls[length(circ.pcc_cbls)].elec.volt != circ.pcc.kV)
+        push!(circ.pcc.xfmrs,cbl_xfo[2])
     end
     for owp in buses
         push!(circ.pths,deepcopy(as_Astar(domain_oss[owp.node.num],oss_node,domain_oss)))
         push!(circ.lengths,circ.pths[length(circ.pths)].G_cost)
-        push!(circ.owp_cbls,cstF_MvCbl3366(circ.lengths[length(circ.lengths)],owp.mva,owp.wnd,ocn.finance))
+        cb=cstF_MvCbl3366(circ.lengths[length(circ.lengths)],owp.mva,owp.wnd,ocn.finance)
+        currentNode=circ.pths[length(circ.pths)]
+        goalNode=circ.pths[length(circ.pths)].goal
+        push!(cb.pth,deepcopy(currentNode))
+        while currentNode.num != goalNode
+            push!(cb.pth,deepcopy(currentNode.parent))
+            currentNode=currentNode.parent
+        end
+        push!(circ.owp_MVcbls,cb)
     end
 
 
     circ.binary=bn
     circ.decimal=top_bin2dec(bn)
-    circ.pcc=pcc
     #circ.pcc_length=69.69
     circ.owpps=buses
     #circ.owp_lengths=69.69
     circ.base_owp=owp
     opt_ttlMvCirc(circ)
+    ocn.discretedom.nodes=deepcopy(domain_oss)
+    ocn.discretedom.edges=deepcopy(edges_oss)
     return circ
 end
 
@@ -325,6 +769,7 @@ function opt_adjustPath(owp,ocn,xys,buses,pcc)
 
     #re calculate the path
     paths=node[]
+    #error
     oss_node=opt_OssOptimalLocal(xys,ocn.constrain.ellipses,owp,length(ocn.owpps))
     domain_oss=deepcopy(ocn.discretedom.nodes)
     edges_oss=deepcopy(ocn.discretedom.edges)
@@ -341,7 +786,7 @@ function opt_adjustPath(owp,ocn,xys,buses,pcc)
     wind_sum.ce=zeros(Float64,length(buses[1].wnd.ce))
     wind_sum.delta=0
     wind_sum.lf=0
-    for owpp in buses
+    for (i,owpp) in enumerate(buses)
         wind_sum.pu=(wind_sum.pu.+deepcopy(owpp.wnd.pu))
         wind_sum.ce=(wind_sum.ce.+deepcopy(owpp.wnd.ce))
         wind_sum.delta=(wind_sum.delta+deepcopy(owpp.wnd.delta))
@@ -374,7 +819,7 @@ function opt_adjustPath(owp,ocn,xys,buses,pcc)
         push!(domain_oss,oss_node)
         lof_edgeifyOss(oss_node,ocn,domain_oss,edges_oss)
     end
-    return domain_oss,oss_node,power_sum,wind_sum
+    return domain_oss,oss_node,power_sum,wind_sum,edges_oss
 end
 
 function opt_mvhvOss1stLocal(buses,pcc,ocn)
@@ -402,19 +847,26 @@ function opt_ttlMvCirc(circ)
     for cb in circ.pcc_cbls
         circ.cost=circ.cost+cb.costs.ttl
     end
-    for cb in circ.oss_cbls
+    for cb in circ.oss2oss_cbls
         circ.cost=circ.cost+cb.costs.ttl
     end
-    for cb in circ.owp_cbls
+    for cb in circ.owp_MVcbls
         circ.cost=circ.cost+cb.costs.ttl
     end
-    for xf in circ.pcc_xfmrs
-        circ.cost=circ.cost+xf.costs.ttl
+    for cb in circ.owp_HVcbls
+        circ.cost=circ.cost+cb.costs.ttl
     end
-    for xf in circ.owp_xfmrs
-        circ.cost=circ.cost+xf.costs.ttl
+    for oss in circ.osss_owp
+        for xf in oss.xfmrs
+            circ.cost=circ.cost+xf.costs.ttl
+        end
     end
-    for xf in circ.oss_xfmrs
+    for oss in circ.osss_mog
+        for xf in oss.xfmrs
+            circ.cost=circ.cost+xf.costs.ttl
+        end
+    end
+    for xf in circ.pcc.xfmrs
         circ.cost=circ.cost+xf.costs.ttl
     end
 end
@@ -476,6 +928,7 @@ function opt_OssOptimalLocal(xys,constrain,owp,num_owpp)
 
     println(xys)=#
     #@constraint(m, x >= mv_square.xmn)
+
     @constraint(m, y == owp.node.xy.y)
     #@constraint(m, x <= mv_square.xmx)
     #@constraint(m, y <= mv_square.ymx)

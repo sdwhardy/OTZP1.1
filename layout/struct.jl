@@ -61,6 +61,42 @@ mutable struct farm
 end
 #farm()=farm(69.69,69.69,69.69,69.69,69.69,line(),line(),line(),line(),node[])
 farm()=farm(69.69,69.69,69.69,69.69,69.69,node[],edge[],line[],line[],line[],line[])
+
+#the structure for a transformer
+mutable struct xfo
+   mva::Float64
+   num::Float64
+   eta::Float64
+   reliability::relia
+   elec::elec
+   costs::xfo_costs
+end
+xfo()=xfo(0.0,0.0,0.0,relia(),elec(),xfo_costs())
+###################################################################
+#the structure used for a cable
+mutable struct cbl
+   mva::Float64
+   length::Float64
+   pth::Array{node}
+   size::Float64
+   cost::Float64
+   num::Float64
+   reliability::relia
+   elec::elec
+   costs::cbl_costs
+end
+cbl()=cbl(0.0,0.0,node[],0.0,0.0,0.0,relia(),elec(),cbl_costs())
+###################################################################
+#the structure used for a owpp (cable and xfm)
+mutable struct owpp
+   mva::Float64
+   km::Float64
+   cable::cbl
+   xfm::xfo
+   wp::wind
+   costs::results
+end
+owpp()=owpp(0.0,0.0,cbl(),xfo(),wind(),results())
 ###################################################################
 mutable struct bus
       mva::Float64
@@ -74,8 +110,9 @@ mutable struct bus
       kV::Int64
       num::Int64
       id::Int64
+      xfmrs::Array{xfo}
 end
-bus()=bus(69.69,wind(),"sixty-nine",node(),farm(),farm(),69,69,69)
+bus()=bus(69.69,wind(),"sixty-nine",node(),farm(),farm(),69,69,69,xfo[])
 ###################################################################
 #=mutable struct conductor
       head::bus
@@ -121,18 +158,22 @@ mutable struct circuit
       decimal::Int64
       pcc::bus
       owpps::Array{bus}
+      osss_owp::Array{bus}
+      osss_mog::Array{bus}
       pths::Array{node}
       cost::Float64
       lengths::Array{Float64}
-      owp_cbls::Array{cbl}
-      oss_cbls::Array{cbl}
+      owp_MVcbls::Array{cbl}
+      owp_HVcbls::Array{cbl}
+      oss2oss_cbls::Array{cbl}
       pcc_cbls::Array{cbl}
-      owp_xfmrs::Array{xfo}
-      oss_xfmrs::Array{xfo}
-      pcc_xfmrs::Array{xfo}
+      parent_circ::Int64
       base_owp::bus
+      oss_wind::wind
+      oss_mva::Float64
+      Qing::Bool
 end
-circuit()=circuit(Int8[],69,bus(),bus[],node[],69.69,Float64[],cbl[],cbl[],cbl[],xfo[],xfo[],xfo[],bus())
+circuit()=circuit(Int8[],69,bus(),bus[],bus[],bus[],node[],69.69,Float64[],cbl[],cbl[],cbl[],cbl[],0,bus(),wind(),69.69,false)
 #######################################################################################
 mutable struct eez
       osss::Array{bus}
