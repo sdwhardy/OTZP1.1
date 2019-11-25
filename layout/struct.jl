@@ -88,7 +88,7 @@ end
 cbl()=cbl(0.0,0.0,node[],0.0,0.0,0.0,relia(),elec(),cbl_costs())
 ###################################################################
 #the structure used for a owpp (cable and xfm)
-mutable struct owpp
+#=mutable struct owpp
    mva::Float64
    km::Float64
    cable::cbl
@@ -96,7 +96,7 @@ mutable struct owpp
    wp::wind
    costs::results
 end
-owpp()=owpp(0.0,0.0,cbl(),xfo(),wind(),results())
+owpp()=owpp(0.0,0.0,cbl(),xfo(),wind(),results())=#
 ###################################################################
 mutable struct bus
       mva::Float64

@@ -34,7 +34,7 @@ function main()
     @time ocean.circuits=opt_mvOSSplacement(ocean,ocean.owpps,ocean.pccs[2])
     @time ocean.circuits=opt_hvOSSplacement(ocean,ocean.pccs[2])
     @time ocean.circuits=opt_compoundOSS(ocean,ocean.pccs[2])
-    #ppf_printOcnXY(ocean,ocean.circuits[20].pths)
+    #ppf_printOcnXY(ocean,ocean.circuits[31].pths)
 
     #start=ocean.owpps[3].node
     #goal=ocean.pccs[1].node
@@ -65,7 +65,8 @@ function testing(ocn)
 end
 sea=eez()
 sea.circuits=deepcopy(ocn)
-testing(ocean)
+testing(sea)
+ppf_printOcnXY_cables(ocean,sea.circuits[31])
 main()
 ocean.circuits[15]
 sea.circuits[14]

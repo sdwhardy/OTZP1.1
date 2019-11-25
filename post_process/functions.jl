@@ -187,16 +187,16 @@ end=#
 function ppf_printOcnXY(ocn,pths)
 
 	plotly()
-	p=plot([ocean.discretedom.nodes[1].xy.x],[ocean.discretedom.nodes[1].xy.y],color = :red,markersize=2,seriestype=:scatter,label="",xaxis = ("km", font(15, "Courier")),yaxis = ("km", font(15, "Courier")))
-	for indx = 2:length(ocean.discretedom.nodes)
-		plot!(p,[ocean.discretedom.nodes[indx].xy.x],[ocean.discretedom.nodes[indx].xy.y],color = :red,markersize=2,seriestype=:scatter,label="")
+	p=plot([ocn.discretedom.nodes[1].xy.x],[ocn.discretedom.nodes[1].xy.y],color = :red,markersize=2,seriestype=:scatter,label="",xaxis = ("km", font(15, "Courier")),yaxis = ("km", font(15, "Courier")))
+	for indx = 2:length(ocn.discretedom.nodes)
+		plot!(p,[ocn.discretedom.nodes[indx].xy.x],[ocn.discretedom.nodes[indx].xy.y],color = :red,markersize=2,seriestype=:scatter,label="")
 	end
 
 	for indx = 1:length(ocn.pccs)
 		plot!(p,[ocn.pccs[indx].node.xy.x],[ocn.pccs[indx].node.xy.y],color = :green,seriestype=:scatter,label="")
 	end
 
-	for owpp in ocean.owpps
+	for owpp in ocn.owpps
 		plot!(p,[owpp.node.xy.x],[owpp.node.xy.y],color = :blue,seriestype=:scatter,label="")
 	end
 
@@ -429,6 +429,61 @@ function ppf_printOcnXY(ocn,pths)
 	p=#
 end
 
+function ppf_printOcnXY_cables(ocn,pths)
+
+	plotly()
+	p=plot([ocn.discretedom.nodes[1].xy.x],[ocn.discretedom.nodes[1].xy.y],color = :red,markersize=2,seriestype=:scatter,label="",xaxis = ("km", font(15, "Courier")),yaxis = ("km", font(15, "Courier")))
+	for indx = 2:length(ocn.discretedom.nodes)
+		plot!(p,[ocn.discretedom.nodes[indx].xy.x],[ocn.discretedom.nodes[indx].xy.y],color = :red,markersize=2,seriestype=:scatter,label="")
+	end
+
+	for indx = 1:length(ocn.pccs)
+		plot!(p,[ocn.pccs[indx].node.xy.x],[ocn.pccs[indx].node.xy.y],color = :green,seriestype=:scatter,label="")
+	end
+
+	for owpp in ocn.owpps
+		plot!(p,[owpp.node.xy.x],[owpp.node.xy.y],color = :blue,seriestype=:scatter,label="")
+	end
+
+	for cbl in pths.owp_MVcbls
+		xs=Float64[]
+		ys=Float64[]
+		for pth in cbl.pth
+				push!(xs,pth.xy.x)
+				push!(ys,pth.xy.y)
+		end
+		plot!(p,xs,ys,color = :green,label="")
+	end
+	for cbl in pths.owp_HVcbls
+		xs=Float64[]
+		ys=Float64[]
+		for pth in cbl.pth
+			push!(xs,pth.xy.x)
+			push!(ys,pth.xy.y)
+		end
+		plot!(p,xs,ys,color = :red,label="")
+	end
+
+	for cbl in pths.oss2oss_cbls
+		xs=Float64[]
+		ys=Float64[]
+		for pth in cbl.pth
+			push!(xs,pth.xy.x)
+			push!(ys,pth.xy.y)
+		end
+		plot!(p,xs,ys,color = :blue,label="")
+	end
+	for cbl in pths.pcc_cbls
+		xs=Float64[]
+		ys=Float64[]
+		for pth in cbl.pth
+			push!(xs,pth.xy.x)
+			push!(ys,pth.xy.y)
+		end
+		plot!(p,xs,ys,color = :black,label="")
+	end
+	p
+end
 
 function ppf_printOcnGPS(ocean)
 	pcc=Array{Tuple,1}()

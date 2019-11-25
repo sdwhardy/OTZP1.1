@@ -109,16 +109,18 @@ function opt_compoundOssSystem(buses,pcc,parnt,bn,ocn)
             push!(circ.owpps,ocn.owpps[indx])
         end
     end
+    owp=buses[1]
+    oss_node,domain_oss,edges_oss,power_sum,wind_sum=opt_mvhvOss1stLocal(owp,buses,pcc,ocn)
 
-    xys=opt_mvhvOss1stLocal(buses,pcc,ocn)
+    #xys=opt_mvhvOss1stLocal(owp,buses,pcc,ocn)
     oss=bus()
     oss.node=deepcopy(parnt.osss_mog[length(parnt.osss_mog)].node)
     oss.wnd=deepcopy(parnt.osss_mog[length(parnt.osss_mog)].wnd)
     oss.mva=deepcopy(parnt.osss_mog[length(parnt.osss_mog)].mva)
-    push!(xys,oss.node.xy)
+    #push!(xys,oss.node.xy)
     push!(buses,oss)
-    owp=buses[1]
-    domain_oss,oss_node,power_sum,wind_sum,edges_oss=opt_adjustPath(owp,ocn,xys,buses,pcc)
+
+    #domain_oss,oss_node,power_sum,wind_sum,edges_oss=opt_adjustPath(owp,ocn,xys,buses,pcc)
     push!(circ.pths,deepcopy(as_Astar(domain_oss[pcc.node.num],oss_node,domain_oss)))
     push!(circ.lengths,circ.pths[length(circ.pths)].G_cost)
     cbl_xfo=cstF_HvCblallKvo2p(circ.lengths[length(circ.lengths)],power_sum,wind_sum,ocn.finance,pcc)
@@ -484,9 +486,9 @@ end
 #bn=owpps_tbl_hv[indx0]
 
 function opt_hvOssSystem(buses,pcc,ocn,bn)
-    xys=opt_mvhvOss1stLocal(buses,pcc,ocn)
     owp=buses[1]
-    domain_oss,oss_node,power_sum,wind_sum,edges_oss=opt_adjustPath(owp,ocn,xys,buses,pcc)
+    #domain_oss,oss_node,power_sum,wind_sum,edges_oss=opt_adjustPath(owp,ocn,xys,buses,pcc)
+    oss_node,domain_oss,edges_oss,power_sum,wind_sum=opt_mvhvOss1stLocal(owp,buses,pcc,ocn)
     circ=circuit()
     circ.oss_wind=deepcopy(wind_sum)
     circ.oss_mva=deepcopy(power_sum)
@@ -678,9 +680,9 @@ end
 #bn=owpps_tbl[indx0,:]
 #buses=bus_dummies
 function opt_mvOssSystem(mv_square,buses,pcc,ocn,bn)
-    xys=opt_mvhvOss1stLocal(buses,pcc,ocn)
     owp=opt_buses2nodes4MVoptLocal(mv_square,ocn.owpps,buses)
-    domain_oss,oss_node,power_sum,wind_sum,edges_oss=opt_adjustPath(owp,ocn,xys,buses,pcc)
+    oss_node,domain_oss,edges_oss,power_sum,wind_sum=opt_mvhvOss1stLocal(owp,buses,pcc,ocn)
+    #domain_oss,oss_node,power_sum,wind_sum,edges_oss=opt_adjustPath(owp,ocn,xys,buses,pcc)
     circ=circuit()
     circ.oss_wind=deepcopy(wind_sum)
     circ.oss_mva=deepcopy(power_sum)
@@ -734,8 +736,44 @@ function opt_mvOssSystem(mv_square,buses,pcc,ocn,bn)
     return circ
 end
 
+function opt_MakeConstraints(xys,owp,owps,pcc)
+#=    #find major axis
+    ymajor=true
+    if (abs(pcc.node.xy.y-owp.node.xy.y)>=abs(pcc.node.xy.x-owp.node.xy.x))
+        ymajor=true
+    else
+        ymajor=false
+    end
+
+    #find minor axis mean
+    minor_ave=0
+    for xy in xys[2:length(xys)]
+        if ymajor==true
+            minor_ave=minor_ave+deepcopy(xy.x)
+        else
+            minor_ave=minor_ave+deepcopy(xy.y)
+        end
+    end
+    minor_ave=minor_ave/length(xys[2:length(xys)])
+
+    #lower/upper lim
+    if (ymajor==true)
+        cntr=(2*owp.node.xy.x-pcc.node.xy.x-minor_ave)
+        #western connection
+        if (cntr>=0)
+            upper_lim=owps[1].node.xy.x-owps[1].farm.neg_width
+            for opp in owps[1:owp.num]
+                if opp.
+            end
+        end
+
+    if (ymajor==true) && (<=0))
+        lwr_lim=#
+end
+
 function opt_adjustPath(owp,ocn,xys,buses,pcc)
     paths=node[]
+    opt_MakeConstraints(xys,owp,ocn.owpps,pcc)
     oss_node=opt_OssOptimalLocal(xys,ocn.constrain.ellipses,owp,length(ocn.owpps))
     domain_oss=deepcopy(ocn.discretedom.nodes)
     edges_oss=deepcopy(ocn.discretedom.edges)
@@ -822,24 +860,210 @@ function opt_adjustPath(owp,ocn,xys,buses,pcc)
     return domain_oss,oss_node,power_sum,wind_sum,edges_oss
 end
 
-function opt_mvhvOss1stLocal(buses,pcc,ocn)
-    #each owpp path
-    paths=node[]
-    for owp in buses
-        push!(paths,deepcopy(as_Astar(owp.node,pcc.node,ocn.discretedom.nodes)))
+function opt_mvhvOss1stLocal(owp,buses,pcc,ocn)
+    #find PCC major axis
+    ymajorPCC=true
+    if (abs(pcc.node.xy.y-owp.node.xy.y)>=abs(pcc.node.xy.x-owp.node.xy.x))
+        ymajorPCC=true
+    else
+        ymajorPCC=false
     end
 
-    #pick first node in each owpp path
-    xys=xy[]
-    push!(xys,pcc.node.xy)
-    for path=1:length(paths)
-        pathsParent=paths[path].parent
-        while pathsParent.parent.num != buses[path].node.num
-            pathsParent=pathsParent.parent
-        end
-        push!(xys,deepcopy(pathsParent.xy))
+    ymajorOWPP=true
+    if (abs(buses[1].node.xy.y-buses[length(buses)].node.xy.y)>=abs(buses[1].node.xy.x-buses[length(buses)].node.xy.x))
+        ymajorOWPP=true
+    else
+        ymajorOWPP=false
     end
-    return xys
+
+    #find min and max connection points
+    lwr_xy=xy()
+    upr_xy=xy()
+    cnt_xy=xy()
+    if (ymajorPCC==true)
+        if (pcc.node.xy.y>=owp.node.xy.y)
+            lwr_xy.y=owp.node.xy.y+owp.zone.pos_height
+        else
+            lwr_xy.y=owp.node.xy.y-owp.zone.neg_height
+        end
+        upr_xy.y=lwr_xy.y
+        cnt_xy.y=lwr_xy.y
+        lwr_xy.x=owp.node.xy.x-owp.zone.neg_width
+        upr_xy.x=owp.node.xy.x+owp.zone.pos_width
+        if (owp.node.xy.x-owp.zone.neg_width<pcc.node.xy.x && pcc.node.xy.x<owp.node.xy.x+owp.zone.pos_width)
+            cnt_xy.x=pcc.node.xy.x
+        else
+            cnt_xy.x=owp.node.xy.x
+        end
+    else
+        if (pcc.node.xy.x>=owp.node.xy.y)
+            lwr_xy.x=owp.node.xy.x+owp.zone.pos_width
+        else
+            lwr_xy.x=owp.node.xy.x-owp.zone.neg_width
+        end
+        upr_xy.x=lwr_xy.x
+        cnt_xy.x=lwr_xy.x
+        lwr_xy.y=owp.node.xy.y-owp.zone.neg_height
+        upr_xy.y=owp.node.xy.y+owp.zone.pos_height
+
+        if (owp.node.xy.y-owp.zone.neg_height<pcc.node.xy.y && pcc.node.xy.y<owp.node.xy.y+owp.zone.pos_height)
+            cnt_xy.y=pcc.node.xy.y
+        else
+            cnt_xy.y=owp.node.xy.y
+        end
+    end
+
+    #find nodes
+    lwr_node=node()
+    upr_node=node()
+    cnt_node=node()
+    lwr_node_mag=Inf
+    upr_node_mag=Inf
+    cnt_node_mag=Inf
+
+    for nd in (owp.zone.nodes)
+        tl_mag=lof_pnt2pnt_dist(nd.xy,lwr_xy)
+        if (tl_mag<lwr_node_mag)
+            lwr_node_mag=deepcopy(tl_mag)
+            lwr_node=deepcopy(nd)
+        end
+        tu_mag=lof_pnt2pnt_dist(nd.xy,upr_xy)
+        if (tu_mag<upr_node_mag)
+            upr_node_mag=deepcopy(tu_mag)
+            upr_node=deepcopy(nd)
+        end
+        tc_mag=lof_pnt2pnt_dist(nd.xy,cnt_xy)
+        if (tc_mag<cnt_node_mag)
+            cnt_node_mag=deepcopy(tc_mag)
+            cnt_node=deepcopy(nd)
+        end
+    end
+
+
+    #each owpp path
+    lwr_paths=node[]
+    upr_paths=node[]
+    cnt_paths=node[]
+    lwr_lths=0
+    upr_lths=0
+    cnt_lths=0
+    power_sum=0
+    wind_sum=wind()
+    wind_sum.pu=zeros(Float64,length(buses[1].wnd.pu))
+    wind_sum.ce=zeros(Float64,length(buses[1].wnd.ce))
+    wind_sum.delta=0
+    wind_sum.lf=0
+
+    push!(upr_paths,deepcopy(as_Astar(pcc.node,upr_node,ocn.discretedom.nodes)))
+    push!(lwr_paths,deepcopy(as_Astar(pcc.node,lwr_node,ocn.discretedom.nodes)))
+    push!(cnt_paths,deepcopy(as_Astar(pcc.node,cnt_node,ocn.discretedom.nodes)))
+    lwr_lths=lwr_lths+deepcopy(lwr_paths[length(lwr_paths)].G_cost)
+    upr_lths=upr_lths+deepcopy(upr_paths[length(upr_paths)].G_cost)
+    cnt_lths=cnt_lths+deepcopy(cnt_paths[length(cnt_paths)].G_cost)
+    for opp in buses
+        push!(upr_paths,deepcopy(as_Astar(opp.node,upr_node,ocn.discretedom.nodes)))
+        push!(lwr_paths,deepcopy(as_Astar(opp.node,lwr_node,ocn.discretedom.nodes)))
+        push!(cnt_paths,deepcopy(as_Astar(opp.node,cnt_node,ocn.discretedom.nodes)))
+        lwr_lths=lwr_lths+deepcopy(lwr_paths[length(lwr_paths)].G_cost)
+        upr_lths=upr_lths+deepcopy(upr_paths[length(upr_paths)].G_cost)
+        cnt_lths=cnt_lths+deepcopy(cnt_paths[length(cnt_paths)].G_cost)
+        wind_sum.pu=(wind_sum.pu.+deepcopy(opp.wnd.pu))
+        wind_sum.ce=(wind_sum.ce.+deepcopy(opp.wnd.ce))
+        wind_sum.delta=(wind_sum.delta+deepcopy(opp.wnd.delta))
+        wind_sum.lf=(wind_sum.lf+deepcopy(opp.wnd.lf))
+        power_sum=power_sum+deepcopy(opp.mva)
+    end
+    wind_sum.pu=(wind_sum.pu)./length(buses)
+    wind_sum.ce=(wind_sum.ce)./length(buses)
+    wind_sum.delta=(wind_sum.delta)/length(buses)
+    wind_sum.lf=(wind_sum.lf)/length(buses)
+
+    best_index=findmin([lwr_lths,cnt_lths,upr_lths])[2]
+    paths=[lwr_paths,cnt_paths,upr_paths]
+    nds=[lwr_node,cnt_node,upr_node]
+    best_path=paths[best_index]
+    best_node=paths[best_index][1]
+
+    ojama_paths=node[]
+    ojama_xys=xy[]
+    for nd in ocn.owpps[owp.num+1:buses[length(buses)].num]
+        dummy_path=as_Astar(nd,best_node,ocn.discretedom.nodes)
+        push!(ojama_paths,deepcopy(dummy_path))
+        goal=deepcopy(dummy_path.goal)
+        while (dummy_path.parent.num != goal)
+            dummy_path=dummy_path.parent
+        end
+        push!(ojama_xys,deepcopy(dummy_path.xy))
+    end
+    #adjust best connection point
+    path2adjust=deepcopy(best_node)
+    if (ymajorOWPP==true)
+        room2adjust=deepcopy(best_node.xy.x)
+        if (best_node.xy.x<=owp.node.xy.x)
+            goal=deepcopy(path2adjust.goal)
+            while path2adjust.num != goal
+                path2adjust=path2adjust.parent
+                if (path2adjust.xy.x<room2adjust)
+                    room2adjust=deepcopy(path2adjust.xy.x)
+                end
+            end
+            for xy in ojama_xys
+                if (xy.x<best_node.xy.x && xy.x>=room2adjust)
+                    best_node.xy.x=deepcopy(best_node.xy.x)
+                end
+            end
+        else
+            goal=deepcopy(path2adjust.goal)
+            while path2adjust.num != goal
+                path2adjust=path2adjust.parent
+                if (path2adjust.xy.x>room2adjust)
+                    room2adjust=deepcopy(path2adjust.xy.x)
+                end
+            end
+            for xy in ojama_xys
+                if (xy.x>best_node.xy.x && xy.x<=room2adjust)
+                    best_node.xy.x=deepcopy(best_node.xy.x)
+                end
+            end
+        end
+    else
+        room2adjust=deepcopy(best_node.xy.y)
+        goal=deepcopy(path2adjust.goal)
+        if (best_node.xy.y<=owp.node.xy.y)
+            while path2adjust.num != goal
+                path2adjust=path2adjust.parent
+                if (path2adjust.xy.y<room2adjust)
+                    room2adjust=deepcopy(path2adjust.xy.y)
+                end
+            end
+            for xy in ojama_xys
+                if (xy.y<best_node.xy.y && xy.y>=room2adjust)
+                    best_node.xy.y=deepcopy(best_node.xy.y)
+                end
+            end
+        else
+            while path2adjust.num != goal
+                path2adjust=path2adjust.parent
+                if (path2adjust.xy.y>room2adjust)
+                    room2adjust=deepcopy(path2adjust.xy.y)
+                end
+            end
+            for xy in ojama_xys
+                if (xy.y>best_node.xy.y && xy.y<=room2adjust)
+                    best_node.xy.y=deepcopy(best_node.xy.y)
+                end
+            end
+        end
+    end
+    domain_oss=deepcopy(ocn.discretedom.nodes)
+    edges_oss=deepcopy(ocn.discretedom.edges)
+    bs,best_node=opt_ifIn2Out(best_node,ocn)
+    if bs==true
+        best_node.num=deepcopy(length(domain_oss)+1)
+        push!(domain_oss,best_node)
+        lof_edgeifyOss(best_node,ocn,domain_oss,edges_oss)
+    end
+    return best_node,domain_oss,edges_oss,power_sum,wind_sum
 end
 
 function opt_ttlMvCirc(circ)
@@ -904,6 +1128,7 @@ function opt_buses2nodes4MVoptLocal(mv_square,all,buses)
 end
 
 function opt_OssOptimalLocal(xys,constrain,owp,num_owpp)
+
     m = Model(with_optimizer(Ipopt.Optimizer, print_level=0))
     @variable(m, x)
     @variable(m, y)
