@@ -31,11 +31,14 @@ include("topology/functions.jl")
 
 function main()
     @time ocean=lof_layoutEez()
-    @time ocean.circuits=opt_mvOSSplacement(ocean,ocean.owpps,ocean.pccs[2])
-    @time ocean.circuits=opt_hvOSSplacement(ocean,ocean.pccs[2])
-    @time ocean.circuits=opt_compoundOSS(ocean,ocean.pccs[2])
-    #ppf_printOcnXY(ocean,ocean.circuits[31].pths)
+    side="low"
+    #side="centre"
+    #side="high"
+    @time ocean.circuits=opt_mvOSSplacement(ocean,ocean.owpps,ocean.pccs[2],side)
+    @time ocean.circuits=opt_hvOSSplacement(ocean,ocean.pccs[2],side)
+    @time opt_compoundOSS(ocean)
 
+    ppf_printOcnXY_cables(ocean,ocean.circuits[63])
     #start=ocean.owpps[3].node
     #goal=ocean.pccs[1].node
     #path=as_Astar(start,goal,ocean.discretedom.nodes)
@@ -43,6 +46,7 @@ function main()
     #ppf_printOcnXY(ocean,path,start)
 
     #ppf_printOcnXY(ocean)
+    return ocean
 end
 ocn=main()
 
@@ -63,10 +67,8 @@ function testing(ocn)
     end
     println(total)
 end
-sea=eez()
-sea.circuits=deepcopy(ocn)
-testing(sea)
-ppf_printOcnXY_cables(ocean,sea.circuits[31])
+testing(ocean)
+ppf_printOcnXY_cables(ocean,ocean.circuits[63])
 main()
 ocean.circuits[15]
 sea.circuits[14]
@@ -83,6 +85,8 @@ kv=220
 cb1=cstF_HvCblo2p(l,S,kv,ocean.owpps[1].wnd,ocean.finance)
 kv=400
 cb2=cstF_HvCblo2o(l,S,kv,ocean.owpps[1].wnd,ocean.finance)
+cstF_xfo_oss(S,ocean.owpps[1].wnd,ocean.finance)
+S=100
 cstF_xfo_oss(S,ocean.owpps[1].wnd,ocean.finance)
 cstF_xfo_pcc(S,ocean.circuits[1].osss_mog[1].wnd,ocean.finance)
 cstF_xfo_pcc(power_sum,wind_sum,ocean.finance)

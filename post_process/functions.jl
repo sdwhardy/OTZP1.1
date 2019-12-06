@@ -1,5 +1,5 @@
 
-#=function ppf_printOcnXY(ocean,pth,goal)
+function ppf_printOcnXYt(ocean,pth,goal)
 	Owpp_peri=Array{nogo,1}()
 	pcc=Array{Tuple,1}()
 	gen=Array{Tuple,1}()
@@ -182,7 +182,7 @@
 			nd=nd.parent
 		end
 	p
-end=#
+end
 
 function ppf_printOcnXY(ocn,pths)
 
@@ -432,7 +432,7 @@ end
 function ppf_printOcnXY_cables(ocn,pths)
 
 	plotly()
-	p=plot([ocn.discretedom.nodes[1].xy.x],[ocn.discretedom.nodes[1].xy.y],color = :red,markersize=2,seriestype=:scatter,label="",xaxis = ("km", font(15, "Courier")),yaxis = ("km", font(15, "Courier")))
+	p=plot([ocn.discretedom.nodes[1].xy.x],[ocn.discretedom.nodes[1].xy.y],color = :red,markersize=2,seriestype=:scatter,xticks = 0:2:30,xlims=(0,30),yticks = 0:5:56,label="",xaxis = ("km", font(15, "Courier")),yaxis = ("km", font(15, "Courier")))
 	for indx = 2:length(ocn.discretedom.nodes)
 		plot!(p,[ocn.discretedom.nodes[indx].xy.x],[ocn.discretedom.nodes[indx].xy.y],color = :red,markersize=2,seriestype=:scatter,label="")
 	end

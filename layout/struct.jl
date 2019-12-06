@@ -66,12 +66,14 @@ farm()=farm(69.69,69.69,69.69,69.69,69.69,node[],edge[],line[],line[],line[],lin
 mutable struct xfo
    mva::Float64
    num::Float64
+   hv::Float64
+   lv::Float64
    eta::Float64
    reliability::relia
    elec::elec
    costs::xfo_costs
 end
-xfo()=xfo(0.0,0.0,0.0,relia(),elec(),xfo_costs())
+xfo()=xfo(0.0,0.0,0.0,0.0,0.0,relia(),elec(),xfo_costs())
 ###################################################################
 #the structure used for a cable
 mutable struct cbl
@@ -111,8 +113,9 @@ mutable struct bus
       num::Int64
       id::Int64
       xfmrs::Array{xfo}
+      base_cost::Float64
 end
-bus()=bus(69.69,wind(),"sixty-nine",node(),farm(),farm(),69,69,69,xfo[])
+bus()=bus(69.69,wind(),"sixty-nine",node(),farm(),farm(),69,69,69,xfo[],0)
 ###################################################################
 #=mutable struct conductor
       head::bus

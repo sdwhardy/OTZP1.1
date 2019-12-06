@@ -4,7 +4,7 @@
 #Cost of HV connection between 2 OSS
 #nmes=lod_gensGps()[3]
 #wndF_wndPrf(nmes)
-
+#cstF_MvHvCblpcc cstF_HvCblallKvo2p
 function cstF_HVcbl2oss(l,S,kv,wp)#3
     os=true#offshore to offshore connection
     cb=cstF_cbl_ttl(l,S,kv,wp,os)
@@ -434,45 +434,76 @@ function cstF_MvCbl3366(l,S,wp,ks)
     return c66
 end
 
+
+
 function cstF_MvHvCblpcc(l,S,wp,ks,pcc)
+    #MV costs
     cmv=cstF_MvCbl3366(l,S,wp,ks)
     xpccMV=cstF_xfo_pcc(S,wp,ks)
-    xOss=cstF_xfo_oss(S,wp,ks)
-    cmv_05=cstF_MvCbl3366(0.5,S,wp,ks)
-    chv=cstF_HvCblallKvo2o(l-0.5,S,wp,ks)
-    xpccHV=xfo()
-    xpccHV.costs.ttl=0
-    if (pcc.kV != chv.elec.volt)
-        xpccHV=xpccMV
-    end
-    hvCst=cmv_05.costs.ttl+chv.costs.ttl+xpccHV.costs.ttl+xOss.costs.ttl
     mvCst=cmv.costs.ttl+xpccMV.costs.ttl
-    cbls=[[cmv],[cmv_05,chv]]
+    #HV costs
+    cmv_05=cstF_MvCbl3366(0.5,S,wp,ks)
+    chv=cstF_HvCblallKvo2p(l-0.5,S,wp,ks,pcc)
+    xOssHV=cstF_xfo_oss(S,wp,ks)
+    hvCst=cmv_05.costs.ttl+chv[1].costs.ttl+chv[2].costs.ttl+xOssHV.costs.ttl+10
+
+    cbls=[[cmv,xpccMV],[cmv_05,chv[1],xOssHV,chv[2]]]
     low_cost=findmin([mvCst,hvCst])[2]
     return cbls[low_cost]
 end
 
-function cstF_MvHvCbloss(l,S,wp,ks,oss,kv)
+
+function cstF_MvHvCbloss(l,S,wp,ks,kv)
     #MV
     cmv=cstF_MvCbl3366(l,S,wp,ks)
-    xOss=cstF_xfo_oss(S,wp,ks)
+
     #HV
     cmv_05=cstF_MvCbl3366(0.5,S,wp,ks)
-    chv=cstF_HvCblallKvo2o(l-0.5,S,wp,ks)
-    xMVHV=cstF_xfo_oss(10,wp,ks)
-    if (kv != chv.elec.volt)
-        xMVHV=xOss
-    end
-    hvCst=cmv_05.costs.ttl+chv.costs.ttl+xOss.costs.ttl+xMVHV.costs.ttl
-    mvCst=cmv.costs.ttl+xOss.costs.ttl
-    cbls=[[cmv],[cmv_05,chv]]
+    chv,xhv=cstF_HvCblallKvo2o(l-0.5,S,wp,ks,kv)
+    xhv[1].lv=cmv_05.elec.volt
+    xhv[2].lv=chv.elec.volt
 
-    xfs=[[xOss],[xOss,xMVHV]]
+    hvCst=cmv_05.costs.ttl+chv.costs.ttl+xhv[1].costs.ttl+xhv[2].costs.ttl+10
+    mvCst=cmv.costs.ttl+xhv[1].costs.ttl
+    cbls=[[cmv],[cmv_05,chv]]
+    xmV=deepcopy(xhv[1])
+    xmV.lv=cmv.elec.volt
+    xfs=[[xmV],[xhv[1],xhv[2]]]
     low_cost=findmin([mvCst,hvCst])[2]
     return cbls[low_cost],xfs[low_cost]
 end
 
-function cstF_HvCblallKvo2o(l,S,wp,ks)
+function cstF_HvCblallKvo2o(l,S,wp,ks,oss_kv)
+    #set transformers
+    xfm0=xfo()
+    xfm0.costs.ttl=0
+    xfm0.mva=0
+    xfm0.num=0
+    xfm0.hv=oss_kv
+    xfm1=cstF_xfo_oss(S,wp,ks)
+    xfm1.hv=oss_kv
+
+    if (oss_kv==132)
+        x132=deepcopy(xfm0)
+    else
+        x132=deepcopy(xfm1)
+    end
+    x132.lv=132
+    if (oss_kv==220)
+        x220=deepcopy(xfm0)
+    else
+        x220=deepcopy(xfm1)
+    end
+    x220.lv=220
+    if (oss_kv==400)
+        x400=deepcopy(xfm0)
+    else
+        x400=deepcopy(xfm1)
+    end
+    x400.lv=400
+    xs=[x132,x220,x400]
+
+    #set cable
     kv=132
     c132=cstF_HvCblo2o(l,S,kv,wp,ks)
     kv=220
@@ -480,35 +511,40 @@ function cstF_HvCblallKvo2o(l,S,wp,ks)
     kv=400
     c400=cstF_HvCblo2o(l,S,kv,wp,ks)
     cbls=[c132,c220,c400]
-    low_cost=findmin([c132.costs.ttl,c220.costs.ttl,c400.costs.ttl])[2]
-    return cbls[low_cost]
+    low_cost=findmin([c132.costs.ttl+x132.costs.ttl,c220.costs.ttl+x220.costs.ttl,c400.costs.ttl+x400.costs.ttl])[2]
+    return cbls[low_cost],[xfm1,xs[low_cost]]
 end
 
 function cstF_HvCblallKvo2p(l,S,wp,ks,pcc)
     x0=xfo()
     x0.costs.ttl=0
-    x1=cstF_xfo_pcc(S,wp,ks)
+    xPcc=cstF_xfo_pcc(S,wp,ks)
+    x0.hv=pcc.kV
+    xPcc.hv=pcc.kV
     kv=132
     c132=cstF_HvCblo2p(l,S,kv,wp,ks)
     if (kv == pcc.kV)
-        x132=x0
+        x132=deepcopy(x0)
     else
-        x132=x1
+        x132=deepcopy(xPcc)
     end
+    x132.lv=132
     kv=220
     c220=cstF_HvCblo2p(l,S,kv,wp,ks)
     if (kv == pcc.kV)
-        x220=x0
+        x220=deepcopy(x0)
     else
-        x220=x1
+        x220=deepcopy(xPcc)
     end
+    x220.lv=220
     kv=400
     c400=cstF_HvCblo2p(l,S,kv,wp,ks)
     if (kv == pcc.kV)
-        x400=x0
+        x400=deepcopy(x0)
     else
-        x400=x1
+        x400=deepcopy(xPcc)
     end
+    x400.lv=400
     xfs=[x132,x220,x400]
     cbls=[c132,c220,c400]
     low_cost=findmin([c132.costs.ttl+x132.costs.ttl,c220.costs.ttl+x220.costs.ttl,c400.costs.ttl+x400.costs.ttl])[2]
@@ -581,17 +617,16 @@ function cstF_HvCblo2p(l,S,kv,wp,ks)
 end
 
 
-function cstF_xfo_oss(S,wp,ks)
-    #=if S <=100
-        S=100
-    else
-    end=#
+function cstF_xfo_oss(S,wp::wind,ks::cstS_ks,lv=69.0,hv=69.0)
+
     xfm=xfo()#create transformer object
     xfm.costs.ttl=Inf
     xfos_all=eqpD_xfo_opt()#get all available xformer sizes
     xfos_2use=eqpF_xfo_sel(xfos_all,S)#select combinations to calculate
 
     for value in xfos_2use
+        value.lv=lv
+        value.hv=hv
         value.costs.cpx=cstF_oss_cpx(value,ks)#capex oss
         value.costs.tlc=cstF_xfo_tlc(value,S,ks,wp)#cost of losses
         value.costs.cm=cstF_eqp_cm(value,ks)#corrective maintenance
@@ -614,10 +649,6 @@ ks=ocean.finance
 #x=cstF_xfo_pcc(S,wp,ks)
 #plot(wp.ce)
 function cstF_xfo_pcc(S,wp,ks)
-    if S <=100
-        S=100
-    else
-    end
     xfm=xfo()#create transformer object
     xfm.costs.ttl=Inf
     xfos_all=eqpD_xfo_opt()#get all available xformer sizes
