@@ -71,7 +71,7 @@ end
 function lod_gensGps()
     c=Array{Tuple,1}()
     wnd=Array{String,1}()
-    p=Array{Float64,1}()
+    p=Array{Float32,1}()
 ##### Belgium #####
     if lod_Belgium()==true
         #Norther

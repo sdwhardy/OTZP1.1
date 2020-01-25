@@ -4,8 +4,8 @@
 #wp=wndF_wndPrf(profiles)
 #plot(wp.pu,wp.ce./wp.ce[length(wp.ce)])
 function wndF_wndPrf(profiles)
-    wp=Array{Float64,1}()
-    dummy=Array{Float64,1}()
+    wp=Array{Float32,1}()
+    dummy=Array{Float32,1}()
     dummy=profiles[1]
     for i=2:length(profiles)
         dummy=dummy+profiles[i]
@@ -46,8 +46,8 @@ end
 #=function wndF_wndPrf(nmes)
     prof = DataFrame(XLSX.readtable("layout//data.xlsx", "wind_data")...)
 
-    wp=Array{Float64,1}()
-    dummy=Array{Float64,1}()
+    wp=Array{Float32,1}()
+    dummy=Array{Float32,1}()
     dummy=getproperty(prof,Symbol(nmes[1]))
     for i=2:length(nmes)
         i=2
@@ -84,7 +84,7 @@ end
 
 function wndF_conEng(graph,wnd)
 #create sized arrays
-    ce=Float64[]
+    ce=Float32[]
     for hr=1:length(graph)
         smPu=0
         for pu=1:hr
@@ -104,7 +104,7 @@ end
 #calc for constrained energy
 #=function wndF_conEng(graph,wnd)
 #create sized arrays
-    ce=Float64[]
+    ce=Float32[]
     for (i1,v1) in enumerate(graph)
         if (v1>=1)
             push!(ce,0)

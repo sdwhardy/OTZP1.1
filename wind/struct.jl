@@ -2,9 +2,9 @@
 
 #wind object
 mutable struct wind
-      pu::Array{Float64}
-      ce::Array{Float64}
-      delta::Float64
-      lf::Float64
+      pu::Array{Float32}
+      ce::Array{Float32}
+      delta::Float32
+      lf::Float32
 end
-wind()=wind(Float64[],Float64[],69.69,69.69)
+wind()=wind(Float32[],Float32[],69.69,69.69)

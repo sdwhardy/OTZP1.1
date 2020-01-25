@@ -47,8 +47,8 @@ function eensF_eqp_cpt(eqp,S)
     rows=trunc(Int, 2.0^clms)
     empty_tbl=eensF_blankTbl(rows,clms)
     #Create blank power and availability tables
-    PWR_tbl=zeros(Float64,rows,1)
-    AVL_tbl=ones(Float64,rows,1)
+    PWR_tbl=zeros(Float32,rows,1)
+    AVL_tbl=ones(Float32,rows,1)
     #Set powers and availabilities by looping through the CPT
     for k=1:clms
         for j=1:rows
@@ -65,7 +65,7 @@ function eensF_eqp_cpt(eqp,S)
       end
     #all unique power levels are extracted
     tbl_c1=unique(PWR_tbl)
-    tbl_c2=zeros(Float64,length(tbl_c1),1)
+    tbl_c2=zeros(Float32,length(tbl_c1),1)
     for k=1:length(tbl_c1)
       for j=1:length(AVL_tbl)
     #Availabilities are summed for common power levels
@@ -75,7 +75,8 @@ function eensF_eqp_cpt(eqp,S)
       end
     end
     #Checks if probability sums to 1 else error is thrown
-    if sum(tbl_c2) > 1.00001 || sum(tbl_c2) < 0.99999
+    if sum(tbl_c2) > 1.0001 || sum(tbl_c2) < 0.9999
+        println("sum is: "*string(sum(tbl_c2)))
         error("probability does not sum to 1")
     elseif maximum(tbl_c1) > S && minimum(tbl_c1) > 1
         error("power is not correct")
@@ -172,8 +173,8 @@ function eensF_owpp_cpt(xfm,cb,S)
     rows=trunc(Int, 2.0^clms)
     XFM_CBL=eensF_blankTbl(rows,clms)
     #Create blank power and availability tables
-    PWR_tbl=zeros(Float64,rows,2)
-    AVL_tbl=ones(Float64,rows,1)
+    PWR_tbl=zeros(Float32,rows,2)
+    AVL_tbl=ones(Float32,rows,1)
     #Set powers and availabilities
     for k=1:clms
         for j=1:rows
@@ -196,12 +197,12 @@ function eensF_owpp_cpt(xfm,cb,S)
             end
         end
     end
-    pwr_series=zeros(Float64,rows,1)
+    pwr_series=zeros(Float32,rows,1)
     for i=1:rows
         pwr_series[i]=minimum(PWR_tbl[i,:])
     end
     tbl_c1=unique(pwr_series)
-    tbl_c2=zeros(Float64,length(tbl_c1),1)
+    tbl_c2=zeros(Float32,length(tbl_c1),1)
     for k=1:length(tbl_c1)
       for j=1:length(AVL_tbl)
           if pwr_series[j]==tbl_c1[k]

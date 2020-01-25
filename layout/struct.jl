@@ -1,32 +1,32 @@
 ###################################################################
 mutable struct line
-      ymn::Float64
-      ymx::Float64
-      xmn::Float64
-      xmx::Float64
-      m_findx::Float64
-      b_findx::Float64
-      m_findy::Float64
-      b_findy::Float64
+      ymn::Float32
+      ymx::Float32
+      xmn::Float32
+      xmx::Float32
+      m_findx::Float32
+      b_findx::Float32
+      m_findy::Float32
+      b_findy::Float32
 end
 line()=line(69.69,69.69,69.69,69.69,69.69,69.69,69.69,69.69)
 ###################################################################
 mutable struct xy
-      x::Float64
-      y::Float64
+      x::Float32
+      y::Float32
 end
 xy()=xy(69.69,69.69)
 ###################################################################
 mutable struct gps
-      lat::Float64
-      lng::Float64
+      lat::Float32
+      lng::Float32
 end
 gps()=gps(69.69,69.69)
 ###################################################################
 mutable struct edge
-      head::Int64
-      tail::Int64
-      lngth::Float64
+      head::Int32
+      tail::Int32
+      lngth::Float32
 end
 edge()=edge(69,69,69.69)
 ###################################################################
@@ -34,24 +34,24 @@ mutable struct node
       gps::gps
       xy::xy
       edges::Array{edge}
-      G_cost::Float64
-      H_cost::Float64
-      F_cost::Float64
-      num::Int64
+      G_cost::Float32
+      H_cost::Float32
+      F_cost::Float32
+      num::Int32
       openQ::Bool
       closedQ::Bool
-      goal::Int64
+      goal::Int32
       parent::node
       node()=(x=new();x.gps=gps();x.xy=xy();x.edges=Array{edge,1}();x.G_cost=Inf;x.H_cost=Inf;x.F_cost=Inf;x.num=69;x.openQ=false;x.closedQ=false; x.goal=0; x.parent=x)
 end
 #node()=(gps(),xy(),edge[],Inf,Inf,Inf,69,false,false,0,node())
 ###################################################################
 mutable struct farm
-      pos_height::Float64
-      pos_width::Float64
-      neg_width::Float64
-      neg_height::Float64
-      area::Float64
+      pos_height::Float32
+      pos_width::Float32
+      neg_width::Float32
+      neg_height::Float32
+      area::Float32
       nodes::Array{node}
       edges::Array{edge}
       ebnd::Array{line}
@@ -64,11 +64,11 @@ farm()=farm(69.69,69.69,69.69,69.69,69.69,node[],edge[],line[],line[],line[],lin
 
 #the structure for a transformer
 mutable struct xfo
-   mva::Float64
-   num::Float64
-   hv::Float64
-   lv::Float64
-   eta::Float64
+   mva::Float32
+   num::Float32
+   hv::Float32
+   lv::Float32
+   eta::Float32
    reliability::relia
    elec::elec
    costs::xfo_costs
@@ -77,12 +77,12 @@ xfo()=xfo(0.0,0.0,0.0,0.0,0.0,relia(),elec(),xfo_costs())
 ###################################################################
 #the structure used for a cable
 mutable struct cbl
-   mva::Float64
-   length::Float64
+   mva::Float32
+   length::Float32
    pth::Array{node}
-   size::Float64
-   cost::Float64
-   num::Float64
+   size::Float32
+   cost::Float32
+   num::Float32
    reliability::relia
    elec::elec
    costs::cbl_costs
@@ -91,8 +91,8 @@ cbl()=cbl(0.0,0.0,node[],0.0,0.0,0.0,relia(),elec(),cbl_costs())
 ###################################################################
 #the structure used for a owpp (cable and xfm)
 #=mutable struct owpp
-   mva::Float64
-   km::Float64
+   mva::Float32
+   km::Float32
    cable::cbl
    xfm::xfo
    wp::wind
@@ -101,29 +101,29 @@ end
 owpp()=owpp(0.0,0.0,cbl(),xfo(),wind(),results())=#
 ###################################################################
 mutable struct bus
-      mva::Float64
+      mva::Float32
       wnd::wind
-      #inputs::Array{Int64}
-      #outputs::Array{Int64}
+      #inputs::Array{Int32}
+      #outputs::Array{Int32}
       name::String
       node::node
       zone::farm
       mv_zone::farm
-      kV::Int64
-      num::Int64
-      id::Int64
+      kV::Int32
+      num::Int32
+      id::Int32
       xfmrs::Array{xfo}
-      base_cost::Float64
+      base_cost::Float32
 end
 bus()=bus(69.69,wind(),"sixty-nine",node(),farm(),farm(),69,69,69,xfo[],0)
 ###################################################################
 #=mutable struct conductor
       head::bus
       tail::bus
-      lngth::Float64
-      mva::Float64
-      num::Int64
-      id::Int64
+      lngth::Float32
+      mva::Float32
+      num::Int32
+      id::Int32
       #xfo_in
       #xfo_out
       #cbl
@@ -150,33 +150,33 @@ end
 nogo()=nogo(node[],node[],line[],line[],line[],line[])
 ####################################################################
 mutable struct system
-      nogoNum::Int64
-      prec::Float64
-      mwPerKm::Float64
+      nogoNum::Int32
+      prec::Float32
+      mwPerKm::Float32
 end
 system()=system(69,69.69,69.69)
 ####################################################################
 mutable struct circuit
       binary::Array{Int8}
-      decimal::Int64
+      decimal::Int32
       pcc::bus
       owpps::Array{bus}
       osss_owp::Array{bus}
       osss_mog::Array{bus}
       pths::Array{node}
-      cost::Float64
-      lengths::Array{Float64}
+      cost::Float32
+      lengths::Array{Float32}
       owp_MVcbls::Array{cbl}
       owp_HVcbls::Array{cbl}
       oss2oss_cbls::Array{cbl}
       pcc_cbls::Array{cbl}
-      parent_circ::Int64
+      parent_circ::Int32
       base_owp::bus
       oss_wind::wind
-      oss_mva::Float64
+      oss_mva::Float32
       Qing::Bool
 end
-circuit()=circuit(Int8[],69,bus(),bus[],bus[],bus[],node[],69.69,Float64[],cbl[],cbl[],cbl[],cbl[],0,bus(),wind(),69.69,false)
+circuit()=circuit(Int8[],69,bus(),bus[],bus[],bus[],node[],69.69,Float32[],cbl[],cbl[],cbl[],cbl[],0,bus(),wind(),69.69,false)
 #######################################################################################
 mutable struct eez
       osss::Array{bus}
@@ -199,11 +199,12 @@ mutable struct eez
       sys::system
       finance::cstS_ks
       circuits::Array{circuit}
-      theta::Float64
-      offset::Float64
+      theta::Float32
+      offset::Float32
       base::gps
-      id_count::Int64
+      id_count::Int32
+      yaxisMajor::Bool
 end
 #eez()=eez(bus[],bus[],bus[],bus[],conductor[],conductor[],conductor[],conductor[],conductor[],node[],nogo[],domain(),system(),cstS_ks(),69.69,69.69,gps(),69)
-eez()=eez(bus[],bus[],bus[],bus[],node[],line[],line[],line[],line[],nogo[],domain(),constraints(),system(),cstS_ks(),circuit[],69.69,69.69,gps(),69)
+eez()=eez(bus[],bus[],bus[],bus[],node[],line[],line[],line[],line[],nogo[],domain(),constraints(),system(),cstS_ks(),circuit[],69.69,69.69,gps(),69,false)
 ###################################################################

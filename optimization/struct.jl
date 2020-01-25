@@ -1,17 +1,17 @@
 ###################################################################
 mutable struct ellipse
-      y0::Float64
-      x0::Float64
-      ry::Float64
-      rx::Float64
+      y0::Float32
+      x0::Float32
+      ry::Float32
+      rx::Float32
 end
 ellipse()=ellipse(69.69,69.69,69.69,69.69)
 ###################################################################
 mutable struct square
-      ymx::Float64
-      xmx::Float64
-      ymn::Float64
-      xmn::Float64
+      ymx::Float32
+      xmx::Float32
+      ymn::Float32
+      xmn::Float32
 end
 square()=square(69.69,69.69,69.69,69.69)
 ###################################################################

@@ -46,6 +46,26 @@ function top_mvTopos(owpps)
 
     return empty_tbl
 end
+
+function top_hvTopos(owpps)
+    #find all combinations
+    clms=trunc(Int,length(owpps))
+    rows=trunc(Int, 2.0^clms)
+    empty_tbl=eensF_blankTbl(rows,clms)
+
+    #remove anything less than a pair
+    lngth=length(empty_tbl[:,1])
+    indx=1
+    while indx <= lngth
+        if (sum(empty_tbl[indx,:]) < 1)
+            empty_tbl=empty_tbl[1:size(empty_tbl,1) .!= indx,: ]
+            indx=indx-1
+        end
+        indx=indx+1
+        lngth=length(empty_tbl[:,1])
+    end
+    return empty_tbl
+end
 ############################################################################
 #=
 bn=[1,1,1,0,1,1]
@@ -64,7 +84,7 @@ function top_dec2bin(dec)
     bn=Int8[]
     while (dec != 0)
         push!(bn,mod(dec,2))
-        dec=floor(Int64, dec/2)
+        dec=floor(Int32, dec/2)
     end
     return bn
 end

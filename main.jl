@@ -4,7 +4,7 @@ using DataFrames,XLSX,CSV
 using StatsPlots, SpecialFunctions
 using Polynomials
 using JuMP, Ipopt
-
+using JLD2, FileIO
 
 include("wind/struct.jl")
 include("cost/struct.jl")#
@@ -30,15 +30,36 @@ include("topology/functions.jl")
 
 
 function main()
-    @time ocean=lof_layoutEez()
-    side="low"
+
+    #side="low"
     #side="centre"
     #side="high"
-    @time ocean.circuits=opt_mvOSSplacement(ocean,ocean.owpps,ocean.pccs[2],side)
-    @time ocean.circuits=opt_hvOSSplacement(ocean,ocean.pccs[2],side)
-    @time opt_compoundOSS(ocean)
+    #for side in ["high","centre","low"]
+        @time ocean=lof_layoutEez_basis()
+        ocean.owpps=lof_order2Pcc(ocean,ocean.pccs[2])
+        ocean=lof_layoutEez_expand(ocean,ocean.pccs[2])
+        @time ocean.circuits=opt_hvOSSplacement(ocean,ocean.pccs[2])
+        ppf_testing(ocean)
+        #ppf_saveSystem(ocean,side*"HV")
+        @time ocean.circuits=opt_mvOSSplacement(ocean,ocean.owpps,ocean.pccs[2])
+        ppf_testing(ocean)
+        #ppf_saveSystem(ocean,side*"MV")
+        @time opt_compoundOSS(ocean)
+        ppf_testing(ocean)
+        #ppf_saveSystem(ocean,"Combo_8owpps_boo")
+        @time best_full_syss,ocean.circuits=opt_rollUp(ocean)
+    #end
+    ocean=load("tempFiles/data/solutions/Combo_8owpps.jld2")["ocean"]
+    ocn_l=load("tempFiles/data/solutions/lowCB.jld2")["ocean"]
+    ocn_h=load("tempFiles/data/solutions/highCB.jld2")["ocean"]
 
-    ppf_printOcnXY_cables(ocean,ocean.circuits[63])
+    ppf_printOcnXY_cables(ocn_l,ocn_l.circuits[51])
+    printLines(ocean)
+    gr()
+    gui()
+
+    ppf_equipment(ocean,ocean.circuits[30])
+#ocean.discretedom.nodes[85]
     #start=ocean.owpps[3].node
     #goal=ocean.pccs[1].node
     #path=as_Astar(start,goal,ocean.discretedom.nodes)
@@ -46,29 +67,14 @@ function main()
     #ppf_printOcnXY(ocean,path,start)
 
     #ppf_printOcnXY(ocean)
-    return ocean
+    #return ocean
 end
-ocn=main()
+main()
+plotly()
+plot([1,2,3,4,5],[1,2,3,4,5])
 
-function testing(ocn)
-    mv=0
-    hv=0
-    total=0
-    for i=1:length(ocn.circuits)
-        println(string(ocn.circuits[i].decimal)*") Cst:"*string(ocn.circuits[i].cost)*", mvC:"*string(length(ocn.circuits[i].owp_MVcbls))*", hvC:"*string(length(ocn.circuits[i].owp_HVcbls))*", oss:"*string(length(ocn.circuits[i].osss_owp))*", mog:"*string(length(ocn.circuits[i].osss_mog))*", o2oC:"*string(length(ocn.circuits[i].oss2oss_cbls)))
-        total=total+ocn.circuits[i].cost
-        #if (ocn.circuits[i].cost>=tst[i].cost)
-        #    mv=mv+1
-            #println(string(i)*" MV: "*string(tst[i].cost)*" - "*string(bst_sys[i].cost))
-        #else
-            #println("HV: "*string(ocn.circuits[i].binary)*" - "*string(tst[i].cost))
-        #    hv=hv+1
-        #end
-    end
-    println(total)
-end
-testing(ocean)
-ppf_printOcnXY_cables(ocean,ocean.circuits[63])
+ppf_testing(ocean)
+
 main()
 ocean.circuits[15]
 sea.circuits[14]

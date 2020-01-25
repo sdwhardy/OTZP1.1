@@ -4,6 +4,6 @@ mutable struct mutstruct1
 end
 
 mutable struct mutstruct2
-    a::Int64
-    b::Int64
+    a::Int32
+    b::Int32
 end

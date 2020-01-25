@@ -11,7 +11,7 @@ function as_Astar(start,goal,domain_data)#node
     as_infCsts(domain_data)
     start=domain_data[start.num]
     goal=domain_data[goal.num]
-    openQ=Array{Tuple{Float64,Float64,Int64},1}()
+    openQ=Array{Tuple{Float32,Float32,Int32},1}()
     current=node()
     current=start
     current.closedQ=true

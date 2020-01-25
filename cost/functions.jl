@@ -302,8 +302,8 @@ end
 #Removes AC OSS cost if DC is used
 #=function cstF_correctDc(cbcn,oss,gens,ocn)
     #makes all oss to gen distances
-    genDists=Array{Float64,1}()
-    mvConects=Array{Int64,1}()
+    genDists=Array{Float32,1}()
+    mvConects=Array{Int32,1}()
     for value in gens
         push!(genDists,lof_pnt2pnt_dist(value.coord,oss.coord))
     end
@@ -417,9 +417,10 @@ function cstF_mVrng(rd,S,wp,ks,prec)
     while cst_mv < cst_hv
         l=l+prec
         cst_mv=cstF_MvCbl(l,S,mv,wp,ks).costs.ttl
-        cst_hv=cstF_HvCblo2o(l,S,hv,wp,ks).costs.ttl+cstF_xfo_oss(100,wp,ks).costs.ttl
+        #cst_hv=cstF_HvCblo2o(l,S,hv,wp,ks).costs.ttl+cstF_xfo_oss(100,wp,ks).costs.ttl
+        cst_hv=cstF_HvCblo2o(l-0.5,S,hv,wp,ks).costs.ttl+cstF_MvCbl(0.5,S,mv,wp,ks).costs.ttl+10
     end
-    return (l+rd)
+    return l
 end
 
 #no realistic scenario exists where 33kV is a better option
@@ -440,11 +441,13 @@ function cstF_MvHvCblpcc(l,S,wp,ks,pcc)
     #MV costs
     cmv=cstF_MvCbl3366(l,S,wp,ks)
     xpccMV=cstF_xfo_pcc(S,wp,ks)
+    xpccMV.lv=cmv.elec.volt
+    xpccMV.hv=pcc.kV
     mvCst=cmv.costs.ttl+xpccMV.costs.ttl
     #HV costs
     cmv_05=cstF_MvCbl3366(0.5,S,wp,ks)
     chv=cstF_HvCblallKvo2p(l-0.5,S,wp,ks,pcc)
-    xOssHV=cstF_xfo_oss(S,wp,ks)
+    xOssHV=cstF_xfo_oss(S,wp,ks,cmv_05.elec.volt,chv[1].elec.volt)
     hvCst=cmv_05.costs.ttl+chv[1].costs.ttl+chv[2].costs.ttl+xOssHV.costs.ttl+10
 
     cbls=[[cmv,xpccMV],[cmv_05,chv[1],xOssHV,chv[2]]]

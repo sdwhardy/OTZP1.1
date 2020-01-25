@@ -1,4 +1,4 @@
-function lof_layoutEez()
+function lof_layoutEez_basis()
     #reading data from excel input files
     ocean=eez()
     ocean.id_count=0
@@ -19,37 +19,43 @@ function lof_layoutEez()
     for i=1:ocean.sys.nogoNum
         lof_gps2cartesian4nodes(ocean.nogos[i].bndryPnts,ocean.base)#projects boundary points onto cartesian plane
     end
+
     lof_transformAxis(ocean)
+    return ocean
+end
+
+#=
+ocn=ocean
+pcc=ocn.pccs[2]
+=#
+function lof_layoutEez_expand(ocn,pcc)
+    #define as y or x axis major
+    lof_xyMajor(ocn,pcc)
     #set area of owpp
-    lof_setAreaOwpp(ocean)
+    lof_setAreaOwpp(ocn)
     #set range of MV
-    lof_mVrng(ocean)
+    lof_mVrng(ocn)
     #line all boundaries
-    lof_bndafy(ocean)
+    lof_bndafy(ocn)
     #Add all background nodes
-    #lof_nodify(ocean)
-    lof_nodifySparse(ocean)
+    lof_nodifySparse(ocn)
     #number all nodes
-    lof_numNodes(ocean)
-    #eliminate extra pcc nodes
-    #lof_posPccs(ocean)
-
-
+    lof_numNodes(ocn)
 
     #add all background edges
-    lof_edgeifySparse(ocean)
+    lof_edgeifySparse(ocn)
     #add edges for owpp
-    lof_owppEdgefy(ocean)
+    lof_owppEdgefy(ocn)
 
-    ocean.buses=vcat(ocean.pccs, ocean.owpps)#collects all buses
+    ocn.buses=vcat(ocn.pccs, ocn.owpps)#collects all buses
     #calculate constraint ellipse approximations for owpps
-    opt_owppConstraints(ocean)
+    opt_owppConstraints(ocn)
     #calculate constraint ellipse approximations for nogos
-    opt_nogoConstraints(ocean)
+    opt_nogoConstraints(ocn)
 
 
     ##########Printing
-    for value in ocean.pccs
+    for value in ocn.pccs
         print(value.num)
         print(" - ")
         println(value.node.gps)
@@ -61,16 +67,54 @@ function lof_layoutEez()
     end
     println("GPS coordinates projected onto cartesian plane.")
     println("Axis transformed.")
-    return ocean
+    return ocn
+end
+function lof_xyMajor(ocn,pcc)
+    x_min=pcc.node.xy.x
+    x_max=pcc.node.xy.x
+    y_min=pcc.node.xy.y
+    y_max=pcc.node.xy.y
+    for owp in ocn.owpps
+        if (owp.node.xy.x>x_max)
+            x_max=deepcopy(owp.node.xy.x)
+        elseif (owp.node.xy.x<x_min)
+            x_min=deepcopy(owp.node.xy.x)
+        end
+        if (owp.node.xy.y>y_max)
+            y_max=deepcopy(owp.node.xy.y)
+        elseif (owp.node.xy.y<y_min)
+            y_min=deepcopy(owp.node.xy.y)
+        end
+    end
+    if (abs(x_max-x_min)>abs(y_max-y_min))
+        ocn.yaxisMajor=false
+    else
+        ocn.yaxisMajor=true
+    end
 end
 
-#=
-ocn=ocean
-indx0 = 1
-nd_tail = ocn.discretedom.nodes[indx0]
-indx1 = 40
-nd_head=ocn.discretedom.nodes[indx1]
-=#
+function lof_order2Pcc(ocn,pcc)
+    lngth_owpps=Array{Tuple{Float64,Int64},1}()
+    ordrd_owpps=Array{bus,1}()
+    for (indx,owp) in enumerate(ocn.owpps)
+        owp.num=deepcopy(indx)
+        push!(lngth_owpps,(deepcopy(lof_pnt2pnt_dist(owp.node.xy,pcc.node.xy)),deepcopy(owp.num)))
+    end
+    sort!(lngth_owpps, by = x -> x[1])
+    for indx in lngth_owpps
+        for owp in ocn.owpps
+            if (indx[2] == owp.num)
+                push!(ordrd_owpps,owp)
+            end
+        end
+    end
+    for (i,owp) in enumerate(ordrd_owpps)
+        owp.num=deepcopy(i)
+        owp.id=owp.num+length(ocn.pccs)-1
+    end
+    return ordrd_owpps
+end
+
 function lof_owppEdgefy(ocn)
     for (ind0,owpp) in enumerate(ocn.owpps)
         owpp.node.num=length(ocn.discretedom.nodes)+1
@@ -85,8 +129,8 @@ function lof_owppEdgefy(ocn)
     end
 end
 
-
 function lof_edgeifySparse(ocn)
+    konst=3
     buildEdge = true
     buildSection = true
     for (indx0,nd_tail) in enumerate(ocn.discretedom.nodes)
@@ -96,26 +140,19 @@ function lof_edgeifySparse(ocn)
                 verln=lof_lineDirection(nd_tail,nd_head)
                 str8line=lof_getStr8line(nd_head,nd_tail)
                 if verln == true
-                    for y=str8line.ymn:ocn.sys.prec:str8line.ymx
+                    for y=str8line.ymn:ocn.sys.prec/konst:str8line.ymx
                         x=y*str8line.m_findx+str8line.b_findx
                         buildSection,area=lof_test4pnt(x,y,ocn)
-                        #println("Prior: "*string(buildSection)*" - y= "*string(y)*" - x= "*string(x))
                         if (buildSection == false)
-                            #println("Post y: "*string(buildSection)*" - y= "*string(y)*" - x= "*string(x))
-                            #Post y: false - y= 43.76099727078574 - x= 22.99177624324488
                             buildEdge = false
                             @goto no_str8line
                         end
                     end
                 else
-                    #=
-                    x=str8line.xmn+ocn.sys.prec
-                    =#
-                    for x=str8line.xmn:ocn.sys.prec:str8line.xmx
+                    for x=str8line.xmn:ocn.sys.prec/konst:str8line.xmx
                         y=x*str8line.m_findy+str8line.b_findy
                         buildSection,area=lof_test4pnt(x,y,ocn)
                         if (buildSection == false)
-                            #println("Post x: "*string(buildSection)*" - y= "*string(y)*" - x= "*string(x))
                             buildEdge = false
                             @goto no_str8line
                         end
@@ -123,7 +160,6 @@ function lof_edgeifySparse(ocn)
                 end
             end
             if (buildEdge == true)
-                #println("Building Edge!!")
                 lof_addEdge(nd_tail,nd_head,ocn.discretedom.edges)
             end
             @label no_str8line
@@ -132,12 +168,6 @@ function lof_edgeifySparse(ocn)
     end
 end
 
-#=
-oss=oss_nodeA
-nodes=domainA
-edges=edgesA
-lof_edgeifyOss(oss_nodeA,ocn,domainA,edgesA)
-=#
 function lof_edgeifyOss(oss,ocn,nodes,edges)
     buildEdge = true
     buildSection = true
@@ -151,10 +181,7 @@ function lof_edgeifyOss(oss,ocn,nodes,edges)
                 for y=str8line.ymn:ocn.sys.prec:str8line.ymx
                     x=y*str8line.m_findx+str8line.b_findx
                     buildSection,area=lof_test4pnt(x,y,ocn)
-                    #println("Prior: "*string(buildSection)*" - y= "*string(y)*" - x= "*string(x))
                     if (buildSection == false)
-                        #println("Post y: "*string(buildSection)*" - y= "*string(y)*" - x= "*string(x))
-                        #Post y: false - y= 43.76099727078574 - x= 22.99177624324488
                         buildEdge = false
                         @goto no_str8line
                     end
@@ -183,7 +210,40 @@ function lof_edgeifyOss(oss,ocn,nodes,edges)
     end
 end
 
-
+function lof_pntWithinNG(x,y,area2tst)
+    inside=true
+    vertices=xy[]
+    for pnt in area2tst.bndryPnts
+        push!(vertices,deepcopy(pnt.xy))
+        vertices[length(vertices)].x=(vertices[length(vertices)].x-x)
+        vertices[length(vertices)].y=(vertices[length(vertices)].y-y)
+    end
+    #println(vertices)
+    vertices=vertices[end:-1:1]
+    a_i=Float64
+    pos=false
+    neg=false
+    nll=false
+    for i=1:1:length(vertices)
+        if (i==length(vertices))
+            j=1
+        else
+            j=i+1
+        end
+        a_i=(vertices[j].x*vertices[i].y)-(vertices[i].x*vertices[j].y)
+        if (a_i>0)
+            pos=true
+        elseif (a_i<0)
+            neg=true
+        else
+            nll=true
+        end
+    end
+    if (pos==true && neg==true) || (nll==true)
+        inside=false
+    end
+    return inside
+end
 #Complete these 2 functions then test in edges are correct
 function lof_pntWithin(x,y,area2tst)
     #return true if inside area
@@ -198,9 +258,11 @@ function lof_pntWithin(x,y,area2tst)
     south_out=false
 
     #check north boundary
+    #ln=area2tst.nbnd[1]
     if length(area2tst.nbnd) != 0
         for ln in area2tst.nbnd
-            if (ln.xmn<=x && ln.xmx>=x && ln.ymx>=y)
+            #if (ln.xmn<=x && ln.xmx>=x && ln.ymx>=y)
+            if (ln.xmn<=x && ln.xmx>=x)
                 if ((ln.m_findy*x+ln.b_findy)>y)
                     north_in=true
                 elseif ((ln.m_findy*x+ln.b_findy)<=y)
@@ -211,9 +273,11 @@ function lof_pntWithin(x,y,area2tst)
     end
 
     #check south boundary
+    #ln=area2tst.sbnd[1]
     if length(area2tst.sbnd) != 0
         for ln in area2tst.sbnd
-            if (ln.xmn<=x && ln.xmx>=x && ln.ymn<=y)
+            #if (ln.xmn<=x && ln.xmx>=x && ln.ymn<=y)
+            if (ln.xmn<=x && ln.xmx>=x)
                 if ((ln.m_findy*x+ln.b_findy)<y)
                     south_in=true
                 elseif ((ln.m_findy*x+ln.b_findy)>=y)
@@ -224,9 +288,11 @@ function lof_pntWithin(x,y,area2tst)
     end
 
     #check east boundary
+    #ln=area2tst.ebnd[1]
     if length(area2tst.ebnd) != 0
         for ln in area2tst.ebnd
-            if (ln.ymn<=y && ln.ymx>=y && ln.xmx>=x)
+            #if (ln.ymn<=y && ln.ymx>=y && ln.xmx>=x)
+            if (ln.ymn<=y && ln.ymx>=y)
                 if ((ln.m_findx*y+ln.b_findx)>x)
                     east_in=true
                 elseif ((ln.m_findx*y+ln.b_findx)<=x)
@@ -237,9 +303,11 @@ function lof_pntWithin(x,y,area2tst)
     end
 
     #check west boundary
+    #ln=area2tst.wbnd[1]
     if length(area2tst.wbnd) != 0
         for ln in area2tst.wbnd
-            if (ln.ymn<=y && ln.ymx>=y && ln.xmn<=x)
+            #if (ln.ymn<=y && ln.ymx>=y && ln.xmn<=x)
+            if (ln.ymn<=y && ln.ymx>=y)
                 if ((ln.m_findx*y+ln.b_findx)<x)
                     west_in=true
                 elseif ((ln.m_findx*y+ln.b_findx)>=x)
@@ -274,7 +342,8 @@ function lof_addEdge(nd_tail,nd_head,Alledges)
     push!(Alledges,nd_head.edges[length(nd_head.edges)])
     push!(Alledges,nd_tail.edges[length(nd_tail.edges)])
 end
-
+#stage_go
+#owpp=ocn.owpps[3]
 function lof_test4pnt(x,y,ocn)
     within = false
     outside = true
@@ -294,14 +363,15 @@ function lof_test4pnt(x,y,ocn)
     end
 
     #check nogo areas
-    for nogo in ocn.nogos
-        within=lof_pntWithin(x,y,nogo)
+    #ngo = ocn.nogos[2]
+    for ngo in ocn.nogos
+        within=lof_pntWithinNG(x,y,ngo)
         if (within == true)
-            area.ebnd=nogo.ebnd
-            area.wbnd=nogo.wbnd
-            area.nbnd=nogo.nbnd
-            area.sbnd=nogo.sbnd
-            area.nodes=nogo.nodes
+            area.ebnd=ngo.ebnd
+            area.wbnd=ngo.wbnd
+            area.nbnd=ngo.nbnd
+            area.sbnd=ngo.sbnd
+            area.nodes=ngo.nodes
             outside=false
             @goto pnt_inside
         end
@@ -344,7 +414,7 @@ end
 function lof_posPccs(ocn)
     for pcc in ocn.pccs
         bsf_distance=Inf
-        bsf_node=Int64
+        bsf_node=Int32
         for (indx,node) in enumerate(ocn.discretedom.nodes)
             distance=lof_pnt2pnt_dist(pcc.node.xy,node.xy)
             if  distance < bsf_distance
@@ -362,7 +432,7 @@ function lof_numNodes(ocn)
         nd.num=deepcopy(indx)
     end
 end
-
+#ng=ocn.nogos[1]
 function lof_nodifySparse(ocn)
     #place nodes on boundary on no go zones
     for ng in ocn.nogos
@@ -374,8 +444,14 @@ function lof_nodifySparse(ocn)
                     dummy_node.xy.x=y_step*ln.m_findx+ln.b_findx
                     push!(ocn.discretedom.nodes,deepcopy(dummy_node))
                 end
+                dummy_node=node()
+                dummy_node.xy.y=ln.ymx
+                dummy_node.xy.x=ln.ymx*ln.m_findx+ln.b_findx
+                push!(ocn.discretedom.nodes,deepcopy(dummy_node))
             end
         end
+        #lns=[ng.sbnd,ng.nbnd][1]
+        #ln=lns[1]
         for lns in [ng.sbnd,ng.nbnd]
             for ln in lns
                 for x_step = ln.xmn:ocn.sys.prec:ln.xmx
@@ -384,6 +460,10 @@ function lof_nodifySparse(ocn)
                     dummy_node.xy.y=x_step*ln.m_findy+ln.b_findy
                     push!(ocn.discretedom.nodes,deepcopy(dummy_node))
                 end
+                dummy_node=node()
+                dummy_node.xy.x=ln.xmx
+                dummy_node.xy.y=ln.xmx*ln.m_findy+ln.b_findy
+                push!(ocn.discretedom.nodes,deepcopy(dummy_node))
             end
         end
     end
@@ -399,6 +479,11 @@ function lof_nodifySparse(ocn)
                     push!(ocn.discretedom.nodes,deepcopy(dummy_node))
                     push!(owpp.zone.nodes,ocn.discretedom.nodes[length(ocn.discretedom.nodes)])
                 end
+                dummy_node=node()
+                dummy_node.xy.y=ln.ymx
+                dummy_node.xy.x=ln.ymx*ln.m_findx+ln.b_findx
+                push!(ocn.discretedom.nodes,deepcopy(dummy_node))
+                push!(owpp.zone.nodes,ocn.discretedom.nodes[length(ocn.discretedom.nodes)])
             end
         end
         for lns in [owpp.zone.sbnd,owpp.zone.nbnd]
@@ -410,6 +495,11 @@ function lof_nodifySparse(ocn)
                     push!(ocn.discretedom.nodes,deepcopy(dummy_node))
                     push!(owpp.zone.nodes,ocn.discretedom.nodes[length(ocn.discretedom.nodes)])
                 end
+                dummy_node=node()
+                dummy_node.xy.x=ln.xmx
+                dummy_node.xy.y=ln.xmx*ln.m_findy+ln.b_findy
+                push!(ocn.discretedom.nodes,deepcopy(dummy_node))
+                push!(owpp.zone.nodes,ocn.discretedom.nodes[length(ocn.discretedom.nodes)])
             end
         end
     end
@@ -421,7 +511,7 @@ function lof_nodifySparse(ocn)
     unique!(ocn.discretedom.nodes)
 end
 
-function lof_edgeify(ocn)
+#=function lof_edgeify(ocn)
     hyp=2*ocn.sys.prec
     for (indx0,nd0) in enumerate(ocn.discretedom.nodes)
         for indx1 = indx0+1:1:length(ocn.discretedom.nodes)
@@ -456,7 +546,7 @@ function lof_edgeify(ocn)
             push!(owpp.node.edges,dummy_edge)
         end
     end
-end
+end=#
 
 function lof_nogoZones(ocn)
     for i=1:ocn.sys.nogoNum
@@ -565,21 +655,22 @@ function lof_setAreaOwpp(ocn)
 end
 #=
 ocn=ocean
+ngs=ocn.nogos[1]
 =#
 function lof_bndafy(ocn)
     ocn.nbnd,ocn.ebnd,ocn.sbnd,ocn.wbnd=lof_bndNESW(ocn.bndryPnts)
     for ngs in ocn.nogos
-        ngs.nbnd,ngs.ebnd,ngs.sbnd,ngs.wbnd=lof_bndNESW(ngs.bndryPnts)
+        ngs.nbnd,ngs.ebnd,ngs.sbnd,ngs.wbnd,ngs.bndryPnts=lof_bndNESW_nogo(ngs.bndryPnts)
     end
 
     ngs_dummy=owppNGnodes(ocn, false)
     for (indx,owpp) in enumerate(ocn.owpps)
-        owpp.zone.nbnd,owpp.zone.ebnd,owpp.zone.sbnd,owpp.zone.wbnd=lof_bndNESW(ngs_dummy[indx].nodes)
+        owpp.zone.nbnd,owpp.zone.ebnd,owpp.zone.sbnd,owpp.zone.wbnd,owp_pnts=lof_bndNESW_nogo(ngs_dummy[indx].nodes)
     end
 
     ngs_dummy=owppNGnodes(ocn, true)
     for (indx,owpp) in enumerate(ocn.owpps)
-        owpp.mv_zone.nbnd,owpp.mv_zone.ebnd,owpp.mv_zone.sbnd,owpp.mv_zone.wbnd=lof_bndNESW(ngs_dummy[indx].nodes)
+        owpp.mv_zone.nbnd,owpp.mv_zone.ebnd,owpp.mv_zone.sbnd,owpp.mv_zone.wbnd,owp_pnts=lof_bndNESW_nogo(ngs_dummy[indx].nodes)
     end
 end
 #=
@@ -590,8 +681,8 @@ function lof_bndNESW(nds)
 
     vert=Array{line,1}()
     hori=Array{line,1}()
-    set_x=Array{Float64,1}()
-    set_y=Array{Float64,1}()
+    set_x=Array{Float32,1}()
+    set_y=Array{Float32,1}()
 
     for indx=1:length(nds)
         y0=nds[indx].xy.y
@@ -695,6 +786,157 @@ function lof_bndNESW(nds)
 
     return nb,eb,sb,wb
 end
+#=
+lngth_owpps=Array{Tuple{Float64,Int64},1}()
+ordrd_owpps=Array{bus,1}()
+for (indx,owp) in enumerate(ocn.owpps)
+    owp.num=deepcopy(indx)
+    push!(lngth_owpps,(deepcopy(lof_pnt2pnt_dist(owp.node.xy,pcc.node.xy)),deepcopy(owp.num)))
+end
+sort!(lngth_owpps, by = x -> x[1])
+
+nds=ocean.nogos[2]
+nds=ngs.bndryPnts
+=#
+function lof_bndNESW_nogo(nds)
+    #Create arrays to return
+    nb=Array{line,1}()
+    eb=Array{line,1}()
+    sb=Array{line,1}()
+    wb=Array{line,1}()
+    nds=lof_sortNogo(nds)
+    x0=nds[1].xy.x
+    x1=nds[2].xy.x
+    x2=nds[3].xy.x
+    x3=nds[4].xy.x
+    y0=nds[1].xy.y
+    y1=nds[2].xy.y
+    y2=nds[3].xy.y
+    y3=nds[4].xy.y
+    ang12=(atan((y1-y0)/(x1-x0))*(180/pi))#90>=ang12>45(east)||45>=ang12>=-45(south)||-45>ang12>=-90(west)
+    ang23=(atan((y2-y1)/(x2-x1))*(180/pi))#0>ang23>-45(south)||-45>=ang23>=-90(west)||90>=ang23=>45(west)||45>ang23=>0(north)
+    ang34=(atan((y3-y2)/(x3-x2))*(180/pi))#90=>ang34>45(east)||45=>ang34(north)=>-45||-45>ang34=>-90(west)
+    ang41=(atan((y0-y3)/(x0-x3))*(180/pi))#0=<ang41<45(south)||45=<ang41=<90(east)||0>ang41=>-45(north)||-45>ang41>=-90(east)
+#90>=ang12>45(east)||45>=ang12>=-45(south)||-45>ang12>=-90(west)
+    if (-91.0<=ang12 && ang12<-45.0)
+        push!(wb,lof_makeDline(x0,x1,y0,y1,true))
+    elseif (-45.0<=ang12 && ang12<=45.0)
+        push!(nb,lof_makeDline(x0,x1,y0,y1,false))
+    elseif (45.0<ang12 && ang12<=91.0)
+        push!(eb,lof_makeDline(x0,x1,y0,y1,true))
+    else
+        println("Error: ang12 not in -90 to 90 degree range.")
+    end
+#0>ang23>-45(south)||-45>=ang23>=-90(west)||90>=ang23=>45(west)||45>ang23=>0(north)
+    if (-91.0<=ang23 && ang23<-45.0)
+        push!(eb,lof_makeDline(x1,x2,y1,y2,true))
+    elseif (-45.0<=ang23 && ang23<0.0)
+        push!(nb,lof_makeDline(x1,x2,y1,y2,false))
+    elseif (0.0<=ang23 && ang23<45.0)
+        push!(sb,lof_makeDline(x1,x2,y1,y2,false))
+    elseif (45.0<=ang23 && ang23<=91.0)
+        push!(eb,lof_makeDline(x1,x2,y1,y2,true))
+    else
+        println("Error: ang23 not in -90 to 90 degree range.")
+        println(ang23)
+    end
+#90=>ang34>45(east)||45=>ang34(north)=>-45||-45>ang34=>-90(west)
+    if (-91.0<=ang34 && ang34<-45.0)
+        push!(wb,lof_makeDline(x2,x3,y2,y3,true))
+    elseif (-45.0<=ang34 && ang34<=45.0)
+        push!(sb,lof_makeDline(x2,x3,y2,y3,false))
+    elseif (45.0<ang34 && ang34<=91.0)
+        push!(eb,lof_makeDline(x2,x3,y2,y3,true))
+    else
+        println("Error: ang34 not in -90 to 90 degree range.")
+    end
+#0=<ang41<45(south)||45=<ang41=<90(east)||0>ang41=>-45(north)||-45>ang41>=-90(east)
+    if (-91.0<=ang41 && ang41<-45.0)
+        push!(wb,lof_makeDline(x3,x0,y3,y0,true))
+    elseif (-45.0<=ang41 && ang41<0.0)
+        push!(sb,lof_makeDline(x3,x0,y3,y0,false))
+    elseif (0.0<=ang41 && ang41<45.0)
+        push!(nb,lof_makeDline(x3,x0,y3,y0,false))
+    elseif (45.0<=ang41 && ang41<=91.0)
+        push!(wb,lof_makeDline(x3,x0,y3,y0,true))
+    else
+        println("Error: ang41 not in -90 to 90 degree range.")
+        println(ang41)
+    end
+    return nb,eb,sb,wb,nds
+end
+
+function lof_makeDline(x0,x1,y0,y1,vert)
+    dummy_line=line()
+    dummy_line.ymn=min(y0,y1)
+    dummy_line.ymx=max(y0,y1)
+    dummy_line.xmn=min(x0,x1)
+    dummy_line.xmx=max(x0,x1)
+    if (vert==true)
+        dummy_line.b_findx,dummy_line.m_findx=reverse([[y0,y1] ones(2)]\[x0,x1])
+        if (x0==x1)
+            dummy_line.b_findy,dummy_line.m_findy=reverse([[x0,x1+(10^-5)] ones(2)]\[y0,y1])
+        else
+            dummy_line.b_findy,dummy_line.m_findy=reverse([[x0,x1] ones(2)]\[y0,y1])
+        end
+    else
+        dummy_line.b_findy,dummy_line.m_findy=reverse([[x0,x1] ones(2)]\[y0,y1])
+        if (y0==y1)
+            dummy_line.b_findx,dummy_line.m_findx=reverse([[y0,y1+(10^-5)] ones(2)]\[x0,x1])
+        else
+            dummy_line.b_findx,dummy_line.m_findx=reverse([[y0,y1] ones(2)]\[x0,x1])
+        end
+    end
+    return dummy_line
+end
+
+function lof_sortNogo(pnts)
+    _nodes=deepcopy(pnts)
+    sorted_nodes=node[]
+    _nodeT=Array{Tuple{node,Int64},1}()
+    n_xy=Array{Tuple{xy,Int64},1}()
+    s_xy=Array{Tuple{xy,Int64},1}()
+    _xy=Array{Tuple{xy,Int64},1}()
+    sorted_xy=Array{Tuple{xy,Int64},1}()
+    _x=Array{Tuple{Float64,Int64},1}()
+    _y=Array{Tuple{Float64,Int64},1}()
+    for (i,ns) in enumerate(_nodes)
+        push!(_nodeT,(ns,i))
+        push!(_xy,(ns.xy,i))
+        push!(_y,(ns.xy.y,i))
+    end
+    sort!(_y, by = x -> x[1])
+    for y in _y
+        for xys in _xy
+            if (xys[2]==y[2])
+                push!(sorted_xy,xys)
+            end
+        end
+    end
+    s_xy=sorted_xy[1:2]
+    n_xy=sorted_xy[3:4]
+    if (n_xy[1][1].x>n_xy[2][1].x)
+        n_xy=n_xy[end:-1:1]
+    end
+    if (s_xy[1][1].x<s_xy[2][1].x)
+        s_xy=s_xy[end:-1:1]
+    end
+    for nxy in n_xy
+        for nd in _nodeT
+            if (nd[2]==nxy[2])
+                push!(sorted_nodes,nd[1])
+            end
+        end
+    end
+    for sxy in s_xy
+        for nd in _nodeT
+            if (nd[2]==sxy[2])
+                push!(sorted_nodes,nd[1])
+            end
+        end
+    end
+    return sorted_nodes
+end
 
 function lof_nodify(ocn)
     wbnd,ebnd=lof_bndPerimeter(ocn.bndryPnts)
@@ -740,6 +982,7 @@ function owppNGnodes(ocn, mv)
 
         push!(ngs_dummy,deepcopy(nogo_dummy))
     end
+
     return ngs_dummy
 end
 
@@ -934,7 +1177,7 @@ bnd=ocn.bndryPnts
 function lof_bndPerimeter(bnd)
     #finds mid line dividing east and west regions
 
-    ys=Array{Float64,1}()
+    ys=Array{Float32,1}()
     for xys in bnd
         push!(ys,xys.xy.y)
     end
@@ -945,10 +1188,10 @@ function lof_bndPerimeter(bnd)
     #sorts to east and west bounding points
     wpntsT=Array{xy,1}()
     epntsT=Array{xy,1}()
-    wys=Array{Float64,1}()
-    eys=Array{Float64,1}()
-    wxs=Array{Float64,1}()
-    exs=Array{Float64,1}()
+    wys=Array{Float32,1}()
+    eys=Array{Float32,1}()
+    wxs=Array{Float32,1}()
+    exs=Array{Float32,1}()
     push!(wpntsT,bnd[mnY[2]].xy)
     push!(epntsT,bnd[mnY[2]].xy)
     push!(wxs, bnd[mnY[2]].xy.x)

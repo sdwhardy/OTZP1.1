@@ -1,42 +1,164 @@
 #=
 ocn=ocean
-pcc=ocn.pccs[2]
-owpps=ocn.owpps
-paths=opt_mvOSSplacement(ocn,owpps,pcc)
+indx0=1
+indx1=indx0+1
+
+crc0 = circs[indx0]
 =#
+function opt_makeHalfSpace(ng)
+    hsAr=HalfSpace[]
+    #southern
+    #@constraint(m, l.m_findy*x-y <= -l.b_findy)
+    for l in ng.sbnd
+        push!(hsAr,HalfSpace([l.m_findy, -1], -l.b_findy))
+    end
+    #western
+    #@constraint(m, -x+l.m_findx*y <= -l.b_findx)
+    for l in ng.wbnd
+        push!(hsAr,HalfSpace([-1, l.m_findx], -l.b_findx))
+    end
+    #northern
+    #@constraint(m, -l.m_findy*x+y <= l.b_findy)
+    for l in ng.nbnd
+        push!(hsAr,HalfSpace([-l.m_findy, 1], l.b_findy))
+    end
+    #eastern
+    #@constraint(m, x-l.m_findx*y <= l.b_findx)
+    for l in ng.ebnd
+        push!(hsAr,HalfSpace([1, -l.m_findx], l.b_findx))
+    end
+    simplex = hsAr[1]
+    for hs in hsAr[2:length(hsAr)]
+        simplex=simplex ∩ deepcopy(hs)
+    end
+    return simplex
+end
+
+function opt_rollUp(ocn)
+    circs=ocn.circuits
+    complete_systems=circuit[]
+    push!(complete_systems,circs[length(circs)])
+    for (indx0,crc0) in enumerate(circs[1:floor(Int64,length(circs)/2)])
+        bn0=findall(x->x==1,crc0.binary)
+        for indx1=indx0:1:length(circs)
+            bn1=findall(x->x==1,circs[indx1].binary)
+            cmb, bn01=opt_willCombine(bn0,bn1,length(circs[indx1].binary))
+            if (cmb)
+                rnk=floor(Int64,top_bin2dec(bn01))
+                if ((crc0.cost+circs[indx1].cost) < (circs[rnk].cost))
+                    if (rnk==length(circs))
+                        push!(complete_systems,opt_replaceRnk(circs[rnk],crc0,circs[indx1]))
+                    else
+                        circs[rnk]=opt_replaceRnk(circs[rnk],crc0,circs[indx1])
+                    end
+                end
+            end
+        end
+        println("Circuit Number: "*string(indx0))
+    end
+    complete_systems=opt_sortFllSys(complete_systems)
+    return complete_systems, circs
+end
+
+function opt_sortFllSys(complete_systems)
+    c_is=Array{Tuple{Float64,Int64},1}()
+    sorted_circs=circuit[]
+    for (i,sys) in enumerate(complete_systems)
+        push!(c_is,deepcopy((sys.cost,i)))
+    end
+    sort!(c_is, by = x -> x[1])
+    for cst in c_is
+        push!(sorted_circs,deepcopy(complete_systems[cst[2]]))
+    end
+    return sorted_circs
+end
+#=
+circ=circs[rnk]
+crc1=circs[indx1]
+=#
+function opt_replaceRnk(circ,crc0,crc1)
+    crc01=deepcopy(circ)
+    crc01.osss_owp=deepcopy(crc0.osss_owp)
+    crc01.osss_mog=deepcopy(crc0.osss_mog)
+    crc01.owp_MVcbls=deepcopy(crc0.owp_MVcbls)
+    crc01.owp_HVcbls=deepcopy(crc0.owp_HVcbls)
+    crc01.oss2oss_cbls=deepcopy(crc0.oss2oss_cbls)
+    crc01.pcc_cbls=deepcopy(crc0.pcc_cbls)
+    crc01.cost=deepcopy(crc0.cost+crc1.cost)
+    for o_owp in crc1.osss_owp
+        push!(crc01.osss_owp,deepcopy(o_owp))
+    end
+    for o_mog in crc1.osss_mog
+        push!(crc01.osss_mog,deepcopy(o_mog))
+    end
+    for mv_c in crc1.owp_MVcbls
+        push!(crc01.owp_MVcbls,deepcopy(mv_c))
+    end
+    for hv_c in crc1.owp_HVcbls
+        push!(crc01.owp_HVcbls,deepcopy(hv_c))
+    end
+    for o2o_c in crc1.oss2oss_cbls
+        push!(crc01.oss2oss_cbls,deepcopy(o2o_c))
+    end
+    for pcc_c in crc1.pcc_cbls
+        push!(crc01.pcc_cbls,deepcopy(pcc_c))
+    end
+    return crc01
+end
+
+function opt_willCombine(bn0,bn1,l)
+    cmb=true
+    bn01=zeros(Int8,l)
+    for one0 in bn0
+        for one1 in bn1
+            if (one0==one1)
+                cmb=false
+            end
+        end
+    end
+    if (cmb==true)
+        for one0 in bn0
+            bn01[one0]=1
+        end
+        for one1 in bn1
+            bn01[one1]=1
+        end
+    end
+    return cmb, bn01
+end
 ########################################## Start Compound System ###############################
 function opt_compoundOSS(ocn)
-    owpps_dec_mhv=Array{Int64, 1}()
+    owpps_dec_mhv=Array{Int32, 1}()
     owpps_tbl_mhv=Array{Array{Int8, 1}, 1}()
     owpp_tbl_mhv=Array{Int8, 1}()
-    owpp_dec_mhv=Array{Int64, 1}()
+    owpp_dec_mhv=Array{Int32, 1}()
 
     for crc in ocn.circuits
         push!(owpps_dec_mhv,deepcopy(crc.decimal))
         push!(owpps_tbl_mhv,deepcopy(crc.binary))
     end
-
+#dec=7
     for dec in owpps_dec_mhv[7:length(owpps_dec_mhv)]
         owpp_tbl_mhv=owpps_tbl_mhv[dec]
         println(owpp_tbl_mhv)
         min_Bin=findlast(x->x==1,owpp_tbl_mhv)
         osss_Pos=findfirst(x->x==1,owpp_tbl_mhv)
         zeros_mhv=findall(x->x==0,owpp_tbl_mhv[1:length(owpp_tbl_mhv)])
-        min_dec=floor(Int64,2^(min_Bin-1))
-        oss_dec=floor(Int64,2^(osss_Pos-1))
+        min_dec=floor(Int32,2^(min_Bin-1))
+        oss_dec=floor(Int32,2^(osss_Pos-1))
         for bin in reverse(owpps_tbl_mhv[min_dec+1:dec-1])
             #bin=reverse(owpps_tbl_mhv[min_dec+1:dec-1])[1]
-            owpp_dec_mhv=Int64[]
+            owpp_dec_mhv=Int32[]
             if (findall(x->x==1,bin[1:osss_Pos]) == [])
                 if (sum(bin[zeros_mhv]) < 1)
                     push!(owpp_dec_mhv,deepcopy(oss_dec))
-                    dc=floor(Int64,top_bin2dec(bin))
+                    dc=floor(Int32,top_bin2dec(bin))
                     push!(owpp_dec_mhv,deepcopy(dc))
                     if (sum(owpp_dec_mhv) == dec)
                         opt_bS(owpp_dec_mhv,ocn)
                     elseif (sum(owpp_dec_mhv) < dec)
                         binner_array=deepcopy(reverse(owpps_tbl_mhv[oss_dec+1:(dec-sum(owpp_dec_mhv))]))
-                        dinner_array=Int64[]
+                        dinner_array=Int32[]
                         for binner in binner_array
                             if (findall(x->x==1,binner[1:osss_Pos]) == [])
                                 if (sum(binner[zeros_mhv]) < 1)
@@ -77,7 +199,7 @@ function opt_bS(owpp_dec_mhv,ocn)
     oss_systems=Array{circuit,1}()
     rnk=sum(owpp_dec_mhv)
 
-    ioPos=Int64[]
+    ioPos=Int32[]
     #collect systems to sum
     for crc in owpp_dec_mhv
         push!(oss_systems,ocn.circuits[crc])
@@ -92,8 +214,161 @@ function opt_bS(owpp_dec_mhv,ocn)
     else
     end
 end
+function opt_compoundCbl(circ,oss_system,ocn)
+    for cb in circ.owp_MVcbls
+        push!(oss_system.owp_MVcbls,cb)
+    end
+
+    for cb in circ.owp_HVcbls
+        push!(oss_system.owp_HVcbls,cb)
+    end
+
+    for cb in circ.oss2oss_cbls
+        push!(oss_system.oss2oss_cbls,cb)
+    end
+
+    for xm in circ.osss_owp
+        push!(oss_system.osss_owp,xm)
+    end
+
+    for xm in circ.osss_mog
+        push!(oss_system.osss_mog,xm)
+    end
+
+    #find oss to mog connections
+    pth=deepcopy(as_Astar(circ.osss_mog[1].node,oss_system.osss_mog[1].node,ocn.discretedom.nodes))
+    oss2ossCbl=cstF_HvCblo2o(pth.G_cost,circ.oss_mva,circ.pcc_cbls[length(circ.pcc_cbls)].elec.volt,circ.oss_wind,ocn.finance)
+    return oss2ossCbl,pth
+end
+
+function opt_combineScratch(crc,oss_system,ocn)
+    circ=circuit()
+    circ,domain_oss,edges_oss=opt_mvhvEquipment(circ,crc.base_owp,crc.owpps,oss_system.osss_mog[1],ocn,crc.binary)
+    ocn.discretedom.nodes=deepcopy(domain_oss)
+    ocn.discretedom.edges=deepcopy(edges_oss)
+    oss2ossCbl,pth=opt_compoundCbl(circ,oss_system,ocn)
+    return oss2ossCbl,pth
+end
+
+function opt_combineCblRoute(pth,oss2ossCbl,oss_system)
+    currentNode=deepcopy(pth)
+    goalNode=deepcopy(pth.goal)
+    while currentNode.num != goalNode
+        push!(oss2ossCbl.pth,deepcopy(currentNode))
+        currentNode=currentNode.parent
+    end
+    push!(oss2ossCbl.pth,deepcopy(currentNode))
+    oss2ossCbl.pth=reverse!(oss2ossCbl.pth)
+    push!(oss_system.oss2oss_cbls,deepcopy(oss2ossCbl))
+    return oss2ossCbl,oss_system
+end
+
+function opt_combineCblPW(oss_system,circ,pHv,wHv,p132,w132,p220,w220,p400,w400)
+    #store wind for mog transformer calcs
+    if (oss_system.oss2oss_cbls[length(oss_system.oss2oss_cbls)].elec.volt==oss_system.pcc_cbls[length(oss_system.pcc_cbls)].elec.volt)
+        push!(pHv,circ.oss_mva)
+        push!(wHv,circ.oss_wind)
+    elseif (oss_system.oss2oss_cbls[length(oss_system.oss2oss_cbls)].elec.volt==132)
+        push!(p132,circ.oss_mva)
+        push!(w132,circ.oss_wind)
+    elseif (oss_system.oss2oss_cbls[length(oss_system.oss2oss_cbls)].elec.volt==220)
+        push!(p220,circ.oss_mva)
+        push!(w220,circ.oss_wind)
+    elseif (oss_system.oss2oss_cbls[length(oss_system.oss2oss_cbls)].elec.volt==400)
+        push!(p400,circ.oss_mva)
+        push!(w400,circ.oss_wind)
+    else
+    end
+    return pHv,wHv,p132,w132,p220,w220,p400,w400
+end
+
+function opt_fromScrtch(dest,crc,ax)
+    Scrtch=false
+    if (ax==true)
+    #yaxis Major
+        if ((dest.node.xy.x-crc.base_owp.node.xy.x)*(crc.owp_MVcbls[length(crc.owp_MVcbls)].pth[2].xy.x-crc.base_owp.node.xy.x)<0)
+            Scrtch=true
+        end
+    else
+    #xaxis Major
+        if ((dest.node.xy.y-crc.base_owp.node.xy.y)*(crc.owp_MVcbls[length(crc.owp_MVcbls)].pth[2].xy.y-crc.base_owp.node.xy.y)<0)
+            Scrtch=true
+        end
+    end
+    return Scrtch
+end
 
 function opt_buildSystem(oss_systems,rnk,ocn)
+    oss_system=circuit()
+
+    #take base information
+    oss_system.binary=ocn.circuits[rnk].binary
+    oss_system.decimal=ocn.circuits[rnk].decimal
+    oss_system.owpps=ocn.circuits[rnk].owpps
+    oss_system.base_owp=ocn.circuits[rnk].base_owp
+    oss_system.oss_wind=ocn.circuits[rnk].oss_wind
+    oss_system.oss_mva=ocn.circuits[rnk].oss_mva
+
+    #Take base OWP,PCC connections and MOG without transformers
+    push!(oss_system.owp_MVcbls,deepcopy(ocn.circuits[rnk].owp_MVcbls[1]))
+    oss_system.pcc=deepcopy(ocn.circuits[rnk].pcc)
+    push!(oss_system.osss_mog,deepcopy(ocn.circuits[rnk].osss_mog[1]))
+    oss_system.osss_mog[1].xfmrs=xfo[]
+    push!(oss_system.pcc_cbls,deepcopy(ocn.circuits[rnk].pcc_cbls[1]))
+    if (oss_system.owp_MVcbls[1].pth[length(oss_system.owp_MVcbls[1].pth)].num != oss_system.osss_mog[1].node.num)
+        push!(oss_system.owp_HVcbls,deepcopy(ocn.circuits[rnk].owp_HVcbls[1]))
+        push!(oss_system.osss_owp,deepcopy(ocn.circuits[rnk].osss_owp[1]))
+    else
+    end
+
+    #store wind for transformer calculation at MOG
+    pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400=opt_InitPW()
+    if (oss_system.owp_MVcbls[1].pth[length(oss_system.owp_MVcbls[1].pth)].num == oss_system.osss_mog[1].node.num)
+        push!(pMv,oss_systems[1].oss_mva)
+        push!(wMv,oss_systems[1].oss_wind)
+    elseif (oss_systems[1].pcc_cbls[length(oss_systems[1].pcc_cbls)].elec.volt==oss_system.pcc_cbls[length(oss_system.pcc_cbls)].elec.volt)
+        push!(pHv,oss_systems[1].oss_mva)
+        push!(wHv,oss_systems[1].oss_wind)
+    elseif (oss_systems[1].pcc_cbls[length(oss_systems[1].pcc_cbls)].elec.volt==132)
+        push!(p132,oss_systems[1].oss_mva)
+        push!(w132,oss_systems[1].oss_wind)
+    elseif (oss_systems[1].pcc_cbls[length(oss_systems[1].pcc_cbls)].elec.volt==220)
+        push!(p220,oss_systems[1].oss_mva)
+        push!(w220,oss_systems[1].oss_wind)
+    elseif (oss_systems[1].pcc_cbls[length(oss_systems[1].pcc_cbls)].elec.volt==400)
+        push!(p400,oss_systems[1].oss_mva)
+        push!(w400,oss_systems[1].oss_wind)
+    else
+    end
+############################# update this section with new set calculation ########################
+    connect_Type=""
+    for crc in oss_systems[2:length(oss_systems)]
+        #copy base cables and transformers
+        if (length(crc.owpps)==1)
+            oss_system,pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400=opt_str8Oss2Oss(crc,oss_system,ocn,pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400)
+        else
+            if (opt_fromScrtch(oss_system.osss_mog[1],crc,ocn.yaxisMajor))#check if full recalc required
+                connect_Type=connect_Type*"_Scratch"
+                oss2ossCbl,pth=opt_combineScratch(crc,oss_system,ocn)
+            else
+                connect_Type=connect_Type*"_Orig"
+                oss2ossCbl,pth=opt_compoundCbl(crc,oss_system,ocn)
+            end
+            oss2ossCbl,oss_system=opt_combineCblRoute(pth,oss2ossCbl,oss_system)
+            pHv,wHv,p132,w132,p220,w220,p400,w400=opt_combineCblPW(oss_system,crc,pHv,wHv,p132,w132,p220,w220,p400,w400)
+        end
+    end
+
+    oss_system.osss_mog[1]=opt_mogXfmrs(oss_system.osss_mog[1],pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400,ocn.finance,oss_system.pcc_cbls[length(oss_system.pcc_cbls)].elec.volt)
+    opt_ttlMvCirc(oss_system)
+    println(string(oss_system.cost)*" - "*string(ocn.circuits[rnk].cost))
+    if (oss_system.cost < ocn.circuits[rnk].cost)
+        println(string(rnk)*" - "*connect_Type)
+        ocn.circuits[rnk]=deepcopy(oss_system)
+    end
+end
+#=
+function opt_buildSystem_orig(oss_systems,rnk,ocn)
     oss_system=circuit()
 
     #take base information
@@ -200,39 +475,305 @@ function opt_buildSystem(oss_systems,rnk,ocn)
         ocn.circuits[rnk]=deepcopy(oss_system)
     end
 end
+=#
 ########################################## End Compound System #################################
 ########################################## Start HV System #####################################
-function opt_hvOSSplacement(ocn,pcc,side)
-    mv_circs=ocn.circuits
-    owpps_tbl_hv=Array{Array{Int8, 1}, 1}()
+#ocn=ocean
+#pcc=ocn.pccs[2]
+function opt_hvOSSplacement(ocn,pcc)
+    hv_circs=ocn.circuits
+    #owpps_tbl_hv=Array{Array{Int8, 1}, 1}()
+    owpps_tbl_hv=top_hvTopos(ocn.owpps)
+    owpps_tbl_hv=owpps_tbl_hv[end:-1:1,end:-1:1]
     oss_system=circuit()
     oss_systems=Array{circuit,1}()
-    for crc in mv_circs
+    #=for crc in mv_circs
         if ((length(findall(x->x==true,crc.binary)) != 1) && (crc.base_owp.num != crc.owpps[1].num))
             push!(owpps_tbl_hv,crc.binary)
         end
-    end
-    for indx0=1:length(owpps_tbl_hv)
-    #for indx0=173:176
+    end=#
+    for indx0=1:length(owpps_tbl_hv[:,1])
+    #indx0=31
         bus_dummies=bus[]
-        for (indx1,owp) in enumerate(owpps_tbl_hv[indx0])
+        for (indx1,owp) in enumerate(owpps_tbl_hv[indx0,:])
             if (owp==1)
                 push!(bus_dummies,ocn.owpps[indx1])
             end
         end
-        oss_system, discrete_dom, discrete_edges=opt_hvOssSystem(bus_dummies,pcc,ocn,owpps_tbl_hv[indx0],side)
-        rnk=floor(Int64,top_bin2dec(owpps_tbl_hv[indx0]))
-        if (oss_system.cost<mv_circs[rnk].cost)
-            mv_circs[rnk]=deepcopy(oss_system)
+        #oss_system, discrete_dom, discrete_edges=opt_hvOssSystem(bus_dummies,pcc,ocn,owpps_tbl_hv[indx0,:],side)
+        if (length(bus_dummies)>1)
+            oss_system, discrete_dom, discrete_edges=opt_hvOssSystem2(bus_dummies,pcc,ocn,owpps_tbl_hv[indx0,:])
+        else
+            oss_system=opt_str8Connect(bus_dummies[1],pcc,ocn,owpps_tbl_hv[indx0,:])
+            discrete_dom=ocn.discretedom.nodes
+            discrete_edges=ocn.discretedom.edges
+        end
+        #rnk=floor(Int32,top_bin2dec(owpps_tbl_hv[indx0]))
+        #if (oss_system.cost<hv_circs[rnk].cost)
+            #hv_circs[rnk]=deepcopy(oss_system)
+            push!(hv_circs,oss_system)
             ocn.discretedom.nodes=deepcopy(discrete_dom)
             ocn.discretedom.edges=deepcopy(discrete_edges)
-        end
+        #end
     end
-    return mv_circs
+    return hv_circs
+end
+
+#=
+buses=bus_dummies
+bn=owpps_tbl[indx0,:]
+=#
+function opt_mvOssSystem2(mv_square,buses,pcc,ocn,bn)
+    circ=circuit()
+    owp=opt_buses2nodes4MVoptLocal(mv_square,ocn.owpps,buses)
+    circ,domain_oss,edges_oss=opt_mvhvEquipment(circ,owp,buses,pcc,ocn,bn)
+    return circ,domain_oss,edges_oss
 end
 
 #buses=bus_dummies
-#bn=owpps_tbl_hv[indx0]
+#bn=owpps_tbl_hv[indx0,:]
+function opt_hvOssSystem2(buses,pcc,ocn,bn)
+    circ=circuit()
+    owp=buses[1]
+    circ,domain_oss,edges_oss=opt_mvhvEquipment(circ,owp,buses,pcc,ocn,bn)
+    return circ,domain_oss,edges_oss
+end
+
+function opt_mvhvEquipment(circ,owp,buses,pcc,ocn,bn)
+    circ.base_owp=owp
+    #opNode=owp
+    as_pths=node[]
+    #if (length(buses)>1)
+    opNode,domain_oss,edges_oss = opt_findOptPoint(buses,pcc,ocn,owp)
+    circ.oss_mva,circ.oss_wind,as_pths=opt_findWindPths2(pcc,opNode,domain_oss,buses)
+    #else
+        #=domain_oss=deepcopy(ocn.discretedom.nodes)
+        edges_oss=deepcopy(ocn.discretedom.edges)
+        push!(as_pths,deepcopy(as_Astar(pcc.node,opNode,domain_oss)))
+        push!(as_pths,deepcopy(as_Astar(circ.base_owp.node,opNode,domain_oss)))
+        circ.oss_wind=circ.base_owp.wnd
+        circ.oss_mva=circ.base_owp.mva=#
+    #end
+
+    ####################
+    #Find PCC connection cable  and PCC transformer
+    println("mva: "*string(circ.oss_mva))
+    cbl_xfo=cstF_HvCblallKvo2p(as_pths[1].G_cost,circ.oss_mva,circ.oss_wind,ocn.finance,pcc)
+
+    #Set cable path
+    currentNode=deepcopy(as_pths[1])
+    goalNode=as_pths[1].goal
+    push!(cbl_xfo[1].pth,deepcopy(currentNode))
+    while currentNode.num != goalNode
+        push!(cbl_xfo[1].pth,deepcopy(currentNode.parent))
+        currentNode=currentNode.parent
+    end
+    push!(circ.pcc_cbls,cbl_xfo[1])
+
+    #pcc transformer
+    circ.pcc=deepcopy(pcc)
+    push!(circ.pcc.xfmrs,cbl_xfo[2])
+
+    #MV cable sizes and paths
+    pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400=opt_InitPW()
+    for (i,owp) in enumerate(buses)
+        cb,xs=cstF_MvHvCbloss(as_pths[i+1].G_cost,owp.mva,owp.wnd,ocn.finance,circ.pcc_cbls[1].elec.volt)
+        if (length(cb)==1)
+            currentNode=deepcopy(as_pths[i+1])
+            goalNode=currentNode.goal
+            push!(cb[1].pth,deepcopy(currentNode))
+            while (currentNode.num != goalNode)
+                push!(cb[1].pth,deepcopy(currentNode.parent))
+                currentNode=currentNode.parent
+            end
+            cb[1].pth=reverse!(cb[1].pth)
+            push!(circ.owp_MVcbls,cb[1])
+            #store winds and powers
+            push!(pMv,owp.mva)
+            push!(wMv,owp.wnd)
+        elseif (length(cb)==2)
+            #Cable
+            currentNode=deepcopy(as_pths[i+1])
+            goalNode=currentNode.goal
+            push!(cb[2].pth,deepcopy(currentNode))
+            while currentNode.parent.num != goalNode
+                push!(cb[2].pth,deepcopy(currentNode.parent))
+                currentNode=currentNode.parent
+            end
+            cb[2].pth=reverse!(cb[2].pth)
+            push!(cb[1].pth,deepcopy(currentNode.parent))
+            push!(cb[1].pth,deepcopy(currentNode))
+            push!(circ.owp_MVcbls,deepcopy(cb[1]))
+            push!(circ.owp_HVcbls,deepcopy(cb[2]))
+
+            #OSS
+            ossmv=bus()
+            ossmv.node=currentNode
+            ossmv.base_cost=10
+            push!(circ.osss_owp,ossmv)
+            push!(circ.osss_owp[length(circ.osss_owp)].xfmrs,deepcopy(xs[1]))
+
+            #store winds and powers
+            if (circ.owp_HVcbls[length(circ.owp_HVcbls)].elec.volt == circ.pcc_cbls[length(circ.pcc_cbls)].elec.volt)
+                push!(pHv,owp.mva)
+                push!(wHv,owp.wnd)
+            elseif (circ.owp_HVcbls[length(circ.owp_HVcbls)].elec.volt == 132)
+                push!(p132,owp.mva)
+                push!(w132,owp.wnd)
+            elseif (circ.owp_HVcbls[length(circ.owp_HVcbls)].elec.volt == 220)
+                push!(p220,owp.mva)
+                push!(w220,owp.wnd)
+            elseif (circ.owp_HVcbls[length(circ.owp_HVcbls)].elec.volt == 400)
+                push!(p400,owp.mva)
+                push!(w400,owp.wnd)
+            end
+        end
+    end
+
+    #mog transformer
+    ossMOG=bus()
+    ossMOG.mva=circ.oss_mva
+    ossMOG.wnd=circ.oss_wind
+    ossMOG.node=as_pths[1]
+    ossMOG.base_cost=10
+    push!(circ.osss_mog,ossMOG)
+    circ.osss_mog[length(circ.osss_mog)]=opt_mogXfmrs(circ.osss_mog[length(circ.osss_mog)],pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400,ocn.finance,circ.pcc_cbls[length(circ.pcc_cbls)].elec.volt)
+
+    circ.binary=bn
+    circ.decimal=top_bin2dec(bn)
+    circ.owpps=buses
+    circ.base_owp=owp
+    opt_ttlMvCirc(circ)
+    return circ,domain_oss,edges_oss
+end
+
+function opt_findOptPoint(buses,pcc,ocn,owp)
+    domain_oss=deepcopy(ocn.discretedom.nodes)
+    edges_oss=deepcopy(ocn.discretedom.edges)
+    opNode=opt_1stNode(pcc,ocn,owp)
+    lngth=opNode.H_cost
+    rmnxys=opt_rmnNode(opNode,buses,ocn,pcc,owp)
+    #rmnxys=rmnXys
+    opNode=opt_OssOptimal(rmnxys,ocn.constrain.ellipses,opNode,lngth,pcc,ocn.yaxisMajor)
+    bs,opNode=opt_ifIn2Out(opNode,ocn)
+    if bs==true
+        opNode.num=deepcopy(length(domain_oss)+1)
+        push!(domain_oss,opNode)
+        lof_edgeifyOss(opNode,ocn,domain_oss,edges_oss)
+    end
+    return opNode,domain_oss,edges_oss
+end
+#=
+xys=rmnxys
+constrain=ocn.constrain.ellipses
+bsf_node=opNode
+yaxis=ocn.yaxisMajor
+=#
+function opt_OssOptimal(xys,constrain,bsf_node,lngth,pcc,yaxis)
+    m = Model(with_optimizer(Ipopt.Optimizer, print_level=1))
+    @variable(m, x)
+    @variable(m, y)
+    #@variable(m, lamda)
+    eps=1e-9
+
+    @NLobjective(m, Min,sum((sqrt((xys[i].x-x)^2+(xys[i].y-y)^2)+eps) for i in 1:length(xys)))
+    alpha=0
+    for ellipse in constrain[1:length(constrain)]
+        A=(((cos(alpha)^2)/(ellipse.rx)^2)+((sin(alpha)^2)/(ellipse.ry)^2))*(x-ellipse.x0)^2
+        B=(2*cos(alpha)*sin(alpha)*((1/((ellipse.rx)^2))-(1/((ellipse.ry)^2))))*(x-ellipse.x0)*(y-ellipse.y0)
+        C=(((sin(alpha)^2)/(ellipse.rx)^2)+((cos(alpha)^2)/(ellipse.ry)^2))*(y-ellipse.y0)^2
+        #@NLconstraint(m, (x-ellipse.x0)^2/(ellipse.rx)^2 + (y-ellipse.y0)^2/(ellipse.ry)^2 >= 1.1)
+        @constraint(m, A+B+C >= 1.1)
+    end
+    #A=(((cos(alpha)^2)/(ellipse.rx)^2)+((sin(alpha)^2)/(ellipse.ry)^2))*(x-ellipse.x0)^2
+    #B=(2*cos(alpha)*sin(alpha)*((1/((ellipse.rx)^2))-(1/((ellipse.ry)^2))))*(x-ellipse.x0)*(y-ellipse.y0)
+    #C=(((sin(alpha)^2)/(ellipse.rx)^2)+((cos(alpha)^2)/(ellipse.ry)^2))*(y-ellipse.y0)^2
+
+    @NLconstraint(m, (x-pcc.node.xy.x)^2+(y-pcc.node.xy.y)^2 <= (lngth^2))
+    if (yaxis==true)
+        if (bsf_node.xy.y>pcc.node.xy.y)
+            @constraint(m, y <= bsf_node.xy.y)
+        else
+            @constraint(m, y >= bsf_node.xy.y)
+        end
+    else
+        if (bsf_node.xy.x>pcc.node.xy.x)
+            @constraint(m, x <= bsf_node.xy.x)
+        else
+            @constraint(m, x >= bsf_node.xy.x)
+        end
+    end
+
+
+    optimize!(m)
+    temp_xy=xy()
+    temp_xy.x=JuMP.value.((x))
+    temp_xy.y=JuMP.value.((y))
+    node_oss=node()
+    node_oss.xy=temp_xy
+    return node_oss
+end
+
+#frstNode=opNode
+function opt_rmnNode(frstNode,buses,ocn,pcc,owp)
+
+    rmnXys=Array{xy,1}()
+    #=npcc=as_Astar(pcc.node,frstNode,ocn.discretedom.nodes)
+    if (npcc.parent.num != pcc.node.num)
+        npcc=opt_backUpNode(npcc,pcc.node,ocn.yaxisMajor)
+        push!(rmnXys,deepcopy(npcc.xy))
+    else
+    end=#
+
+    for bs in buses
+        #bs=buses[2]
+        if (bs.num != owp.num)
+            nde=as_Astar(bs.node,frstNode,ocn.discretedom.nodes)
+            nde=opt_backUpNode(nde,bs.node,ocn.yaxisMajor)
+            push!(rmnXys,deepcopy(nde.xy))
+        end
+    end
+    return rmnXys
+end
+
+function opt_backUpNode(nde,owp,axisY)
+        xy_0=deepcopy(nde.xy)
+        xy_1=deepcopy(nde.parent.xy)
+        xy_2=deepcopy(nde.parent.parent.xy)
+        nde=deepcopy(nde.parent)
+        if (axisY == true)
+            div0=xy_1.x-xy_0.x
+            div1=xy_2.x-xy_1.x
+            while ((nde.parent.num != owp.num) && (div0*div1 > 0))
+                xy_0=deepcopy(nde.xy)
+                xy_1=deepcopy(nde.parent.xy)
+                xy_2=deepcopy(nde.parent.parent.xy)
+                nde=deepcopy(nde.parent)
+                div0=deepcopy(xy_1.x-xy_0.x)
+                div1=deepcopy(xy_2.x-xy_1.x)
+            end
+        else
+            div0=xy_1.y-xy_0.y
+            div1=xy_2.y-xy_1.y
+            while ((nde.parent.num != owp.num) && (div0*div1 > 0))
+                xy_0=deepcopy(nde.xy)
+                xy_1=deepcopy(nde.parent.xy)
+                xy_2=deepcopy(nde.parent.parent.xy)
+                nde=deepcopy(nde.parent)
+                div0=deepcopy(xy_1.y-xy_0.y)
+                div1=deepcopy(xy_2.y-xy_1.y)
+            end
+        end
+    return nde
+end
+
+function opt_1stNode(pcc,ocn,owp)
+    first_pth=as_Astar(owp.node,pcc.node,ocn.discretedom.nodes)
+    while first_pth.parent.num != owp.node.num
+        first_pth=first_pth.parent
+    end
+    return first_pth
+end
 
 function opt_hvOssSystem(buses,pcc,ocn,bn,side)
     owp=buses[1]
@@ -241,15 +782,21 @@ function opt_hvOssSystem(buses,pcc,ocn,bn,side)
 end
 ########################################## End HV System #####################################
 ########################################## Start MV System #####################################
-function opt_mvOSSplacement(ocn,owpps,pcc,side)
+#=
+ocn=ocean
+owpps=ocn.owpps
+pcc=ocn.pccs[2]
+=#
+function opt_mvOSSplacement(ocn,owpps,pcc)
     #owpps is an array of owpps ordered closest to farthest from the designated pcc
     owpps_tbl=top_mvTopos(ocn.owpps)
     owpps_tbl=owpps_tbl[end:-1:1,end:-1:1]
     bus_dummies=Array{bus,1}()
     oss_system=circuit()
-    oss_systems=Array{circuit,1}()
+    oss_systems=ocn.circuits
+    #frst=1
     for indx0=1:length(owpps_tbl[:,1])
-    #for indx0=129:129
+    #indx0=19
         bus_dummies=bus[]
         mv_square=opt_mvConstraints(ocn,owpps_tbl[indx0,:])
         for (indx1,owpp) in enumerate(owpps_tbl[indx0,:])
@@ -257,12 +804,24 @@ function opt_mvOSSplacement(ocn,owpps,pcc,side)
                 push!(bus_dummies,owpps[indx1])
             end
         end
-        if (sum(owpps_tbl[indx0,:])==1)
-            oss_system=opt_str8Connect(bus_dummies[1],pcc,ocn,owpps_tbl[indx0,:])
+
+        #=if (length(oss_systems)==savedIndx)
+            println(sizeof(oss_systems))
+            oss_systems=ppf_saveSystem(oss_systems,frst,indx0-1)
+            frst=deepcopy(indx0)
+            println(sizeof(oss_systems))
+        end=#
+
+        if (sum(owpps_tbl[indx0,:])>1)
+            oss_system, discrete_dom, discrete_edges=opt_mvOssSystem2(mv_square,bus_dummies,pcc,ocn,owpps_tbl[indx0,:])
+            rnk=floor(Int32,top_bin2dec(owpps_tbl[indx0,:]))
+            if (oss_system.cost<oss_systems[rnk].cost)
+                oss_systems[rnk]=deepcopy(oss_system)
+                ocn.discretedom.nodes=deepcopy(discrete_dom)
+                ocn.discretedom.edges=deepcopy(discrete_edges)
+            end
         else
-            oss_system=opt_mvOssSystem(mv_square,bus_dummies,pcc,ocn,owpps_tbl[indx0,:],side)
         end
-        push!(oss_systems,oss_system)
     end
     return oss_systems
 end
@@ -370,6 +929,7 @@ function opt_str8Connect(owp,pcc,ocn,bn)
         ossmv=bus()
         ossmv.node=currentNode
         ossmv.base_cost=10
+        ossmv.mva=deepcopy(owp.mva)
         push!(circ.osss_mog,ossmv)
         push!(circ.osss_mog[1].xfmrs,deepcopy(cs[3]))
         #PCC
@@ -384,12 +944,14 @@ end
 bn=owpps_tbl[indx0,:]
 buses=bus_dummies
 =#
+
+
 function opt_mvOssSystem(mv_square,buses,pcc,ocn,bn,side)
     owp=opt_buses2nodes4MVoptLocal(mv_square,ocn.owpps,buses)
     circ,domain_oss,edges_oss=opt_mvHvMain(buses,pcc,ocn,bn,side,owp)
-    ocn.discretedom.nodes=deepcopy(domain_oss)
-    ocn.discretedom.edges=deepcopy(edges_oss)
-    return circ
+    #ocn.discretedom.nodes=deepcopy(domain_oss)
+    #ocn.discretedom.edges=deepcopy(edges_oss)
+    return circ, domain_oss, edges_oss
 end
 
 function opt_mvHvMain(buses,pcc,ocn,bn,side,owp)
@@ -490,8 +1052,8 @@ end
 ########################################## End MV System #####################################
 function opt_mogXfmrs(mog,pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400,ks,kV)
     wo=wind()
-    wo.pu=zeros(Float64,8759)
-    wo.ce=zeros(Float64,8759)
+    wo.pu=zeros(Float32,8759)
+    wo.ce=zeros(Float32,8759)
     wo.delta=0
     wo.lf=0
     if length(pMv) !=0
@@ -504,7 +1066,7 @@ function opt_mogXfmrs(mog,pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400,ks,kV)
         push!(mog.xfmrs,cstF_xfo_oss(sum(p220),opt_Wsum(deepcopy(wo),w220),ks,220,kV))
     end
     if length(p400) !=0
-        push!(mog.xfmrs,cstF_xfo_oss(sum(p400),opt_Wsum(deepcopy(wo),w400,400,kV),ks))
+        push!(mog.xfmrs,cstF_xfo_oss(sum(p400),opt_Wsum(deepcopy(wo),w400),ks,400,kV))
     end
     return mog
 end
@@ -520,11 +1082,11 @@ function opt_Wsum(wo,wA)
 end
 
 function opt_InitPW()
-    pSum_mv=Float64[]
-    pSum_hv=Float64[]
-    pSum_hv132=Float64[]
-    pSum_hv220=Float64[]
-    pSum_hv400=Float64[]
+    pSum_mv=Float32[]
+    pSum_hv=Float32[]
+    pSum_hv132=Float32[]
+    pSum_hv220=Float32[]
+    pSum_hv400=Float32[]
 
     wind_sumMv=wind[]
     wind_sumHv=wind[]
@@ -583,8 +1145,8 @@ function opt_adjustPath(owp,ocn,xys,buses,pcc)
     push!(paths,deepcopy(as_Astar(domain_oss[pcc.node.num],oss_node,domain_oss)))
     power_sum=0
     wind_sum=wind()
-    wind_sum.pu=zeros(Float64,length(buses[1].wnd.pu))
-    wind_sum.ce=zeros(Float64,length(buses[1].wnd.ce))
+    wind_sum.pu=zeros(Float32,length(buses[1].wnd.pu))
+    wind_sum.ce=zeros(Float32,length(buses[1].wnd.ce))
     wind_sum.delta=0
     wind_sum.lf=0
     for (i,owpp) in enumerate(buses)
@@ -684,8 +1246,8 @@ function opt_mvhvOss1stLocal_c(owp,buses,pcc,ocn)
     cnt_lths=0
     power_sum=0
     wind_sum=wind()
-    wind_sum.pu=zeros(Float64,length(buses[1].wnd.pu))
-    wind_sum.ce=zeros(Float64,length(buses[1].wnd.ce))
+    wind_sum.pu=zeros(Float32,length(buses[1].wnd.pu))
+    wind_sum.ce=zeros(Float32,length(buses[1].wnd.ce))
     wind_sum.delta=0
     wind_sum.lf=0
     push!(cnt_paths,deepcopy(as_Astar(pcc.node,cnt_node,ocn.discretedom.nodes)))
@@ -857,8 +1419,8 @@ function opt_mvhvOss1stLocal_h(owp,buses,pcc,ocn)
     upr_lths=0
     power_sum=0
     wind_sum=wind()
-    wind_sum.pu=zeros(Float64,length(buses[1].wnd.pu))
-    wind_sum.ce=zeros(Float64,length(buses[1].wnd.ce))
+    wind_sum.pu=zeros(Float32,length(buses[1].wnd.pu))
+    wind_sum.ce=zeros(Float32,length(buses[1].wnd.ce))
     wind_sum.delta=0
     wind_sum.lf=0
 
@@ -1059,8 +1621,8 @@ function opt_findWindPths(pcc,lwr_node,ocn,buses)
     lwr_paths=node[]
     power_sum=0
     wind_sum=wind()
-    wind_sum.pu=zeros(Float64,length(buses[1].wnd.pu))
-    wind_sum.ce=zeros(Float64,length(buses[1].wnd.ce))
+    wind_sum.pu=zeros(Float32,length(buses[1].wnd.pu))
+    wind_sum.ce=zeros(Float32,length(buses[1].wnd.ce))
     wind_sum.delta=0
     wind_sum.lf=0
 
@@ -1078,6 +1640,34 @@ function opt_findWindPths(pcc,lwr_node,ocn,buses)
     wind_sum.delta=(wind_sum.delta)/length(buses)
     wind_sum.lf=(wind_sum.lf)/length(buses)
     return power_sum,wind_sum,lwr_paths
+end
+
+#opt_node=opNode
+function opt_findWindPths2(pcc,opt_node,domain_oss,buses)
+    #each owpp path
+    opt_paths=node[]
+    power_sum=0
+    wind_sum=wind()
+    wind_sum.pu=zeros(Float32,length(buses[1].wnd.pu))
+    wind_sum.ce=zeros(Float32,length(buses[1].wnd.ce))
+    wind_sum.delta=0
+    wind_sum.lf=0
+
+    push!(opt_paths,deepcopy(as_Astar(pcc.node,opt_node,domain_oss)))
+    #opp=buses[2]
+    for opp in buses
+        push!(opt_paths,deepcopy(as_Astar(opp.node,opt_node,domain_oss)))
+        wind_sum.pu=(wind_sum.pu.+opp.wnd.pu)
+        wind_sum.ce=(wind_sum.ce.+opp.wnd.ce)
+        wind_sum.delta=(wind_sum.delta+opp.wnd.delta)
+        wind_sum.lf=(wind_sum.lf+opp.wnd.lf)
+        power_sum=(power_sum+opp.mva)
+    end
+    wind_sum.pu=(wind_sum.pu)./length(buses)
+    wind_sum.ce=(wind_sum.ce)./length(buses)
+    wind_sum.delta=(wind_sum.delta)/length(buses)
+    wind_sum.lf=(wind_sum.lf)/length(buses)
+    return power_sum,wind_sum,opt_paths
 end
 
 function opt_findOjamaXY(ocn,owp,buses,side)
@@ -1255,10 +1845,10 @@ function opt_ttlMvCirc(circ)
     end
 
 end
-
+#oss_node=opNode
 function opt_ifIn2Out(oss_node,ocn)
     bs,a=lof_test4pnt(oss_node.xy.x,oss_node.xy.y,ocn)
-    dummy_dist=Float64
+    dummy_dist=Float32
     bsf_dist=Inf
     bsf_indx=1
     if bs==false

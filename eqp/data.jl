@@ -166,7 +166,7 @@ end
 ################################################################################
 #Sets all options for transformer sizes in 10MVA steps
 function  eqpD_xfo_opt()
-    xfos=Array{Float64,1}()
+    xfos=Array{Float32,1}()
     push!(xfos,10)
     for i=50:10:500
         push!(xfos,i)
