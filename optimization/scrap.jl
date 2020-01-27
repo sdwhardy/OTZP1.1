@@ -233,7 +233,7 @@ model = Model(factory)
 optimize!(model)
 
 using Plots
-plot(polyhedron(simplex), xticks = 4:2:30,yticks = 0:2:30, ratio=1)
+plot(polyhedron(simplex), xticks = 4:2:30,yticks = 0:2:30, ratio=1
 plot!(value(S))
 ############################################################
 @variable(m, x)

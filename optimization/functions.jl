@@ -10,22 +10,38 @@ function opt_makeHalfSpace(ng)
     #southern
     #@constraint(m, l.m_findy*x-y <= -l.b_findy)
     for l in ng.sbnd
-        push!(hsAr,HalfSpace([l.m_findy, -1], -l.b_findy))
+        xc=l.m_findy
+        if l.m_findy<(1e-10)
+            xc=0
+        end
+        push!(hsAr,HalfSpace([xc, -1], -l.b_findy))
     end
     #western
     #@constraint(m, -x+l.m_findx*y <= -l.b_findx)
     for l in ng.wbnd
-        push!(hsAr,HalfSpace([-1, l.m_findx], -l.b_findx))
+        yc=l.m_findx
+        if l.m_findx<(1e-10)
+            yc=0
+        end
+        push!(hsAr,HalfSpace([-1, yc], -l.b_findx))
     end
     #northern
     #@constraint(m, -l.m_findy*x+y <= l.b_findy)
     for l in ng.nbnd
-        push!(hsAr,HalfSpace([-l.m_findy, 1], l.b_findy))
+        xc=l.m_findy
+        if l.m_findy<(1e-10)
+            xc=0
+        end
+        push!(hsAr,HalfSpace([-xc, 1], l.b_findy))
     end
     #eastern
     #@constraint(m, x-l.m_findx*y <= l.b_findx)
     for l in ng.ebnd
-        push!(hsAr,HalfSpace([1, -l.m_findx], l.b_findx))
+        yc=l.m_findx
+        if l.m_findx<(1e-10)
+            yc=0
+        end
+        push!(hsAr,HalfSpace([1, -yc], l.b_findx))
     end
     simplex = hsAr[1]
     for hs in hsAr[2:length(hsAr)]
