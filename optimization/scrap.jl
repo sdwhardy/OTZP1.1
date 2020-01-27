@@ -219,11 +219,30 @@ c=[]
 T0=[6445 1027 -1442;-29123 4447 -2468;-11035 -721 2054]/6445
 T0*[w0;w1;w2]
 ############################################################
-using JuMP, ProxSDP, LinearAlgebra,Polyhedra, SetProg, CDDLib
+using JuMP, Mosek, ProxSDP,COSMO,SCS, LinearAlgebra,Polyhedra, SetProg, CDDLib,MosekTools
+# problem data
+n = 2;
+px = [0 .5 2 3 1]
+py = [0 1 1.5 .5 -.5]
+m = size(px,2)
+pxint = sum(px)/m; pyint = sum(py)/m
+px = [px px[1]]
+py = [py py[1]]
+
+# generate A,b
+A = zeros(m,n); b = zeros(m,1)
+for i=1:m
+  A[i,:] = null([px[i+1]-px[i] py[i+1]-py[i]])'
+  b[i] = A[i,:]*.5*[px[i+1]+px[i];py[i+1]+py[i]]
+  if A[i,:]*[pxint; pyint]-b[i]>0
+    A[i,:] = -A[i,:]
+    b[i] = -b[i]
+  end
+end
 #polygon constraints
-factory = with_optimizer(ProxSDP.Optimizer)
-m = Model(factory)
-simplex=opt_makeHalfSpace(ocean.nogos[1])
+factory = with_optimizer(Mosek.Optimizer, QUIET=false,INTPNT_CO_TOL_DFEAS=1e-13)
+#factory = with_optimizer(SCS.Optimizer, max_iters=2000000000)
+simplex=opt_makeHalfSpace(ocean.owpps[4].zone)
 cheby_center, cheby_radius = chebyshevcenter(simplex, factory)
 interior_point = SetProg.InteriorPoint(cheby_center)
 model = Model(factory)
@@ -233,7 +252,7 @@ model = Model(factory)
 optimize!(model)
 
 using Plots
-plot(polyhedron(simplex), xticks = 4:2:30,yticks = 0:2:30, ratio=1
+plot(polyhedron(simplex), xticks = 4:2:30,yticks = 0:2:30, ratio=1)
 plot!(value(S))
 ############################################################
 @variable(m, x)
