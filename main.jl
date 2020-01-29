@@ -1,10 +1,13 @@
 #using JuliaInterpreter
 #using Debugger
 using DataFrames,XLSX,CSV
-using StatsPlots, SpecialFunctions
+using StatsPlots, SpecialFunctions,Plots
 using Polynomials
-using JuMP, Ipopt
+using JuMP
 using JLD2, FileIO
+using  Ipopt, ProxSDP, LinearAlgebra,Polyhedra, SetProg
+using Mosek,MosekTools
+#using COSMO,SCS, CDDLib
 
 include("wind/struct.jl")
 include("cost/struct.jl")#
@@ -12,6 +15,8 @@ include("eqp/struct.jl")#
 include("optimization/struct.jl")#
 include("layout/struct.jl")#
 #include("topology/struct.jl")
+
+
 
 
 include("cost/data.jl")#

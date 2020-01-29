@@ -1,3 +1,80 @@
+################################################################################
+factory = with_optimizer(Mosek.Optimizer, QUIET=false)
+#factory = with_optimizer(SCS.Optimizer, max_iters=2000000000)
+#factory = with_optimizer(ProxSDP.Optimizer)
+px = [.5 2 3 0];
+py = [1 1.5 .5 0];
+ngs=nogo()
+for (i,x) in enumerate(px)
+    dummy_node=node()
+    dummy_node.xy.x=x
+    dummy_node.xy.y=py[i]
+    push!(ngs.bndryPnts,deepcopy(dummy_node))
+end
+
+px = [0 2 3 1];
+py = [0 1.5 .5 -.5];
+ngs2=nogo()
+for (i,x) in enumerate(px)
+    dummy_node=node()
+    dummy_node.xy.x=x
+    dummy_node.xy.y=py[i]
+    push!(ngs2.bndryPnts,deepcopy(dummy_node))
+end
+
+px = [-1 -1 1 1];
+py = [-.5 .5 .5 -.5];
+ngs=nogo()
+for (i,x) in enumerate(px)
+    dummy_node=node()
+    dummy_node.xy.x=x
+    dummy_node.xy.y=py[i]
+    push!(ngs.bndryPnts,deepcopy(dummy_node))
+end
+
+
+ngs.nbnd,ngs.ebnd,ngs.sbnd,ngs.wbnd,ngs.bndryPnts=lof_bndNESW_nogo(ngs.bndryPnts)
+ngs.sbnd=line[]
+ngs2.nbnd,ngs2.ebnd,ngs2.sbnd,ngs2.wbnd,ngs2.bndryPnts=lof_bndNESW_nogo(ngs2.bndryPnts)
+for bnd in ngs2.sbnd
+    push!(ngs.sbnd,deepcopy(bnd))
+end
+simplex=opt_makeHalfSpace(ngs)
+cheby_center, cheby_radius = chebyshevcenter(simplex, factory)
+interior_point = SetProg.InteriorPoint(cheby_center)
+model = Model(factory)
+@variable(model, S, Ellipsoid(point=interior_point))
+@constraint(model, S ⊆ simplex)
+@objective(model, Max, nth_root(volume(S)))
+optimize!(model)
+
+#plot(polyhedron(simplex), xticks = 6:2:42,yticks = 5:1:36, ratio=1)
+plot(polyhedron(simplex), xticks = -5:0.5:5,yticks = -2.5:0.5:2.5, ratio=1)
+plot!(value(S))
+cx = 1
+using TypedPolynomials
+res = value(S).set.p[1][z->1]
+
+
+
+
+A=convert(Float64,subs(value(S).set.p[4], value(S).set.x[1]=>1))
+B=convert(Float64,subs(value(S).set.p[5], value(S).set.x[1]=>1,value(S).set.x[2]=>1)/2)
+C=convert(Float64,subs(value(S).set.p[6], value(S).set.x[2]=>1))
+D=convert(Float64,subs(value(S).set.p[2], value(S).set.z=>1,value(S).set.x[1]=>1)/2)
+E=convert(Float64,subs(value(S).set.p[3], value(S).set.z=>1,value(S).set.x[2]=>1)/2)
+F=convert(Float64,subs(value(S).set.p[1], value(S).set.z=>1))
+
+a_r,b_r=opt_getRadiuss(A,B,C,D,E,F)
+x0=opt_getX0(A,B,C,D,E)
+y0=opt_getY0(A,B,C,D,E)
+Q=[A B D;B C E;D E F]
+C*det(Q)
+
+value(S).set.p[1]
+S.variable
+F=-0.9999999999311128 D=2.113137417502724e-9/2 E=4.8503477995690385e-9/2 A=24.999999994068503 B=-0.0003043495378804001/2 C=24.99999996652839
+################################################################################
 using JuMP, Ipopt
 include("../wind/struct.jl")
 include("../cost/struct.jl")#
@@ -219,41 +296,15 @@ c=[]
 T0=[6445 1027 -1442;-29123 4447 -2468;-11035 -721 2054]/6445
 T0*[w0;w1;w2]
 ############################################################
-using JuMP, Mosek, ProxSDP,COSMO,SCS, LinearAlgebra,Polyhedra, SetProg, CDDLib,MosekTools
+#using JuMP, Mosek, ProxSDP,COSMO,SCS, LinearAlgebra,Polyhedra, SetProg, CDDLib,MosekTools
 # problem data
-n = 2;
-px = [0 .5 2 3 1]
-py = [0 1 1.5 .5 -.5]
-m = size(px,2)
-pxint = sum(px)/m; pyint = sum(py)/m
-px = [px px[1]]
-py = [py py[1]]
 
-# generate A,b
-A = zeros(m,n); b = zeros(m,1)
-for i=1:m
-  A[i,:] = null([px[i+1]-px[i] py[i+1]-py[i]])'
-  b[i] = A[i,:]*.5*[px[i+1]+px[i];py[i+1]+py[i]]
-  if A[i,:]*[pxint; pyint]-b[i]>0
-    A[i,:] = -A[i,:]
-    b[i] = -b[i]
-  end
-end
+
+
+
+
 #polygon constraints
-factory = with_optimizer(Mosek.Optimizer, QUIET=false,INTPNT_CO_TOL_DFEAS=1e-13)
-#factory = with_optimizer(SCS.Optimizer, max_iters=2000000000)
-simplex=opt_makeHalfSpace(ocean.owpps[4].zone)
-cheby_center, cheby_radius = chebyshevcenter(simplex, factory)
-interior_point = SetProg.InteriorPoint(cheby_center)
-model = Model(factory)
-@variable(model, S, Ellipsoid(point=interior_point))
-@constraint(model, S ⊆ simplex)
-@objective(model, Max, nth_root(volume(S)))
-optimize!(model)
 
-using Plots
-plot(polyhedron(simplex), xticks = 4:2:30,yticks = 0:2:30, ratio=1)
-plot!(value(S))
 ############################################################
 @variable(m, x)
 @variable(m, y)

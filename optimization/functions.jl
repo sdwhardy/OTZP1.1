@@ -5,13 +5,29 @@ indx1=indx0+1
 
 crc0 = circs[indx0]
 =#
+function opt_getX0(A,B,C,D,E)
+    x0=(2*C*D-B*E)/(B^2-4*A*C)
+    return x0
+end
+
+function opt_getY0(A,B,C,D,E)
+    y0=(2*A*E-B*D)/(B^2-4*A*C)
+    return y0
+end
+
+function opt_getRadiuss(A,B,C,D,E,F)
+    a=(-sqrt(complex(2*(A*E^2+C*D^2-B*D*E+(B^2-4*A*C)*F)*((A+C)+sqrt((A-C)^2+B^2)))))/(B^2-4*A*C)
+    b=(-sqrt(complex(2*(A*E^2+C*D^2-B*D*E+(B^2-4*A*C)*F)*((A+C)-sqrt((A-C)^2+B^2)))))/(B^2-4*A*C)
+    return a,b
+end
+
 function opt_makeHalfSpace(ng)
     hsAr=HalfSpace[]
     #southern
     #@constraint(m, l.m_findy*x-y <= -l.b_findy)
     for l in ng.sbnd
         xc=l.m_findy
-        if l.m_findy<(1e-10)
+        if abs(l.m_findy)<(1e-10)
             xc=0
         end
         push!(hsAr,HalfSpace([xc, -1], -l.b_findy))
@@ -20,7 +36,7 @@ function opt_makeHalfSpace(ng)
     #@constraint(m, -x+l.m_findx*y <= -l.b_findx)
     for l in ng.wbnd
         yc=l.m_findx
-        if l.m_findx<(1e-10)
+        if abs(l.m_findx)<(1e-10)
             yc=0
         end
         push!(hsAr,HalfSpace([-1, yc], -l.b_findx))
@@ -29,7 +45,7 @@ function opt_makeHalfSpace(ng)
     #@constraint(m, -l.m_findy*x+y <= l.b_findy)
     for l in ng.nbnd
         xc=l.m_findy
-        if l.m_findy<(1e-10)
+        if abs(l.m_findy)<(1e-10)
             xc=0
         end
         push!(hsAr,HalfSpace([-xc, 1], l.b_findy))
@@ -38,7 +54,7 @@ function opt_makeHalfSpace(ng)
     #@constraint(m, x-l.m_findx*y <= l.b_findx)
     for l in ng.ebnd
         yc=l.m_findx
-        if l.m_findx<(1e-10)
+        if abs(l.m_findx)<(1e-10)
             yc=0
         end
         push!(hsAr,HalfSpace([1, -yc], l.b_findx))
