@@ -340,6 +340,28 @@ function ppf_equipment(ocn,circ)
     ppf_printOcnXY_cables(ocn,circ)
 end
 
+
+function ppf_layout_testing(ocn)
+
+
+	plotly()
+	p=plot([ocn.discretedom.nodes[1].xy.x],[ocn.discretedom.nodes[1].xy.y],color = :red,markersize=2,seriestype=:scatter,xticks = 0:2:30,xlims=(0,30),yticks = 0:5:56,label="",xaxis = ("km", font(15, "Courier")),yaxis = ("km", font(15, "Courier")))
+	for indx = 2:length(ocn.discretedom.nodes)
+		plot!(p,[ocn.discretedom.nodes[indx].xy.x],[ocn.discretedom.nodes[indx].xy.y],color = :red,markersize=2,seriestype=:scatter,label="")
+	end
+
+	for indx = 1:length(ocn.pccs)
+		plot!(p,[ocn.pccs[indx].node.xy.x],[ocn.pccs[indx].node.xy.y],color = :green,seriestype=:scatter,label="")
+	end
+
+	for owpp in ocn.owpps
+		plot!(p,[owpp.node.xy.x],[owpp.node.xy.y],color = :blue,seriestype=:scatter,label="")
+	end
+	p
+	gui()
+
+end
+
 function ppf_printOcnXY_cables(ocn,pths)
 
 	plotly()

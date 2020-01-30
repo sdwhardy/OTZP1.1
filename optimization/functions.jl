@@ -709,11 +709,10 @@ function opt_OssOptimal(xys,constrain,bsf_node,lngth,pcc,yaxis)
     eps=1e-9
 
     @NLobjective(m, Min,sum((sqrt((xys[i].x-x)^2+(xys[i].y-y)^2)+eps) for i in 1:length(xys)))
-    alpha=0
     for ellipse in constrain[1:length(constrain)]
-        A=(((cos(alpha)^2)/(ellipse.rx)^2)+((sin(alpha)^2)/(ellipse.ry)^2))*(x-ellipse.x0)^2
-        B=(2*cos(alpha)*sin(alpha)*((1/((ellipse.rx)^2))-(1/((ellipse.ry)^2))))*(x-ellipse.x0)*(y-ellipse.y0)
-        C=(((sin(alpha)^2)/(ellipse.rx)^2)+((cos(alpha)^2)/(ellipse.ry)^2))*(y-ellipse.y0)^2
+        A=(((cos(ellipse.alpha)^2)/(ellipse.rx)^2)+((sin(ellipse.alpha)^2)/(ellipse.ry)^2))*(x-ellipse.x0)^2
+        B=(2*cos(ellipse.alpha)*sin(ellipse.alpha)*((1/((ellipse.rx)^2))-(1/((ellipse.ry)^2))))*(x-ellipse.x0)*(y-ellipse.y0)
+        C=(((sin(ellipse.alpha)^2)/(ellipse.rx)^2)+((cos(ellipse.alpha)^2)/(ellipse.ry)^2))*(y-ellipse.y0)^2
         #@NLconstraint(m, (x-ellipse.x0)^2/(ellipse.rx)^2 + (y-ellipse.y0)^2/(ellipse.ry)^2 >= 1.1)
         @constraint(m, A+B+C >= 1.1)
     end
@@ -2016,13 +2015,14 @@ function opt_owppConstraints(ocn)
         ellipse_con.x0=owpp.node.xy.x-(owpp.zone.neg_width-owpp.zone.pos_width)/2
         ellipse_con.ry=owpp.node.xy.y+owpp.zone.pos_height-ellipse_con.y0
         ellipse_con.rx=owpp.node.xy.x+owpp.zone.pos_width-ellipse_con.x0
+        ellipse_con.alpha=0.0
         push!(ocn.constrain.ellipses,deepcopy(ellipse_con))
     end
 end
 
 
-#OWWP constraints
-function opt_nogoConstraints(ocn)
+#NOGO constraints - original
+#=function opt_nogoConstraints(ocn)
     #@NLconstraint(m, ((x-x1)/a)^2+((y-y1)/b)^2 > 1)
     for nogo in ocn.nogos
         ellipse_con=ellipse()
@@ -2031,6 +2031,22 @@ function opt_nogoConstraints(ocn)
         ellipse_con.x0=cntr.x
         ellipse_con.ry=opt_findShapeRadius(nogo,cntr)
         ellipse_con.rx=ellipse_con.ry
+        push!(ocn.constrain.ellipses,deepcopy(ellipse_con))
+    end
+end=#
+#OWWP constraints
+function opt_nogoConstraints(ocn)
+    #@NLconstraint(m, ((x-x1)/a)^2+((y-y1)/b)^2 > 1)
+    for nogo in ocn.nogos
+        ellipse_con=ellipse()
+        simplex=opt_makeHalfSpace(nogo)
+        dual_surf=findLargestEllipse(simplex)
+        r_x,r_y,cntr,offset=form_EllipseConstraint(dual_surf)
+        ellipse_con.y0=cntr.y
+        ellipse_con.x0=cntr.x
+        ellipse_con.ry=r_y
+        ellipse_con.rx=r_x
+        ellipse_con.alpha=offset
         push!(ocn.constrain.ellipses,deepcopy(ellipse_con))
     end
 end

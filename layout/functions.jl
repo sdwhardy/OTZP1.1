@@ -69,6 +69,44 @@ function lof_layoutEez_expand(ocn,pcc)
     println("Axis transformed.")
     return ocn
 end
+
+function lof_layoutEez_expand_testing(ocn,pcc)
+    #define as y or x axis major
+    lof_xyMajor(ocn,pcc)
+    #set area of owpp
+    lof_setAreaOwpp(ocn)
+    #set range of MV
+    lof_mVrng(ocn)
+    #line all boundaries
+    lof_bndafy(ocn)
+    #Add all background nodes
+    lof_nodifySparse(ocn)
+    #number all nodes
+    lof_numNodes(ocn)
+
+    #add all background edges
+    #lof_edgeifySparse(ocn)
+    #add edges for owpp
+    #lof_owppEdgefy(ocn)
+
+    ocn.buses=vcat(ocn.pccs, ocn.owpps)#collects all buses
+
+    ##########Printing
+    for value in ocn.pccs
+        print(value.num)
+        print(" - ")
+        println(value.node.gps)
+    end
+    for value in ocean.owpps
+        print(value.num)
+        print(" - ")
+        println(value.node.gps)
+    end
+    println("GPS coordinates projected onto cartesian plane.")
+    println("Axis transformed.")
+    return ocn
+end
+
 function lof_xyMajor(ocn,pcc)
     x_min=pcc.node.xy.x
     x_max=pcc.node.xy.x
@@ -795,9 +833,11 @@ for (indx,owp) in enumerate(ocn.owpps)
 end
 sort!(lngth_owpps, by = x -> x[1])
 
-nds=ocean.nogos[2]
+ngs=ocean.nogos[1]
 nds=ngs.bndryPnts
 =#
+
+
 function lof_bndNESW_nogo(nds)
     #Create arrays to return
     nb=Array{line,1}()
@@ -817,13 +857,13 @@ function lof_bndNESW_nogo(nds)
     ang23=(atan((y2-y1)/(x2-x1))*(180/pi))#0>ang23>-45(south)||-45>=ang23>=-90(west)||90>=ang23=>45(west)||45>ang23=>0(north)
     ang34=(atan((y3-y2)/(x3-x2))*(180/pi))#90=>ang34>45(east)||45=>ang34(north)=>-45||-45>ang34=>-90(west)
     ang41=(atan((y0-y3)/(x0-x3))*(180/pi))#0=<ang41<45(south)||45=<ang41=<90(east)||0>ang41=>-45(north)||-45>ang41>=-90(east)
-#90>=ang12>45(east)||45>=ang12>=-45(south)||-45>ang12>=-90(west)
+#90>=ang12>45(west)||45>=ang12>=-45(south)||-45>ang12>=-90(east)
     if (-91.0<=ang12 && ang12<-45.0)
-        push!(wb,lof_makeDline(x0,x1,y0,y1,true))
+        push!(eb,lof_makeDline(x0,x1,y0,y1,true))
     elseif (-45.0<=ang12 && ang12<=45.0)
         push!(nb,lof_makeDline(x0,x1,y0,y1,false))
     elseif (45.0<ang12 && ang12<=91.0)
-        push!(eb,lof_makeDline(x0,x1,y0,y1,true))
+        push!(wb,lof_makeDline(x0,x1,y0,y1,true))
     else
         println("Error: ang12 not in -90 to 90 degree range.")
     end

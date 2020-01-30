@@ -4,8 +4,9 @@ mutable struct ellipse
       x0::Float32
       ry::Float32
       rx::Float32
+      alpha::Float32
 end
-ellipse()=ellipse(69.69,69.69,69.69,69.69)
+ellipse()=ellipse(69.69,69.69,69.69,69.69,69.69)
 ###################################################################
 mutable struct square
       ymx::Float32

@@ -1,12 +1,11 @@
 #using JuliaInterpreter
-#using Debugger
-using DataFrames,XLSX,CSV
-using StatsPlots, SpecialFunctions,Plots
-using Polynomials
-using JuMP
-using JLD2, FileIO
-using  Ipopt, ProxSDP, LinearAlgebra,Polyhedra, SetProg
-using Mosek,MosekTools
+#using Debugger, ProxSDP
+using DataFrames, XLSX, CSV, JLD2, FileIO
+using StatsPlots, Plots
+using Polynomials, TypedPolynomials, SpecialFunctions
+using LinearAlgebra, Polyhedra, SetProg, MathOptInterface
+using JuMP, Ipopt, Mosek, MosekTools
+
 #using COSMO,SCS, CDDLib
 
 include("wind/struct.jl")
@@ -30,6 +29,7 @@ include("eqp/functions.jl")#
 include("post_process/functions.jl")#costs
 include("astar/functions.jl")
 include("optimization/functions.jl")
+include("optimization/elipse_functions.jl")
 include("topology/functions.jl")
 
 
@@ -41,8 +41,11 @@ function main()
     #side="high"
     #for side in ["high","centre","low"]
         @time ocean=lof_layoutEez_basis()
-        ocean.owpps=lof_order2Pcc(ocean,ocean.pccs[2])
-        ocean=lof_layoutEez_expand(ocean,ocean.pccs[2])
+        @time ocean.owpps=lof_order2Pcc(ocean,ocean.pccs[2])
+        #ocean=lof_layoutEez_expand_testing(ocean,ocean.pccs[2])
+        #ppf_layout_testing(ocean)
+
+        @time ocean=lof_layoutEez_expand(ocean,ocean.pccs[2])
         @time ocean.circuits=opt_hvOSSplacement(ocean,ocean.pccs[2])
         ppf_testing(ocean)
         #ppf_saveSystem(ocean,side*"HV")
@@ -63,7 +66,7 @@ function main()
     gr()
     gui()
 
-    ppf_equipment(ocean,ocean.circuits[30])
+    ppf_equipment(ocean,ocean.circuits[7])
 #ocean.discretedom.nodes[85]
     #start=ocean.owpps[3].node
     #goal=ocean.pccs[1].node
