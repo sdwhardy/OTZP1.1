@@ -525,7 +525,7 @@ function opt_hvOSSplacement(ocn,pcc)
         end
     end=#
     for indx0=1:length(owpps_tbl_hv[:,1])
-    #indx0=31
+    #indx0=5
         bus_dummies=bus[]
         for (indx1,owp) in enumerate(owpps_tbl_hv[indx0,:])
             if (owp==1)
@@ -679,6 +679,7 @@ function opt_mvhvEquipment(circ,owp,buses,pcc,ocn,bn)
     return circ,domain_oss,edges_oss
 end
 
+#**
 function opt_findOptPoint(buses,pcc,ocn,owp)
     domain_oss=deepcopy(ocn.discretedom.nodes)
     edges_oss=deepcopy(ocn.discretedom.edges)
@@ -687,7 +688,7 @@ function opt_findOptPoint(buses,pcc,ocn,owp)
     rmnxys=opt_rmnNode(opNode,buses,ocn,pcc,owp)
     #rmnxys=rmnXys
     opNode=opt_OssOptimal(rmnxys,ocn.constrain.ellipses,opNode,lngth,pcc,ocn.yaxisMajor)
-    bs,opNode=opt_ifIn2Out(opNode,ocn)
+    bs,opNode=opt_ifIn2Out(opNode,ocn,owp)
     if bs==true
         opNode.num=deepcopy(length(domain_oss)+1)
         push!(domain_oss,opNode)
@@ -714,7 +715,7 @@ function opt_OssOptimal(xys,constrain,bsf_node,lngth,pcc,yaxis)
         B=(2*cos(ellipse.alpha)*sin(ellipse.alpha)*((1/((ellipse.rx)^2))-(1/((ellipse.ry)^2))))*(x-ellipse.x0)*(y-ellipse.y0)
         C=(((sin(ellipse.alpha)^2)/(ellipse.rx)^2)+((cos(ellipse.alpha)^2)/(ellipse.ry)^2))*(y-ellipse.y0)^2
         #@NLconstraint(m, (x-ellipse.x0)^2/(ellipse.rx)^2 + (y-ellipse.y0)^2/(ellipse.ry)^2 >= 1.1)
-        @constraint(m, A+B+C >= 1.1)
+        @constraint(m, A+B+C >= 1)
     end
     #A=(((cos(alpha)^2)/(ellipse.rx)^2)+((sin(alpha)^2)/(ellipse.ry)^2))*(x-ellipse.x0)^2
     #B=(2*cos(alpha)*sin(alpha)*((1/((ellipse.rx)^2))-(1/((ellipse.ry)^2))))*(x-ellipse.x0)*(y-ellipse.y0)
@@ -1126,7 +1127,7 @@ function opt_InitPW()
     wind_sum400=wind[]
     return pSum_mv,pSum_hv,pSum_hv132,pSum_hv220,pSum_hv400,wind_sumMv,wind_sumHv,wind_sum132,wind_sum220,wind_sum400
 end
-
+#=
 function opt_adjustPath(owp,ocn,xys,buses,pcc)
     paths=node[]
     opt_MakeConstraints(xys,owp,ocn.owpps,pcc)
@@ -1215,6 +1216,7 @@ function opt_adjustPath(owp,ocn,xys,buses,pcc)
     end
     return domain_oss,oss_node,power_sum,wind_sum,edges_oss
 end
+=#
 #=
 function opt_mvhvOss1stLocal_c(owp,buses,pcc,ocn)
     #find PCC major axis
@@ -1781,7 +1783,7 @@ function opt_adjustConnectionPnt(best_node,ymajorOWPP,owp,ojama_xys)
     end
     return best_node
 end
-
+#=
 function opt_mvhvOss1stLocal(owp,buses,pcc,ocn,side)
     #find PCC major axis
     ymajorPCC=true
@@ -1838,7 +1840,7 @@ function opt_mvhvOss1stLocal(owp,buses,pcc,ocn,side)
     end
     return best_node,domain_oss,edges_oss,power_sum,wind_sum,best_path
 end
-
+=#
 function opt_ttlMvCirc(circ)
     circ.cost=0
     for cb in circ.pcc_cbls
@@ -1877,17 +1879,34 @@ function opt_ttlMvCirc(circ)
 
 end
 #oss_node=opNode
-function opt_ifIn2Out(oss_node,ocn)
+function opt_ifIn2Out(oss_node,ocn,wp)
     bs,a=lof_test4pnt(oss_node.xy.x,oss_node.xy.y,ocn)
     dummy_dist=Float32
     bsf_dist=Inf
     bsf_indx=1
     if bs==false
+        verln=lof_lineDirection(wp.node,oss_node)
+        vect=lof_getStr8line(wp.node,oss_node)
         for (indx,pnt) in enumerate(a.nodes)
-            dummy_dist=lof_pnt2pnt_dist(oss_node.xy,pnt.xy)
-            if dummy_dist<bsf_dist
-                bsf_dist=deepcopy(dummy_dist)
-                bsf_indx=deepcopy(indx)
+            if (((pnt.xy.x >= wp.node.xy.x && pnt.xy.x <= oss_node.xy.x)||(pnt.xy.x <= wp.node.xy.x && pnt.xy.x >= oss_node.xy.x))&&((pnt.xy.y >= wp.node.xy.y && pnt.xy.y <= oss_node.xy.y)||(pnt.xy.y <= wp.node.xy.y && pnt.xy.y >= oss_node.xy.y)))
+                dummy_node=node()
+                if (verln==true)
+                    dummy_node.xy.x=pnt.xy.y*vect.m_findx+vect.b_findx
+                    dummy_node.xy.y=pnt.xy.y
+                    dummy_dist=lof_pnt2pnt_dist(oss_node.xy,pnt.xy)
+                    if dummy_dist<bsf_dist
+                        bsf_dist=deepcopy(dummy_dist)
+                        bsf_indx=deepcopy(indx)
+                    end
+                else
+                    dummy_node.xy.y=pnt.xy.x*vect.m_findy+vect.b_findy
+                    dummy_node.xy.x=pnt.xy.x
+                    dummy_dist=lof_pnt2pnt_dist(oss_node.xy,pnt.xy)
+                    if dummy_dist<bsf_dist
+                        bsf_dist=deepcopy(dummy_dist)
+                        bsf_indx=deepcopy(indx)
+                    end
+                end
             end
         end
         oss_node=a.nodes[bsf_indx]

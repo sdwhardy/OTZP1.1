@@ -36,7 +36,7 @@ function main()
     @time ocean=lof_layoutEez_expand(ocean,ocean.pccs[2])
     @time ocean.circuits=opt_hvOSSplacement(ocean,ocean.pccs[2])
     ppf_testing(ocean)
-    ppf_equipment(ocean,ocean.circuits[29])
+    ppf_equipment(ocean,ocean.circuits[127])
     #ppf_saveSystem(ocean,side*"HV")
     @time ocean.circuits=opt_mvOSSplacement(ocean,ocean.owpps,ocean.pccs[2])
     ppf_testing(ocean)
@@ -57,7 +57,8 @@ function main()
     gr()
     gui()
 
-    ppf_equipment(ocean,best_full_syss[3])
+    ppf_equipment(ocean,ocean.circuits[20])
+    ppf_equipment(ocean,best_full_syss[1])
 #ocean.discretedom.nodes[85]
     #start=ocean.owpps[3].node
     #goal=ocean.pccs[1].node

@@ -8,7 +8,7 @@ Sections:
 ################################################################################
 ######################### Cables ###############################################
 ################################################################################
-#loads values into the end of an array.
+#loads values into the end of an array. **
 function eqpF_cbls_caps(cbls,km)
     for i in cbls
         push!(i,eqpF_km_cap(km,i[1],i[4],i[5]))
@@ -16,7 +16,7 @@ function eqpF_cbls_caps(cbls,km)
     return cbls
 end
 
-#Calculates the new hvac cable capacity after 50-50 compensation at distance km.
+#Calculates the new hvac cable capacity after 50-50 compensation at distance km. **
 function eqpF_km_cap(l,v,q,a)
 #get system frequency
     f=eqpD_freq()
@@ -31,15 +31,7 @@ function eqpF_km_cap(l,v,q,a)
  return mva
 end
 
-#loads a value into the last position of each array in an aray of arrays
-function eqpF_pushArray(eqp,array)
-    for i in array
-        push!(eqp,i)
-    end
-    return eqp
-end
-
-#Logic function that gets the cable data of appropriae voltage level
+#Logic function that gets the cable data of appropriae voltage level **
 function eqpF_cbl_opt(kv,km)
     if kv==33.0
         opt=eqpD_33cbl_opt(km)
@@ -61,7 +53,7 @@ function eqpF_cbl_opt(kv,km)
     return opt
 end
 
-#Fills in the physical data of a cable into the cable structure
+#Fills in the physical data of a cable into the cable structure **
 function eqpF_cbl_struct(cb,km,num)
     cbl_data=cbl()
     cbl_data.elec.volt=cb[1]
@@ -80,7 +72,7 @@ function eqpF_cbl_struct(cb,km,num)
     return cbl_data
 end
 #cbls=eqpF_cbl_opt(kv,l)
-#Selects sets of cables that satisfy ampacity requirements given by limits
+#Selects sets of cables that satisfy ampacity requirements given by limits **
 function eqpF_cbl_sel(cbls,S,l)
     cbls_2use=Array{cbl,1}()
 #Get limits and max cables possible in parallel - specified in eqp_data.jl
@@ -95,13 +87,13 @@ function eqpF_cbl_sel(cbls,S,l)
     end
     return cbls_2use
 end
-#return cable inductive reactance
+#return cable inductive reactance **
 function eqpF_xl(l)
     xl=2*pi*eqpD_freq()*l
     return xl
 end
 
-#return cable capacitive reactance
+#return cable capacitive reactance **
 function eqpF_yc(c)
     yc=2*pi*eqpD_freq()*c
     return yc
@@ -110,7 +102,7 @@ end
 ################################################################################
 ######################### Transformers #########################################
 ################################################################################
-#built chosen sizes into transformer structured array
+#built chosen sizes into transformer structured array **
 function eqpF_xfo_struct(s,num)
     xfm=xfo()
     xfm.mva=s
@@ -120,7 +112,7 @@ function eqpF_xfo_struct(s,num)
     return xfm
 end
 
-#Selects sets of transformers that satisfy power requirements given limits
+#Selects sets of transformers that satisfy power requirements given limits **
 function eqpF_xfo_sel(xfos,S)
     xfms_2use=Array{xfo,1}()
     lims=eqpD_eqp_lims(S)#Get limits and max xfos possible in parallel - specified in eqp_data.jl
@@ -138,7 +130,7 @@ end
 ################################################################################
 ################################## HVDC Converter ##############################
 ################################################################################
-function eqpF_cnv_sel(S)
+#=function eqpF_cnv_sel(S)
     cnv_2use=Array{xfo,1}()
     mxCnv=eqpD_cnv_mx()
     mnNum=trunc(Int,ceil(S/mxCnv))
@@ -164,12 +156,15 @@ function eqpF_cnv_sel(S)
     push!(cnv_2use,cnv2)
     push!(cnv_2use,cnv3)
     return cnv_2use
-end
+end=#
+
+############################################# Depricated ##################################
+
 ################################################################################
 ######################### Per Unit #############################################
 ################################################################################
 #sets PU values
-function eqpF_pu()
+#=function eqpF_pu()
     va=lod_cnceMva()*10^6
     v=lod_pccKv()*10^3
     i=(va)/(sqrt(3)*v)
@@ -190,14 +185,14 @@ function eqpF_puChgBs(Sn,z)
     z=z*100*10^6/Sn
     return z
 end
-
+=#
 #converts transformer and cable values to PU
-function eqpF_xcXrlPu(l,xfm)
+#=function eqpF_xcXrlPu(l,xfm)
 	xfm.elec.ohm=(xfm.elec.ohm/xfm.num)/eqpF_pu()[4]
 	xfm.elec.xl=(xfm.elec.xl/xfm.num)/eqpF_pu()[4]
-end
+end=#
 
-
+#=
 #combines and summarizes PU impedances
 function eqpF_sumryPu(l,kv,cbx)
     eqpD_xfoXR(kv,cbx.xfm)
@@ -206,3 +201,14 @@ function eqpF_sumryPu(l,kv,cbx)
     cbx.cable.elec.ohm=cbx.cable.elec.ohm+cbx.xfm.elec.ohm
     cbx.cable.elec.xl=cbx.cable.elec.xl+cbx.xfm.elec.xl
 end
+=#
+
+#=
+#loads a value into the last position of each array in an aray of arrays
+function eqpF_pushArray(eqp,array)
+    for i in array
+        push!(eqp,i)
+    end
+    return eqp
+end
+=#

@@ -9,15 +9,8 @@ Sections:
 ################################################################################
 ######################### Cables ###############################################
 ################################################################################
-#admitance values for infinite/DC lines
-function eqpD_dcAdm()
-        r=0.0093
-        x=0.0222
-        b=0.2217
-    return [r,x,b]
-end
 
-#Set maximum of cables possible in parallel
+#Set maximum of cables possible in parallel **
 function eqpD_MAXcbls(kv)
     if kv == 33 || kv == 66
         pll=12
@@ -28,7 +21,7 @@ function eqpD_MAXcbls(kv)
 end
 
 #km=50
-#33kV cables
+#33kV cables **
 function eqpD_33cbl_opt(km)
     p2e=cstD_xchg()#exchange rate
     #%kV,cm^2,mohms/km,nF/km,Amps,10^3 euros/km, mH, capacity at km
@@ -47,7 +40,7 @@ function eqpD_33cbl_opt(km)
     return alphbt
 end
 
-#66kV cables
+#66kV cables **
 function eqpD_66cbl_opt(km)
     p2e=cstD_xchg()#exchange rate
     #%kV,cm^2,mohms/km,nF/km,Amps,10^3 euros/km, mH, capacity at km
@@ -67,7 +60,7 @@ function eqpD_66cbl_opt(km)
     return alphbt
 end
 
-#132kV cables
+#132kV cables **
 function eqpD_132cbl_opt(km)
     p2e=cstD_xchg()#exchange rate
     #%kV,cm^2,mohms/km,nF/km,Amps,10^3 euros/km, capacity at km
@@ -83,7 +76,7 @@ function eqpD_132cbl_opt(km)
     return alphbt
 end
 
-#220kV cables
+#220kV cables **
 function eqpD_220cbl_opt(km)
     p2e=cstD_xchg()#exchange rate
     #%kV,cm^2,mohms/km,nF/km,Amps,10^3 euros/km, capacity at km
@@ -97,7 +90,7 @@ function eqpD_220cbl_opt(km)
     return alphbt
 end
 
-#400kV cables
+#400kV cables **
 function eqpD_400cbl_opt(km)
     p2e=cstD_xchg()#exchange rate
     cores=1
@@ -115,6 +108,98 @@ function eqpD_400cbl_opt(km)
     return alphbt
 end
 
+#Sets the limits that cables will be sized as a % of OWPP capacity **
+function eqpD_eqp_lims(S)
+    #if S<=500
+        range=[0.99,1.6]
+    #elseif (S>350 && S<500)
+        #range=[0.95,3]
+    #else
+        #range=[0.95,3]
+    #end
+    return range
+end
+
+#failure data for cables **
+function eqpD_cbl_fail(cbl)
+    cbl.reliability.fr=0.04#/yr/100km
+    cbl.reliability.mttr=2.0#/yr/100km
+    cbl.reliability.mc=0.56
+    return nothing
+end
+
+################################################################################
+######################### Transformers #########################################
+################################################################################
+#Sets all options for transformer sizes in 10MVA steps **
+function  eqpD_xfo_opt()
+    xfos=Array{Float32,1}()
+    push!(xfos,10)
+    for i=50:10:500
+        push!(xfos,i)
+    end
+    return xfos
+end
+
+#Set maximum of transformers possible in parallel **
+function eqpD_MAXxfos()
+    return 5
+end
+
+#the efficiency of transformers **
+function eqpD_xEFF()
+    eta=0.994
+    return eta
+end
+
+#failure data for transformers **
+function eqpD_xfo_fail(x)
+    x.reliability.fr=0.03#/yr
+    x.reliability.mttr=6.0#month
+    x.reliability.mc=2.8#
+    return nothing
+end
+################################################################################
+######################### Grid #################################################
+################################################################################
+#sets owpp power factor **
+function eqpD_pf()
+    return 1.0
+end
+
+#set the system AC frequency **
+function eqpD_freq()
+    return 50.0
+end
+################################################################################
+######################### Converters ###########################################
+################################################################################
+#=function  eqpD_cnv_mx()
+    mxCnv=6400.0
+    return mxCnv
+end
+
+#failure data Converters
+function eqpD_cnv_fail(conv)
+    conv.reliability.fr=0.12#/yr
+    conv.reliability.mttr=1#month
+    conv.reliability.mc=0.56#
+    return nothing
+end
+
+#efficiency of rectifier
+function eqpD_recEta()
+    eta=0.9828
+    return eta
+end
+
+#Efficiency of inverter
+function eqpD_invEta()
+    eta=0.9819
+    return eta
+end=#
+
+#=
 #150kV hvdc cables
 function eqpD_150cbl_opt(cbls)
     p2e=cstD_xchg()#exchange rate
@@ -140,59 +225,17 @@ function eqpD_300cbl_opt(cbls)
     alphbt=[a,b,c,d,e]
     return alphbt
 end
+=#
+#admitance values for infinite/DC lines
+#=function eqpD_dcAdm()
+        r=0.0093
+        x=0.0222
+        b=0.2217
+    return [r,x,b]
+end=#
 
-#Sets the limits that cables will be sized as a % of OWPP capacity
-function eqpD_eqp_lims(S)
-    #if S<=500
-        range=[0.99,1.6]
-    #elseif (S>350 && S<500)
-        #range=[0.95,3]
-    #else
-        #range=[0.95,3]
-    #end
-    return range
-end
-
-#failure data for cables
-function eqpD_cbl_fail(cbl)
-    cbl.reliability.fr=0.04#/yr/100km
-    cbl.reliability.mttr=2.0#/yr/100km
-    cbl.reliability.mc=0.56
-    return nothing
-end
-
-################################################################################
-######################### Transformers #########################################
-################################################################################
-#Sets all options for transformer sizes in 10MVA steps
-function  eqpD_xfo_opt()
-    xfos=Array{Float32,1}()
-    push!(xfos,10)
-    for i=50:10:500
-        push!(xfos,i)
-    end
-    return xfos
-end
-
-#Set maximum of transformers possible in parallel
-function eqpD_MAXxfos()
-    return 5
-end
-
-#the efficiency of transformers
-function eqpD_xEFF()
-    eta=0.994
-    return eta
-end
-
-#failure data for transformers
-function eqpD_xfo_fail(x)
-    x.reliability.fr=0.03#/yr
-    x.reliability.mttr=6.0#month
-    x.reliability.mc=2.8#
-    return nothing
-end
-
+######################################### depricated ###########################
+#=
 #add percent impendance of transformer
 function eqpD_xfoXR(kv,x)
     #400/132 - X=8% R=0.14% on 100MVA base
@@ -214,43 +257,4 @@ function eqpD_xfoXR(kv,x)
     x.elec.xl=eqpF_puChgBs(mva,X)
     x.elec.ohm=eqpF_puChgBs(mva,R)
 end
-
-################################################################################
-######################### Converters ###########################################
-################################################################################
-function  eqpD_cnv_mx()
-    mxCnv=6400.0
-    return mxCnv
-end
-
-#failure data Converters
-function eqpD_cnv_fail(conv)
-    conv.reliability.fr=0.12#/yr
-    conv.reliability.mttr=1#month
-    conv.reliability.mc=0.56#
-    return nothing
-end
-
-#efficiency of rectifier
-function eqpD_recEta()
-    eta=0.9828
-    return eta
-end
-
-#Efficiency of inverter
-function eqpD_invEta()
-    eta=0.9819
-    return eta
-end
-################################################################################
-######################### Grid #################################################
-################################################################################
-#sets owpp power factor
-function eqpD_pf()
-    return 1.0
-end
-
-#set the system AC frequency
-function eqpD_freq()
-    return 50.0
-end
+=#

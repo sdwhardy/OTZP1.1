@@ -33,7 +33,7 @@ for (i,x) in enumerate(px)
 end
 
 
-ngs.nbnd,ngs.ebnd,ngs.sbnd,ngs.wbnd,ngs.bndryPnts=lof_bndNESW_nogo(ocean.nogos[2].bndryPnts)
+ngs.nbnd,ngs.ebnd,ngs.sbnd,ngs.wbnd,ngs.bndryPnts=lof_bndNESW_nogo(ocean.nogos[1].bndryPnts)
 ngs.sbnd=line[]
 ngs2.nbnd,ngs2.ebnd,ngs2.sbnd,ngs2.wbnd,ngs2.bndryPnts=lof_bndNESW_nogo(ngs2.bndryPnts)
 for bnd in ngs2.sbnd

@@ -1,3 +1,4 @@
+#**
 function lof_layoutEez_basis()
     #reading data from excel input files
     ocean=eez()
@@ -23,7 +24,7 @@ function lof_layoutEez_basis()
     lof_transformAxis(ocean)
     return ocean
 end
-
+#**
 function lof_layoutEez_expand(ocn,pcc)
     #define as y or x axis major
     lof_xyMajor(ocn,pcc)
@@ -65,44 +66,7 @@ function lof_layoutEez_expand(ocn,pcc)
     println("Axis transformed.")
     return ocn
 end
-
-function lof_layoutEez_expand_testing(ocn,pcc)
-    #define as y or x axis major
-    lof_xyMajor(ocn,pcc)
-    #set area of owpp
-    lof_setAreaOwpp(ocn)
-    #set range of MV
-    lof_mVrng(ocn)
-    #line all boundaries
-    lof_bndafy(ocn)
-    #Add all background nodes
-    lof_nodifySparse(ocn)
-    #number all nodes
-    lof_numNodes(ocn)
-
-    #add all background edges
-    #lof_edgeifySparse(ocn)
-    #add edges for owpp
-    #lof_owppEdgefy(ocn)
-
-    ocn.buses=vcat(ocn.pccs, ocn.owpps)#collects all buses
-
-    ##########Printing
-    for value in ocn.pccs
-        print(value.num)
-        print(" - ")
-        println(value.node.gps)
-    end
-    for value in ocean.owpps
-        print(value.num)
-        print(" - ")
-        println(value.node.gps)
-    end
-    println("GPS coordinates projected onto cartesian plane.")
-    println("Axis transformed.")
-    return ocn
-end
-
+#**
 function lof_xyMajor(ocn,pcc)
     x_min=pcc.node.xy.x
     x_max=pcc.node.xy.x
@@ -127,6 +91,7 @@ function lof_xyMajor(ocn,pcc)
     end
 end
 
+#**
 function lof_order2Pcc(ocn,pcc)
     lngth_owpps=Array{Tuple{Float64,Int64},1}()
     ordrd_owpps=Array{bus,1}()
@@ -149,6 +114,7 @@ function lof_order2Pcc(ocn,pcc)
     return ordrd_owpps
 end
 
+#**
 function lof_owppEdgefy(ocn)
     for (ind0,owpp) in enumerate(ocn.owpps)
         owpp.node.num=length(ocn.discretedom.nodes)+1
@@ -163,6 +129,7 @@ function lof_owppEdgefy(ocn)
     end
 end
 
+#**
 function lof_edgeifySparse(ocn)
     konst=3
     buildEdge = true
@@ -201,7 +168,7 @@ function lof_edgeifySparse(ocn)
         end
     end
 end
-
+#**
 function lof_edgeifyOss(oss,ocn,nodes,edges)
     buildEdge = true
     buildSection = true
@@ -221,14 +188,10 @@ function lof_edgeifyOss(oss,ocn,nodes,edges)
                     end
                 end
             else
-                #=
-                x=str8line.xmn+ocn.sys.prec
-                =#
                 for x=str8line.xmn:ocn.sys.prec:str8line.xmx
                     y=x*str8line.m_findy+str8line.b_findy
                     buildSection,area=lof_test4pnt(x,y,ocn)
                     if (buildSection == false)
-                        #println("Post x: "*string(buildSection)*" - y= "*string(y)*" - x= "*string(x))
                         buildEdge = false
                         @goto no_str8line
                     end
@@ -236,7 +199,6 @@ function lof_edgeifyOss(oss,ocn,nodes,edges)
             end
         end
         if (buildEdge == true)
-            #println("Building Edge!!")
             lof_addEdge(nd_tail,nd_head,edges)
         end
         @label no_str8line
@@ -244,6 +206,7 @@ function lof_edgeifyOss(oss,ocn,nodes,edges)
     end
 end
 
+#**
 function lof_pntWithinNG(x,y,area2tst)
     inside=true
     vertices=xy[]
@@ -278,7 +241,7 @@ function lof_pntWithinNG(x,y,area2tst)
     end
     return inside
 end
-#Complete these 2 functions then test in edges are correct
+#Complete these 2 functions then test in edges are correct **
 function lof_pntWithin(x,y,area2tst)
     #return true if inside area
     inside=false
@@ -357,6 +320,7 @@ function lof_pntWithin(x,y,area2tst)
     return inside
 end
 
+#**
 function lof_addEdge(nd_tail,nd_head,Alledges)
     #build and store both directions of edge
     lnth=lof_pnt2pnt_dist(nd_tail.xy,nd_head.xy)
@@ -378,6 +342,7 @@ function lof_addEdge(nd_tail,nd_head,Alledges)
 end
 #stage_go
 #owpp=ocn.owpps[3]
+#**
 function lof_test4pnt(x,y,ocn)
     within = false
     outside = true
@@ -414,6 +379,7 @@ function lof_test4pnt(x,y,ocn)
     return outside,area
 end
 
+#**
 function lof_lineDirection(nd_tail,nd_head)
     if (abs(nd_tail.xy.y-nd_head.xy.y) <  abs(nd_tail.xy.x-nd_head.xy.x))
         vertLn=false
@@ -423,7 +389,7 @@ function lof_lineDirection(nd_tail,nd_head)
     return vertLn
 end
 
-
+#**
 function lof_getStr8line(nd_hd,nd_tl)
     dummy_line=line()
     dummy_line.xmx=max(nd_hd.xy.x,nd_tl.xy.x)
@@ -445,6 +411,7 @@ function lof_getStr8line(nd_hd,nd_tl)
     return dummy_line
 end
 
+#=
 function lof_posPccs(ocn)
     for pcc in ocn.pccs
         bsf_distance=Inf
@@ -460,13 +427,15 @@ function lof_posPccs(ocn)
         ocn.discretedom.nodes[bsf_node]=pcc.node
     end
 end
-
+=#
+#**
 function lof_numNodes(ocn)
     for (indx,nd) in enumerate(ocn.discretedom.nodes)
         nd.num=deepcopy(indx)
     end
 end
 #ng=ocn.nogos[1]
+#**
 function lof_nodifySparse(ocn)
     #place nodes on boundary on no go zones
     for ng in ocn.nogos
@@ -586,6 +555,7 @@ end
     end
 end=#
 
+#**
 function lof_nogoZones(ocn)
     for i=1:ocn.sys.nogoNum
         nogoT=nogo()
@@ -594,6 +564,7 @@ function lof_nogoZones(ocn)
     end
 end
 
+#**
 function lof_mVrng(ocn)
     for owpp in ocn.owpps
         mvrng=cstF_mVrng(5,owpp.mva,owpp.wnd,ocn.finance,ocn.sys.prec)
@@ -605,6 +576,7 @@ function lof_mVrng(ocn)
     end
 end
 
+#**
 function lof_setAreaOwpp(ocn)
     #find dominant axis
     if (abs(ocn.owpps[1].node.xy.y-ocn.owpps[length(ocn.owpps)].node.xy.y)>abs(ocn.owpps[1].node.xy.x-ocn.owpps[length(ocn.owpps)].node.xy.x))
@@ -695,6 +667,7 @@ end
 ocn=ocean
 ngs=ocn.nogos[1]
 =#
+#**
 function lof_bndafy(ocn)
     ocn.nbnd,ocn.ebnd,ocn.sbnd,ocn.wbnd=lof_bndNESW(ocn.bndryPnts)
     for ngs in ocn.nogos
@@ -715,6 +688,8 @@ end
 nds=ocn.bndryPnts
 =#
 #finds line equations and x/y limits of each for all shapes
+
+#**
 function lof_bndNESW(nds)
 
     vert=Array{line,1}()
@@ -824,20 +799,8 @@ function lof_bndNESW(nds)
 
     return nb,eb,sb,wb
 end
-#=
-lngth_owpps=Array{Tuple{Float64,Int64},1}()
-ordrd_owpps=Array{bus,1}()
-for (indx,owp) in enumerate(ocn.owpps)
-    owp.num=deepcopy(indx)
-    push!(lngth_owpps,(deepcopy(lof_pnt2pnt_dist(owp.node.xy,pcc.node.xy)),deepcopy(owp.num)))
-end
-sort!(lngth_owpps, by = x -> x[1])
 
-ngs=ocean.nogos[1]
-nds=ngs.bndryPnts
-=#
-
-
+#**
 function lof_bndNESW_nogo(nds)
     #Create arrays to return
     nb=Array{line,1}()
@@ -905,7 +868,7 @@ function lof_bndNESW_nogo(nds)
     end
     return nb,eb,sb,wb,nds
 end
-
+#Start working here - above is needed (I think)
 function lof_makeDline(x0,x1,y0,y1,vert)
     dummy_line=line()
     dummy_line.ymn=min(y0,y1)
@@ -1527,4 +1490,45 @@ end
 function lof_pnt2pnt_dist(pnt1,pnt2)
     hyp=sqrt((pnt2.x-pnt1.x)^2+(pnt2.y-pnt1.y)^2)
     return hyp
+end
+
+
+
+################################## Testing functions ###########################
+#**
+function lof_layoutEez_expand_testing(ocn,pcc)
+    #define as y or x axis major
+    lof_xyMajor(ocn,pcc)
+    #set area of owpp
+    lof_setAreaOwpp(ocn)
+    #set range of MV
+    lof_mVrng(ocn)
+    #line all boundaries
+    lof_bndafy(ocn)
+    #Add all background nodes
+    lof_nodifySparse(ocn)
+    #number all nodes
+    lof_numNodes(ocn)
+
+    #add all background edges
+    #lof_edgeifySparse(ocn)
+    #add edges for owpp
+    #lof_owppEdgefy(ocn)
+
+    ocn.buses=vcat(ocn.pccs, ocn.owpps)#collects all buses
+
+    ##########Printing
+    for value in ocn.pccs
+        print(value.num)
+        print(" - ")
+        println(value.node.gps)
+    end
+    for value in ocean.owpps
+        print(value.num)
+        print(" - ")
+        println(value.node.gps)
+    end
+    println("GPS coordinates projected onto cartesian plane.")
+    println("Axis transformed.")
+    return ocn
 end
