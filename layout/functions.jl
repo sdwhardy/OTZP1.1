@@ -24,10 +24,6 @@ function lof_layoutEez_basis()
     return ocean
 end
 
-#=
-ocn=ocean
-pcc=ocn.pccs[2]
-=#
 function lof_layoutEez_expand(ocn,pcc)
     #define as y or x axis major
     lof_xyMajor(ocn,pcc)
@@ -481,11 +477,13 @@ function lof_nodifySparse(ocn)
                     dummy_node.xy.y=y_step
                     dummy_node.xy.x=y_step*ln.m_findx+ln.b_findx
                     push!(ocn.discretedom.nodes,deepcopy(dummy_node))
+                    push!(ng.nodes,ocn.discretedom.nodes[length(ocn.discretedom.nodes)])
                 end
                 dummy_node=node()
                 dummy_node.xy.y=ln.ymx
                 dummy_node.xy.x=ln.ymx*ln.m_findx+ln.b_findx
                 push!(ocn.discretedom.nodes,deepcopy(dummy_node))
+                push!(ng.nodes,ocn.discretedom.nodes[length(ocn.discretedom.nodes)])
             end
         end
         #lns=[ng.sbnd,ng.nbnd][1]
@@ -497,11 +495,13 @@ function lof_nodifySparse(ocn)
                     dummy_node.xy.x=x_step
                     dummy_node.xy.y=x_step*ln.m_findy+ln.b_findy
                     push!(ocn.discretedom.nodes,deepcopy(dummy_node))
+                    push!(ng.nodes,ocn.discretedom.nodes[length(ocn.discretedom.nodes)])
                 end
                 dummy_node=node()
                 dummy_node.xy.x=ln.xmx
                 dummy_node.xy.y=ln.xmx*ln.m_findy+ln.b_findy
                 push!(ocn.discretedom.nodes,deepcopy(dummy_node))
+                push!(ng.nodes,ocn.discretedom.nodes[length(ocn.discretedom.nodes)])
             end
         end
     end

@@ -12,6 +12,216 @@ function printLines(ocn)
 	p
 	gui()
 end
+
+function ppf_testing(ocn)
+    mv=0
+    hv=0
+    total=0
+    for i=1:length(ocn.circuits)
+        println(string(ocn.circuits[i].decimal)*") Cst:"*string(ocn.circuits[i].cost)*", mvC:"*string(length(ocn.circuits[i].owp_MVcbls))*", hvC:"*string(length(ocn.circuits[i].owp_HVcbls))*", oss:"*string(length(ocn.circuits[i].osss_owp))*", mog:"*string(length(ocn.circuits[i].osss_mog))*", o2oC:"*string(length(ocn.circuits[i].oss2oss_cbls)))
+        total=total+ocn.circuits[i].cost
+    end
+    println(total)
+end
+
+function ppf_equipment(ocn,circ)
+    println("MV cables: ")
+    for mvc in circ.owp_MVcbls
+        println(string(mvc.mva*mvc.num)*" MVA, "*string(mvc.elec.volt)*" KV, "*string(mvc.length)*" KM, "*string(mvc.costs.ttl)*" EURO, "*string(mvc.pth[1].num)*" - "*string(mvc.pth[length(mvc.pth)].num))
+    end
+    println()
+    println("OSS: ")
+    for mvc in circ.osss_owp
+        xfmTTL=0
+        println(string(mvc.node.num)*": ")
+        for x in mvc.xfmrs
+            xfmTTL=(xfmTTL+(x.costs.ttl))
+            print(string(x.num)*" - "*string(x.mva)*" MVA, "*string(x.lv)*" KV, "*string(x.hv)*" KV, ")
+        end
+        println(string(mvc.base_cost+xfmTTL)*" EURO")
+    end
+    println()
+    println()
+    println("HV cables: ")
+    for mvc in circ.owp_HVcbls
+        println(string(mvc.mva*mvc.num)*" MVA, "*string(mvc.elec.volt)*" KV, "*string(mvc.length)*" KM, "*string(mvc.costs.ttl)*" EURO, "*string(mvc.pth[1].num)*" - "*string(mvc.pth[length(mvc.pth)].num))
+    end
+    println()
+    println("MOG: ")
+    for mvc in circ.osss_mog
+        xfmTTL=0
+        println(string(mvc.node.num)*": ")
+        for x in mvc.xfmrs
+            xfmTTL=(xfmTTL+(x.costs.ttl))
+            println(string(x.num)*" - "*string(x.mva)*" MVA, "*string(x.lv)*" KV, "*string(x.hv)*" KV, ")
+        end
+        println(string(mvc.base_cost+xfmTTL)*" EURO")
+    end
+    println()
+    println()
+    println("O2O cables: ")
+    for mvc in circ.oss2oss_cbls
+        println(string(mvc.mva*mvc.num)*" MVA, "*string(mvc.elec.volt)*" KV, "*string(mvc.length)*" KM, "*string(mvc.costs.ttl)*" EURO, "*string(mvc.pth[1].num)*" - "*string(mvc.pth[length(mvc.pth)].num))
+    end
+    println()
+    println("PCC cables: ")
+    for mvc in circ.pcc_cbls
+        println(string(mvc.mva*mvc.num)*" MVA, "*string(mvc.elec.volt)*" KV, "*string(mvc.length)*" KM, "*string(mvc.costs.ttl)*" EURO, "*string(mvc.pth[1].num)*" - "*string(mvc.pth[length(mvc.pth)].num))
+    end
+    println()
+    println("PCC: ")
+    xfmTTL=0
+    println(string(circ.pcc.node.num)*": ")
+    for x in circ.pcc.xfmrs
+        xfmTTL=(xfmTTL+(x.costs.ttl))
+        println(string(x.num)*" - "*string(x.mva)*" MVA, "*string(x.lv)*" KV, "*string(x.hv)*" KV, ")
+    end
+    println(string(circ.pcc.base_cost+xfmTTL)*" EURO")
+    ppf_printOcnXY_cables(ocn,circ)
+end
+
+
+function ppf_layout_testing(ocn)
+
+
+	plotly()
+	p=plot([ocn.discretedom.nodes[1].xy.x],[ocn.discretedom.nodes[1].xy.y],color = :red,markersize=2,seriestype=:scatter,xticks = 0:2:30,xlims=(0,30),yticks = 0:5:56,label="",xaxis = ("km", font(15, "Courier")),yaxis = ("km", font(15, "Courier")))
+	for indx = 2:length(ocn.discretedom.nodes)
+		plot!(p,[ocn.discretedom.nodes[indx].xy.x],[ocn.discretedom.nodes[indx].xy.y],color = :red,markersize=2,seriestype=:scatter,label="")
+	end
+
+	for indx = 1:length(ocn.pccs)
+		plot!(p,[ocn.pccs[indx].node.xy.x],[ocn.pccs[indx].node.xy.y],color = :green,seriestype=:scatter,label="")
+	end
+
+	for owpp in ocn.owpps
+		plot!(p,[owpp.node.xy.x],[owpp.node.xy.y],color = :blue,seriestype=:scatter,label="")
+	end
+	p
+	gui()
+
+end
+
+function ppf_printOcnXY_cables(ocn,pths)
+
+	plotly()
+	p=plot([ocn.pccs[1].node.xy.x],[ocn.pccs[1].node.xy.y],color = :green,markersize=2,seriestype=:scatter,xticks = 0:2:30,xlims=(0,30),yticks = 0:5:56,label="",xaxis = ("km", font(15, "Courier")),yaxis = ("km", font(15, "Courier")))
+	for indx = 2:length(ocn.pccs)
+		plot!(p,[ocn.pccs[indx].node.xy.x],[ocn.pccs[indx].node.xy.y],color = :green,seriestype=:scatter,label="")
+	end
+	for owpp in ocn.owpps
+		plot!(p,[owpp.node.xy.x],[owpp.node.xy.y],color = :blue,seriestype=:scatter,label="")
+		for nd in owpp.zone.nodes
+			plot!(p,[nd.xy.x],[nd.xy.y],color = :red,markersize=2,seriestype=:scatter,label="")
+		end
+	end
+	for ng in ocn.nogos
+		for nd in ng.nodes
+			plot!(p,[nd.xy.x],[nd.xy.y],color = :red,markersize=2,seriestype=:scatter,label="")
+		end
+	end
+
+
+
+	for cbl in pths.owp_MVcbls
+		xs=Float32[]
+		ys=Float32[]
+		for pth in cbl.pth
+				push!(xs,pth.xy.x)
+				push!(ys,pth.xy.y)
+		end
+		plot!(p,xs,ys,color = :green,label="")
+	end
+	for cbl in pths.owp_HVcbls
+		xs=Float32[]
+		ys=Float32[]
+		for pth in cbl.pth
+			push!(xs,pth.xy.x)
+			push!(ys,pth.xy.y)
+		end
+		plot!(p,xs,ys,color = :red,label="")
+	end
+
+	for cbl in pths.oss2oss_cbls
+		xs=Float32[]
+		ys=Float32[]
+		for pth in cbl.pth
+			push!(xs,pth.xy.x)
+			push!(ys,pth.xy.y)
+		end
+		plot!(p,xs,ys,color = :blue,label="")
+	end
+	for cbl in pths.pcc_cbls
+		xs=Float32[]
+		ys=Float32[]
+		for pth in cbl.pth
+			push!(xs,pth.xy.x)
+			push!(ys,pth.xy.y)
+		end
+		plot!(p,xs,ys,color = :black,label="")
+	end
+	p
+	gui()
+end
+
+function ppf_printOcnGPS(ocean)
+	pcc=Array{Tuple,1}()
+	gen=Array{Tuple,1}()
+	bnd=Array{Tuple,1}()
+	nogo=Array{Tuple,1}()
+
+	for i in ocean.pccs
+		txt=text(string(i.num),12,:black,:right)
+		#txt=text(string(1),12,:black,:right)
+		push!(pcc,(i.node.gps.lng,i.node.gps.lat,txt))
+	end
+
+	for i in ocean.owpps
+		txt=text(string(i.num),12,:red,:right)
+		push!(gen,(i.node.gps.lng,i.node.gps.lat,txt))
+	end
+
+	for i in ocean.bndryPnts
+		push!(bnd,(i.gps.lng,i.gps.lat))
+	end
+	push!(bnd,(ocean.bndryPnts[1].gps.lng,ocean.bndryPnts[1].gps.lat))
+
+	for h in ocean.nogos
+		for i in h.nodes
+			push!(ng,(i.gps.lng,i.gps.lat))
+		end
+		push!(ng,(h.nodes[1].gps.lng,h.nodes[1].gps.lat))
+	end
+	os=0
+
+	Xpcc=[x[1] for x in pcc]
+	Xgen=[x[1] for x in gen]
+	Xbnd=[x[1] for x in bnd]
+	Xnogo=[x[1] for x in ng]
+
+	Ypcc=[x[2] for x in pcc]
+	Ygen=[x[2] for x in gen]
+	Ybnd=[x[2] for x in bnd]
+	Ynogo=[x[2] for x in nogo]
+	xlimax=trunc(Int,findmax(findmax([Xnogo,Xbnd,Xpcc,Xgen])[1])[1])+os
+	ylimax=trunc(Int,findmax(findmax([Ynogo,Ybnd,Ypcc,Ygen])[1])[1])+os
+	xlimin=trunc(Int,findmin(findmin([Xnogo,Xbnd,Xpcc,Xgen])[1])[1])-os
+	ylimin=trunc(Int,findmin(findmin([Ynogo,Ybnd,Ypcc,Ygen])[1])[1])-os
+
+	plotly()
+	p=plot(Xpcc,Ypcc,annotations=pcc,color = :blue,seriestype=:scatter,label="PCC",xaxis = ("km", font(15, "Courier")),yaxis = ("km", font(15, "Courier")))
+	plot!(p,Xgen,Ygen,annotations=gen,color = :red,seriestype=:scatter,label="OWPP")
+	#plot!(p,Xbnd,Ybnd,color = :green,seriestype=:scatter,label="BND")
+	plot!(p,Xbnd,Ybnd,color = :green,label="")
+	#plot!(p,Xnogo,Ynogo,color = :black,seriestype=:scatter,label="NOGO")
+	plot!(p,Xnogo,Ynogo,color = :black,label="")
+	p
+end
+
+########################################### Below is only removed print functions #######################################
+
+
+#=
 function ppf_printOcnXYt(ocean,pth,goal)
 	Owpp_peri=Array{nogo,1}()
 	pcc=Array{Tuple,1}()
@@ -273,207 +483,6 @@ function ppf_printOcnXY(ocn,pths)
 	p
 end
 
-function ppf_testing(ocn)
-    mv=0
-    hv=0
-    total=0
-    for i=1:length(ocn.circuits)
-        println(string(ocn.circuits[i].decimal)*") Cst:"*string(ocn.circuits[i].cost)*", mvC:"*string(length(ocn.circuits[i].owp_MVcbls))*", hvC:"*string(length(ocn.circuits[i].owp_HVcbls))*", oss:"*string(length(ocn.circuits[i].osss_owp))*", mog:"*string(length(ocn.circuits[i].osss_mog))*", o2oC:"*string(length(ocn.circuits[i].oss2oss_cbls)))
-        total=total+ocn.circuits[i].cost
-    end
-    println(total)
-end
-
-function ppf_equipment(ocn,circ)
-    println("MV cables: ")
-    for mvc in circ.owp_MVcbls
-        println(string(mvc.mva*mvc.num)*" MVA, "*string(mvc.elec.volt)*" KV, "*string(mvc.length)*" KM, "*string(mvc.costs.ttl)*" EURO, "*string(mvc.pth[1].num)*" - "*string(mvc.pth[length(mvc.pth)].num))
-    end
-    println()
-    println("OSS: ")
-    for mvc in circ.osss_owp
-        xfmTTL=0
-        println(string(mvc.node.num)*": ")
-        for x in mvc.xfmrs
-            xfmTTL=(xfmTTL+(x.costs.ttl))
-            print(string(x.num)*" - "*string(x.mva)*" MVA, "*string(x.lv)*" KV, "*string(x.hv)*" KV, ")
-        end
-        println(string(mvc.base_cost+xfmTTL)*" EURO")
-    end
-    println()
-    println()
-    println("HV cables: ")
-    for mvc in circ.owp_HVcbls
-        println(string(mvc.mva*mvc.num)*" MVA, "*string(mvc.elec.volt)*" KV, "*string(mvc.length)*" KM, "*string(mvc.costs.ttl)*" EURO, "*string(mvc.pth[1].num)*" - "*string(mvc.pth[length(mvc.pth)].num))
-    end
-    println()
-    println("MOG: ")
-    for mvc in circ.osss_mog
-        xfmTTL=0
-        println(string(mvc.node.num)*": ")
-        for x in mvc.xfmrs
-            xfmTTL=(xfmTTL+(x.costs.ttl))
-            println(string(x.num)*" - "*string(x.mva)*" MVA, "*string(x.lv)*" KV, "*string(x.hv)*" KV, ")
-        end
-        println(string(mvc.base_cost+xfmTTL)*" EURO")
-    end
-    println()
-    println()
-    println("O2O cables: ")
-    for mvc in circ.oss2oss_cbls
-        println(string(mvc.mva*mvc.num)*" MVA, "*string(mvc.elec.volt)*" KV, "*string(mvc.length)*" KM, "*string(mvc.costs.ttl)*" EURO, "*string(mvc.pth[1].num)*" - "*string(mvc.pth[length(mvc.pth)].num))
-    end
-    println()
-    println("PCC cables: ")
-    for mvc in circ.pcc_cbls
-        println(string(mvc.mva*mvc.num)*" MVA, "*string(mvc.elec.volt)*" KV, "*string(mvc.length)*" KM, "*string(mvc.costs.ttl)*" EURO, "*string(mvc.pth[1].num)*" - "*string(mvc.pth[length(mvc.pth)].num))
-    end
-    println()
-    println("PCC: ")
-    xfmTTL=0
-    println(string(circ.pcc.node.num)*": ")
-    for x in circ.pcc.xfmrs
-        xfmTTL=(xfmTTL+(x.costs.ttl))
-        println(string(x.num)*" - "*string(x.mva)*" MVA, "*string(x.lv)*" KV, "*string(x.hv)*" KV, ")
-    end
-    println(string(circ.pcc.base_cost+xfmTTL)*" EURO")
-    ppf_printOcnXY_cables(ocn,circ)
-end
-
-
-function ppf_layout_testing(ocn)
-
-
-	plotly()
-	p=plot([ocn.discretedom.nodes[1].xy.x],[ocn.discretedom.nodes[1].xy.y],color = :red,markersize=2,seriestype=:scatter,xticks = 0:2:30,xlims=(0,30),yticks = 0:5:56,label="",xaxis = ("km", font(15, "Courier")),yaxis = ("km", font(15, "Courier")))
-	for indx = 2:length(ocn.discretedom.nodes)
-		plot!(p,[ocn.discretedom.nodes[indx].xy.x],[ocn.discretedom.nodes[indx].xy.y],color = :red,markersize=2,seriestype=:scatter,label="")
-	end
-
-	for indx = 1:length(ocn.pccs)
-		plot!(p,[ocn.pccs[indx].node.xy.x],[ocn.pccs[indx].node.xy.y],color = :green,seriestype=:scatter,label="")
-	end
-
-	for owpp in ocn.owpps
-		plot!(p,[owpp.node.xy.x],[owpp.node.xy.y],color = :blue,seriestype=:scatter,label="")
-	end
-	p
-	gui()
-
-end
-
-function ppf_printOcnXY_cables(ocn,pths)
-
-	plotly()
-	p=plot([ocn.discretedom.nodes[1].xy.x],[ocn.discretedom.nodes[1].xy.y],color = :red,markersize=2,seriestype=:scatter,xticks = 0:2:30,xlims=(0,30),yticks = 0:5:56,label="",xaxis = ("km", font(15, "Courier")),yaxis = ("km", font(15, "Courier")))
-	for indx = 2:length(ocn.discretedom.nodes)
-		plot!(p,[ocn.discretedom.nodes[indx].xy.x],[ocn.discretedom.nodes[indx].xy.y],color = :red,markersize=2,seriestype=:scatter,label="")
-	end
-
-	for indx = 1:length(ocn.pccs)
-		plot!(p,[ocn.pccs[indx].node.xy.x],[ocn.pccs[indx].node.xy.y],color = :green,seriestype=:scatter,label="")
-	end
-
-	for owpp in ocn.owpps
-		plot!(p,[owpp.node.xy.x],[owpp.node.xy.y],color = :blue,seriestype=:scatter,label="")
-	end
-
-	for cbl in pths.owp_MVcbls
-		xs=Float32[]
-		ys=Float32[]
-		for pth in cbl.pth
-				push!(xs,pth.xy.x)
-				push!(ys,pth.xy.y)
-		end
-		plot!(p,xs,ys,color = :green,label="")
-	end
-	for cbl in pths.owp_HVcbls
-		xs=Float32[]
-		ys=Float32[]
-		for pth in cbl.pth
-			push!(xs,pth.xy.x)
-			push!(ys,pth.xy.y)
-		end
-		plot!(p,xs,ys,color = :red,label="")
-	end
-
-	for cbl in pths.oss2oss_cbls
-		xs=Float32[]
-		ys=Float32[]
-		for pth in cbl.pth
-			push!(xs,pth.xy.x)
-			push!(ys,pth.xy.y)
-		end
-		plot!(p,xs,ys,color = :blue,label="")
-	end
-	for cbl in pths.pcc_cbls
-		xs=Float32[]
-		ys=Float32[]
-		for pth in cbl.pth
-			push!(xs,pth.xy.x)
-			push!(ys,pth.xy.y)
-		end
-		plot!(p,xs,ys,color = :black,label="")
-	end
-	p
-	gui()
-end
-
-function ppf_printOcnGPS(ocean)
-	pcc=Array{Tuple,1}()
-	gen=Array{Tuple,1}()
-	bnd=Array{Tuple,1}()
-	nogo=Array{Tuple,1}()
-
-	for i in ocean.pccs
-		txt=text(string(i.num),12,:black,:right)
-		#txt=text(string(1),12,:black,:right)
-		push!(pcc,(i.node.gps.lng,i.node.gps.lat,txt))
-	end
-
-	for i in ocean.owpps
-		txt=text(string(i.num),12,:red,:right)
-		push!(gen,(i.node.gps.lng,i.node.gps.lat,txt))
-	end
-
-	for i in ocean.bndryPnts
-		push!(bnd,(i.gps.lng,i.gps.lat))
-	end
-	push!(bnd,(ocean.bndryPnts[1].gps.lng,ocean.bndryPnts[1].gps.lat))
-
-	for h in ocean.nogos
-		for i in h.nodes
-			push!(ng,(i.gps.lng,i.gps.lat))
-		end
-		push!(ng,(h.nodes[1].gps.lng,h.nodes[1].gps.lat))
-	end
-	os=0
-
-	Xpcc=[x[1] for x in pcc]
-	Xgen=[x[1] for x in gen]
-	Xbnd=[x[1] for x in bnd]
-	Xnogo=[x[1] for x in ng]
-
-	Ypcc=[x[2] for x in pcc]
-	Ygen=[x[2] for x in gen]
-	Ybnd=[x[2] for x in bnd]
-	Ynogo=[x[2] for x in nogo]
-	xlimax=trunc(Int,findmax(findmax([Xnogo,Xbnd,Xpcc,Xgen])[1])[1])+os
-	ylimax=trunc(Int,findmax(findmax([Ynogo,Ybnd,Ypcc,Ygen])[1])[1])+os
-	xlimin=trunc(Int,findmin(findmin([Xnogo,Xbnd,Xpcc,Xgen])[1])[1])-os
-	ylimin=trunc(Int,findmin(findmin([Ynogo,Ybnd,Ypcc,Ygen])[1])[1])-os
-
-	plotly()
-	p=plot(Xpcc,Ypcc,annotations=pcc,color = :blue,seriestype=:scatter,label="PCC",xaxis = ("km", font(15, "Courier")),yaxis = ("km", font(15, "Courier")))
-	plot!(p,Xgen,Ygen,annotations=gen,color = :red,seriestype=:scatter,label="OWPP")
-	#plot!(p,Xbnd,Ybnd,color = :green,seriestype=:scatter,label="BND")
-	plot!(p,Xbnd,Ybnd,color = :green,label="")
-	#plot!(p,Xnogo,Ynogo,color = :black,seriestype=:scatter,label="NOGO")
-	plot!(p,Xnogo,Ynogo,color = :black,label="")
-	p
-end
-
-
 function ppf_saveSystem(ocn,nme)
 	if (isdir("tempFiles/data/solutions/") == false)
 		mkdir("tempFiles/data/solutions")
@@ -515,3 +524,4 @@ function ppf_loadFile()
     solutions=(ab,obj,Ids,dm)
     return solutions
 end
+=#

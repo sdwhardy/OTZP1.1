@@ -6,17 +6,12 @@ using Polynomials, TypedPolynomials, SpecialFunctions
 using LinearAlgebra, Polyhedra, SetProg, MathOptInterface
 using JuMP, Ipopt, Mosek, MosekTools
 
-#using COSMO,SCS, CDDLib
-
 include("wind/struct.jl")
 include("cost/struct.jl")#
 include("eqp/struct.jl")#
 include("optimization/struct.jl")#
 include("layout/struct.jl")#
 #include("topology/struct.jl")
-
-
-
 
 include("cost/data.jl")#
 include("eqp/data.jl")#
@@ -36,27 +31,23 @@ include("topology/functions.jl")
 
 function main()
 
-    #side="low"
-    #side="centre"
-    #side="high"
-    #for side in ["high","centre","low"]
-        @time ocean=lof_layoutEez_basis()
-        @time ocean.owpps=lof_order2Pcc(ocean,ocean.pccs[2])
-        #ocean=lof_layoutEez_expand_testing(ocean,ocean.pccs[2])
-        #ppf_layout_testing(ocean)
+    @time ocean=lof_layoutEez_basis()
+    @time ocean.owpps=lof_order2Pcc(ocean,ocean.pccs[2])
+    @time ocean=lof_layoutEez_expand(ocean,ocean.pccs[2])
+    @time ocean.circuits=opt_hvOSSplacement(ocean,ocean.pccs[2])
+    ppf_testing(ocean)
+    ppf_equipment(ocean,ocean.circuits[29])
+    #ppf_saveSystem(ocean,side*"HV")
+    @time ocean.circuits=opt_mvOSSplacement(ocean,ocean.owpps,ocean.pccs[2])
+    ppf_testing(ocean)
+    #ppf_saveSystem(ocean,side*"MV")
+    @time opt_compoundOSS(ocean)
+    ppf_testing(ocean)
+    #ppf_saveSystem(ocean,"Combo_8owpps_boo")
+    @time best_full_syss,ocean.circuits=opt_rollUp(ocean)
+    #ocean=lof_layoutEez_expand_testing(ocean,ocean.pccs[2])
+    #ppf_layout_testing(ocean)
 
-        @time ocean=lof_layoutEez_expand(ocean,ocean.pccs[2])
-        @time ocean.circuits=opt_hvOSSplacement(ocean,ocean.pccs[2])
-        ppf_testing(ocean)
-        #ppf_saveSystem(ocean,side*"HV")
-        @time ocean.circuits=opt_mvOSSplacement(ocean,ocean.owpps,ocean.pccs[2])
-        ppf_testing(ocean)
-        #ppf_saveSystem(ocean,side*"MV")
-        @time opt_compoundOSS(ocean)
-        ppf_testing(ocean)
-        #ppf_saveSystem(ocean,"Combo_8owpps_boo")
-        @time best_full_syss,ocean.circuits=opt_rollUp(ocean)
-    #end
     ocean=load("tempFiles/data/solutions/Combo_8owpps.jld2")["ocean"]
     ocn_l=load("tempFiles/data/solutions/lowCB.jld2")["ocean"]
     ocn_h=load("tempFiles/data/solutions/highCB.jld2")["ocean"]
@@ -66,7 +57,7 @@ function main()
     gr()
     gui()
 
-    ppf_equipment(ocean,ocean.circuits[7])
+    ppf_equipment(ocean,best_full_syss[3])
 #ocean.discretedom.nodes[85]
     #start=ocean.owpps[3].node
     #goal=ocean.pccs[1].node

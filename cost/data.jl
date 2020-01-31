@@ -8,21 +8,6 @@ function cstD_xchg()
     return 1.16
 end
 
-#Sets Cost factor for cable compensation
-#bin is a binary variable that which is true if a cable connects 2 OSS and false if from OSS to PCC
-#ks is a set of cost factors set within this file
-#=function cstD_QC(bin,ks)
-    p2e=cstD_xchg()
-    #offshore(OSS) to onshore(PCC) connection
-    ks.Qc_oss=0.025*p2e#M£/MVAr
-    ks.Qc_pcc=0.015*p2e#M£/MVAr
-    #offshore(OSS) to offshore(OSS) connection
-    if bin == true
-        ks.Qc_pcc=ks.Qc_oss
-    end
-    return nothing
-end=#
-
 #Sets values of all cost factors discribed below
 #the structure of object ks is described in file cst_structure.jl
 function cstD_cfs()
@@ -42,6 +27,25 @@ function cstD_cfs()
     ks.cf=sht["B12"]#Capitalization factor
     return ks
 end
+
+
+
+#################################################### Depricated functions below ####################################
+
+#Sets Cost factor for cable compensation
+#bin is a binary variable that which is true if a cable connects 2 OSS and false if from OSS to PCC
+#ks is a set of cost factors set within this file
+#=function cstD_QC(bin,ks)
+    p2e=cstD_xchg()
+    #offshore(OSS) to onshore(PCC) connection
+    ks.Qc_oss=0.025*p2e#M£/MVAr
+    ks.Qc_pcc=0.015*p2e#M£/MVAr
+    #offshore(OSS) to offshore(OSS) connection
+    if bin == true
+        ks.Qc_pcc=ks.Qc_oss
+    end
+    return nothing
+end=#
 
 
 ##############################
@@ -185,7 +189,7 @@ function lod_gensGps()
         push!(wnd,"A19")
     end
     return c,p,wnd
-end=#
+end
 
 #Grid PU mva
 function lod_cnceMva()
@@ -201,3 +205,4 @@ end
 function lod_pccKv()
     return 220.0
 end
+=#
