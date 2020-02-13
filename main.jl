@@ -46,49 +46,57 @@ function main()
     @time ocean=lof_layoutEez_basis()
     @time ocean.owpps=lof_order2Pcc(ocean,ocean.pccs[2])
     @time ocean,oe_length=lof_layoutEez_expand_testing(ocean,ocean.pccs[2])
+    number_of_owpps=length(ocean.owpps)
     #ocean=load("tempFiles/data/solutions/clean_ocean8.jld2")["ocean"]
-    ppf_saveSystem(ocean,"clean_ocean8")
+    ppf_saveSystem(ocean,"clean_ocean"*string(number_of_owpps))
 
     @time ocean.circuits=opt_hvOSSplacement_zero_size(ocean,ocean.pccs[2])
-    ppf_saveSystem(ocean,"hv_ocean8")
+    ppf_saveSystem(ocean,"hv_ocean"*string(number_of_owpps))
     @time opt_compoundOSS(ocean)
-    ppf_saveSystem(ocean,"compound_hv_ocean8")
+    ppf_saveSystem(ocean,"compound_hv_ocean"*string(number_of_owpps))
     @time best_full_syss,ocean.circuits=opt_rollUp(ocean)
-    ppf_saveSystem(ocean,"compound_hv_rolledUp_ocean8")
-    ppf_saveCircuit(best_full_syss,"best_full_hv_systems8")
+    ppf_saveSystem(ocean,"compound_hv_rolledUp_ocean"*string(number_of_owpps))
+    ppf_saveCircuit(best_full_syss,"best_full_hv_systems"*string(number_of_owpps))
 
-    ocean_hv_nodes=load("tempFiles/data/solutions/hv_ocean8.jld2")["ocean"].discretedom.nodes
-    ocean=load("tempFiles/data/solutions/clean_ocean8.jld2")["ocean"]
+    ocean_hv_nodes=load("tempFiles/data/solutions/hv_ocean"*string(number_of_owpps)*".jld2")["ocean"].discretedom.nodes
+    ocean=load("tempFiles/data/solutions/clean_ocean"*string(number_of_owpps)*".jld2")["ocean"]
     @time ocean.circuits=opt_mvOSSplacement_zero_size(ocean,ocean.owpps,ocean.pccs[2],ocean_hv_nodes)
-    ocean_hv=load("tempFiles/data/solutions/hv_ocean8.jld2")["ocean"]
+    ocean_hv=load("tempFiles/data/solutions/hv_ocean"*string(number_of_owpps)*".jld2")["ocean"]
     ocean=opt_updateMVocean(ocean,ocean_hv,oe_length)
     ocean_hv=eez()
-    ppf_saveSystem(ocean,"mv_ocean8")
+    ppf_saveSystem(ocean,"mv_ocean"*string(number_of_owpps))
 
     @time opt_compoundOSS(ocean)
-    ppf_saveSystem(ocean,"compound_mv_ocean8")
+    ppf_saveSystem(ocean,"compound_mv_ocean"*string(number_of_owpps))
     @time best_full_syss,ocean.circuits=opt_rollUp(ocean)
-    ppf_saveSystem(ocean,"compound_mv_rolledUp_ocean8")
-    ppf_saveCircuit(best_full_syss,"best_full_mv_systems8")
-    ocean_hv=load("tempFiles/data/solutions/compound_hv_rolledUp_ocean8.jld2")["ocean"]
+    ppf_saveSystem(ocean,"compound_mv_rolledUp_ocean"*string(number_of_owpps))
+    ppf_saveCircuit(best_full_syss,"best_full_mv_systems"*string(number_of_owpps))
+    ocean_hv=load("tempFiles/data/solutions/compound_hv_rolledUp_ocean"*string(number_of_owpps)*".jld2")["ocean"]
 
     ocean.circuits=optSysCompare(ocean_hv.circuits,ocean.circuits)
     best_full_syss,ocean.circuits=opt_rollUp(ocean)
-    ppf_saveSystem(ocean,"compound_hvmv_rolledUp_ocean8")
-    ppf_saveCircuit(best_full_syss,"best_full_hvmv_systems8")
+    ppf_saveSystem(ocean,"compound_hvmv_rolledUp_ocean"*string(number_of_owpps))
+    ppf_saveCircuit(best_full_syss,"best_full_hvmv_systems"*string(number_of_owpps))
 
     return ocean,best_full_syss
 end
 @time ocean,best_full_syss=main()
+ppf_equipment_OSS_MOG(ocean,best_full_syss[1])
 
+
+
+#################
 ocean_hv=load("tempFiles/data/solutions/hv_ocean8.jld2")["ocean"]
+@time opt_compoundOSS(ocean_hv)
+#################
+
 ocean_chv=load("tempFiles/data/solutions/compound_hv_ocean8.jld2")["ocean"]
 
 ocean_mv=load("tempFiles/data/solutions/mv_ocean8.jld2")["ocean"]
 ocean_cmv=load("tempFiles/data/solutions/compound_mv_ocean8.jld2")["ocean"]
 bc_cmv=load("tempFiles/data/circuits/circ_best_full_hvmv_systems8.jld2")["circuits"]
 
-ppf_equipment_OSS_MOG(ocean,ocean.circuits[252])
+ppf_equipment_OSS_MOG(ocn,oss_system)
 ppf_equipment_OSS_MOG(ocean_cmv,bc_cmv[2])
 ppf_testing(ocean_cmv)
 function cbl_count(ocnhv)
