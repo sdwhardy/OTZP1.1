@@ -18,7 +18,8 @@ square()=square(69.69,69.69,69.69,69.69)
 ###################################################################
 mutable struct constraints
       ellipses::Array{ellipse}
-      squares::Array{square}
+      #squares::Array{square}
 end
-constraints()=constraints(ellipse[],square[])
+#constraints()=constraints(ellipse[],square[])
+constraints()=constraints(ellipse[])
 ###################################################################

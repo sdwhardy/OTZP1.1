@@ -4,7 +4,7 @@
 #=
 eqp=xfos_2use[1]
 =#
-
+#**
 function eensF_eqp_eens(eqp, S, ks, wp)
     cpt_tbl=eensF_eqp_cpt(eqp,S)#make capacity probability table
     eens_all=[]#Create eens array
@@ -34,7 +34,7 @@ function eensF_eqp_eens(eqp, S, ks, wp)
     return eens
 end
 
-#The calculation of equipment level capacity probability table
+#The calculation of equipment level capacity probability table **
 function eensF_eqp_cpt(eqp,S)
     #Calculate failure rate for entire length if cable
     if typeof(eqp)==typeof(cbl())
@@ -85,7 +85,7 @@ function eensF_eqp_cpt(eqp,S)
     end
 end
 
-#creates a blank capacity probability table
+#creates a blank capacity probability table **
 function eensF_blankTbl(rows,clms)
     XFM_CBL=trunc.(Int8,zeros(rows,clms))
 #=create all combinations ie
@@ -114,7 +114,7 @@ transpose(
     return XFM_CBL
 end
 
-#linearly interpolates 2 points of graph
+#linearly interpolates 2 points of graph **
 function eensF_intPole(true_x,min_x,max_x,min_y,max_y)
     slope=(max_y-min_y)/(max_x-min_x)
     b=min_y-slope*min_x
@@ -122,11 +122,20 @@ function eensF_intPole(true_x,min_x,max_x,min_y,max_y)
     return true_y
 end
 
+
+
+
+
+
+
+
+################################################## depricated ################################
+
 ################################################################################
 ################# EENS of transformer/cable in series ##########################
 ################################################################################
 #EENS of transformers and cable in series connection
-function eensF_owpp_eens(x,cb,S,ks,wp)
+#=function eensF_owpp_eens(x,cb,S,ks,wp)
     #make capacity probability table
     cpt_tbl=eensF_owpp_cpt(x,cb,S)
     #Create eens array
@@ -160,8 +169,8 @@ function eensF_owpp_eens(x,cb,S,ks,wp)
     #sum all eens and multiply by cost factors
     eens=sum(eens_all)*ks.life*ks.E_op
     return eens
-end
-
+end=#
+#=
 function eensF_owpp_cpt(xfm,cb,S)
     #failure data
     #Calculate Availability of cables and xformers
@@ -218,3 +227,4 @@ function eensF_owpp_cpt(xfm,cb,S)
           return [tbl_c1 tbl_c2]
         end
 end
+=#

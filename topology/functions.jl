@@ -3,7 +3,7 @@ ocn=ocean
 epty=top_mvTopos(ocn)
 ocn.owpps[1].mv_zone.pos_height
 =#
-
+#**
 function top_mvTopos(owpps)
     #find all combinations
     clms=trunc(Int,length(owpps))
@@ -46,7 +46,7 @@ function top_mvTopos(owpps)
 
     return empty_tbl
 end
-
+#**
 function top_hvTopos(owpps)
     #find all combinations
     clms=trunc(Int,length(owpps))
@@ -72,6 +72,7 @@ bn=[1,1,1,0,1,1]
 dec=cir_bin2dec(bn)
 bn=cir_dec2bin(dec)
 =#
+#**
 function top_bin2dec(bn)
     dec=0.0
     for (i,bt) in enumerate(bn)
@@ -80,6 +81,7 @@ function top_bin2dec(bn)
     return dec
 end
 ############################################################################
+#** - not used but may be in the future
 function top_dec2bin(dec)
     bn=Int8[]
     while (dec != 0)

@@ -199,7 +199,7 @@ function perspective_gauge0(set)
     return set.set.p
 end
 
-
+##################################### depricated ###############################
 #=
 function findABCDEF(S)
     A=convert(Float64,subs(value(S).set.p[4], value(S).set.x[1]=>1))

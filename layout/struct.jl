@@ -89,17 +89,6 @@ mutable struct cbl
 end
 cbl()=cbl(0.0,0.0,node[],0.0,0.0,0.0,relia(),elec(),cbl_costs())
 ###################################################################
-#the structure used for a owpp (cable and xfm)
-#=mutable struct owpp
-   mva::Float32
-   km::Float32
-   cable::cbl
-   xfm::xfo
-   wp::wind
-   costs::results
-end
-owpp()=owpp(0.0,0.0,cbl(),xfo(),wind(),results())=#
-###################################################################
 mutable struct bus
       mva::Float32
       wnd::wind
@@ -116,22 +105,6 @@ mutable struct bus
       base_cost::Float32
 end
 bus()=bus(69.69,wind(),"sixty-nine",node(),farm(),farm(),69,69,69,xfo[],0)
-###################################################################
-#=mutable struct conductor
-      head::bus
-      tail::bus
-      lngth::Float32
-      mva::Float32
-      num::Int32
-      id::Int32
-      #xfo_in
-      #xfo_out
-      #cbl
-      #path[]
-      #cost
-      #kv
-end
-conductor()=conductor(bus(),bus(),69.69,69.69,69,69)=#
 ####################################################################
 mutable struct domain
       nodes::Array{node}
@@ -153,8 +126,9 @@ mutable struct system
       nogoNum::Int32
       prec::Float32
       mwPerKm::Float32
+      mvCl::Float32
 end
-system()=system(69,69.69,69.69)
+system()=system(69,69.69,69.69,69.69)
 ####################################################################
 mutable struct circuit
       binary::Array{Int8}
@@ -183,11 +157,6 @@ mutable struct eez
       owpps::Array{bus}
       pccs::Array{bus}
       buses::Array{bus}
-      #wp2pccs::Array{conductor}
-      #wp2osss::Array{conductor}
-      #oss2osss::Array{conductor}
-      #oss2pccs::Array{conductor}
-      #conductors::Array{conductor}
       bndryPnts::Array{node}
       ebnd::Array{line}
       wbnd::Array{line}
@@ -205,6 +174,37 @@ mutable struct eez
       id_count::Int32
       yaxisMajor::Bool
 end
-#eez()=eez(bus[],bus[],bus[],bus[],conductor[],conductor[],conductor[],conductor[],conductor[],node[],nogo[],domain(),system(),cstS_ks(),69.69,69.69,gps(),69)
 eez()=eez(bus[],bus[],bus[],bus[],node[],line[],line[],line[],line[],nogo[],domain(),constraints(),system(),cstS_ks(),circuit[],69.69,69.69,gps(),69,false)
 ###################################################################
+
+
+########################################## depricated ##########################
+
+###################################################################
+#=mutable struct conductor
+      head::bus
+      tail::bus
+      lngth::Float32
+      mva::Float32
+      num::Int32
+      id::Int32
+      #xfo_in
+      #xfo_out
+      #cbl
+      #path[]
+      #cost
+      #kv
+end
+conductor()=conductor(bus(),bus(),69.69,69.69,69,69)=#
+
+###################################################################
+#the structure used for a owpp (cable and xfm)
+#=mutable struct owpp
+   mva::Float32
+   km::Float32
+   cable::cbl
+   xfm::xfo
+   wp::wind
+   costs::results
+end
+owpp()=owpp(0.0,0.0,cbl(),xfo(),wind(),results())=#

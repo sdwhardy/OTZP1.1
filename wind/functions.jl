@@ -3,6 +3,7 @@
 #profiles=[getproperty(df,Symbol("Thornton"))]
 #wp=wndF_wndPrf(profiles)
 #plot(wp.pu,wp.ce./wp.ce[length(wp.ce)])
+#**
 function wndF_wndPrf(profiles)
     wp=Array{Float32,1}()
     dummy=Array{Float32,1}()
@@ -20,7 +21,43 @@ function wndF_wndPrf(profiles)
     wnd
     return wnd
 end
+#Calculates the loss factor associated with the wind profile
+#**
+function wndF_ldLss(div, wind)
+  wind.lf=(sum(div))*0.85/length(div)#saves loss factor, 0.85 is wake penalization
+  #loss factor/llf formula ref: Guidelines on the calculation and use of loss factors Te Mana Hiko Electricity Authority
+  #0.85 for wake effect from Evaluation of the wind direction uncertainty and its impact on wake modeling at the Horns Rev offshore wind farm
+#M. Gaumond  P.‐E. Réthoré  S. Ott  A. Peña  A. Bechmann  K. S. Hansen
+  llf=0.0
+  for pu in div
+    llf=llf+(pu*0.85)^2
+    #llf=llf+(pu)^2
+  end
+  wind.delta=llf/length(div)#saves load loss factor
+end
 
+#**
+function wndF_conEng(graph,wnd)
+#create sized arrays
+    ce=Float32[]
+    for hr=1:length(graph)
+        smPu=0
+        for pu=1:hr
+            smPu=smPu+graph[pu]
+        end
+        smPu=smPu-(graph[hr]*hr)
+        push!(ce,smPu)
+    end
+    #wnd.ce=deepcopy(ce./ce[length(ce)])
+    wnd.ce=deepcopy(ce)
+    wnd.pu=deepcopy(graph)
+    return nothing
+end
+
+
+##################################### depricated ###############################
+
+#=
 #Imports the Corwind data and calculates load loss/ constrained energy
 function wndF_wndPrf_pu(profiles)
     wnd=wind()
@@ -41,7 +78,7 @@ function wndF_wndPrf_pu(profiles)
     wnd
     return wnd
 end
-
+=#
 
 #=function wndF_wndPrf(nmes)
     prof = DataFrame(XLSX.readtable("layout//data.xlsx", "wind_data")...)
@@ -67,37 +104,6 @@ end
     wnd
     return wnd
 end=#
-
-#Calculates the loss factor associated with the wind profile
-function wndF_ldLss(div, wind)
-  wind.lf=(sum(div))*0.85/length(div)#saves loss factor, 0.85 is wake penalization
-  #loss factor/llf formula ref: Guidelines on the calculation and use of loss factors Te Mana Hiko Electricity Authority
-  #0.85 for wake effect from Evaluation of the wind direction uncertainty and its impact on wake modeling at the Horns Rev offshore wind farm
-#M. Gaumond  P.‐E. Réthoré  S. Ott  A. Peña  A. Bechmann  K. S. Hansen
-  llf=0.0
-  for pu in div
-    llf=llf+(pu*0.85)^2
-    #llf=llf+(pu)^2
-  end
-  wind.delta=llf/length(div)#saves load loss factor
-end
-
-function wndF_conEng(graph,wnd)
-#create sized arrays
-    ce=Float32[]
-    for hr=1:length(graph)
-        smPu=0
-        for pu=1:hr
-            smPu=smPu+graph[pu]
-        end
-        smPu=smPu-(graph[hr]*hr)
-        push!(ce,smPu)
-    end
-    #wnd.ce=deepcopy(ce./ce[length(ce)])
-    wnd.ce=deepcopy(ce)
-    wnd.pu=deepcopy(graph)
-    return nothing
-end
 
 #graph=ord
 

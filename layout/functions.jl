@@ -1,3 +1,4 @@
+#**
 function lof_layoutEez_basis()
     #reading data from excel input files
     ocean=eez()
@@ -23,11 +24,9 @@ function lof_layoutEez_basis()
     lof_transformAxis(ocean)
     return ocean
 end
-
-#=
-ocn=ocean
-pcc=ocn.pccs[2]
-=#
+#ocn=ocean
+#pcc=ocean.pccs[2]
+#**
 function lof_layoutEez_expand(ocn,pcc)
     #define as y or x axis major
     lof_xyMajor(ocn,pcc)
@@ -37,16 +36,16 @@ function lof_layoutEez_expand(ocn,pcc)
     lof_mVrng(ocn)
     #line all boundaries
     lof_bndafy(ocn)
+    #add owpp nodes
+    lof_owppNodefy(ocn)
     #Add all background nodes
     lof_nodifySparse(ocn)
     #number all nodes
     lof_numNodes(ocn)
-
-    #add all background edges
-    lof_edgeifySparse(ocn)
     #add edges for owpp
     lof_owppEdgefy(ocn)
-
+    #add all background edges
+    lof_edgeifySparse(ocn)
     ocn.buses=vcat(ocn.pccs, ocn.owpps)#collects all buses
     #calculate constraint ellipse approximations for owpps
     opt_owppConstraints(ocn)
@@ -69,44 +68,7 @@ function lof_layoutEez_expand(ocn,pcc)
     println("Axis transformed.")
     return ocn
 end
-
-function lof_layoutEez_expand_testing(ocn,pcc)
-    #define as y or x axis major
-    lof_xyMajor(ocn,pcc)
-    #set area of owpp
-    lof_setAreaOwpp(ocn)
-    #set range of MV
-    lof_mVrng(ocn)
-    #line all boundaries
-    lof_bndafy(ocn)
-    #Add all background nodes
-    lof_nodifySparse(ocn)
-    #number all nodes
-    lof_numNodes(ocn)
-
-    #add all background edges
-    #lof_edgeifySparse(ocn)
-    #add edges for owpp
-    #lof_owppEdgefy(ocn)
-
-    ocn.buses=vcat(ocn.pccs, ocn.owpps)#collects all buses
-
-    ##########Printing
-    for value in ocn.pccs
-        print(value.num)
-        print(" - ")
-        println(value.node.gps)
-    end
-    for value in ocean.owpps
-        print(value.num)
-        print(" - ")
-        println(value.node.gps)
-    end
-    println("GPS coordinates projected onto cartesian plane.")
-    println("Axis transformed.")
-    return ocn
-end
-
+#**
 function lof_xyMajor(ocn,pcc)
     x_min=pcc.node.xy.x
     x_max=pcc.node.xy.x
@@ -131,6 +93,7 @@ function lof_xyMajor(ocn,pcc)
     end
 end
 
+#**
 function lof_order2Pcc(ocn,pcc)
     lngth_owpps=Array{Tuple{Float64,Int64},1}()
     ordrd_owpps=Array{bus,1}()
@@ -153,25 +116,34 @@ function lof_order2Pcc(ocn,pcc)
     return ordrd_owpps
 end
 
-function lof_owppEdgefy(ocn)
+#**
+function lof_owppNodefy(ocn)
     for (ind0,owpp) in enumerate(ocn.owpps)
         owpp.node.num=length(ocn.discretedom.nodes)+1
         push!(ocn.discretedom.nodes,owpp.node)
+    end
+end
+
+function lof_owppEdgefy(ocn)
+    for (ind0,owpp) in enumerate(ocn.owpps)
+        #owpp.node.num=length(ocn.discretedom.nodes)+1
+        #push!(ocn.discretedom.nodes,owpp.node)
         for (ind1,periNd) in enumerate(owpp.zone.nodes)
             dummy_edge=edge()
             dummy_edge.tail=owpp.node.num
             dummy_edge.head=periNd.num
-            dummy_edge.lngth=0.5#length to connect to any point on perimeter of windfarm
+            dummy_edge.lngth=ocn.sys.mvCl#length to connect to any point on perimeter of windfarm
             push!(owpp.node.edges,dummy_edge)
         end
     end
 end
 
+#**
 function lof_edgeifySparse(ocn)
-    konst=3
+    konst=3#normal operation
     buildEdge = true
     buildSection = true
-    for (indx0,nd_tail) in enumerate(ocn.discretedom.nodes)
+    for (indx0,nd_tail) in enumerate(ocn.discretedom.nodes[length(ocn.owpps)+1:length(ocn.discretedom.nodes)])
         for indx1=indx0+1:1:length(ocn.discretedom.nodes)
             nd_head=ocn.discretedom.nodes[indx1]
             if (nd_tail != nd_head)
@@ -206,11 +178,13 @@ function lof_edgeifySparse(ocn)
     end
 end
 
+
+#**
 function lof_edgeifyOss(oss,ocn,nodes,edges)
     buildEdge = true
     buildSection = true
     nd_tail=oss
-    for indx1=1:1:length(nodes)-1
+    for indx1=length(ocn.owpps)+1:1:length(nodes)-1
         nd_head=nodes[indx1]
         if (nd_tail != nd_head)
             verln=lof_lineDirection(nd_tail,nd_head)
@@ -225,14 +199,10 @@ function lof_edgeifyOss(oss,ocn,nodes,edges)
                     end
                 end
             else
-                #=
-                x=str8line.xmn+ocn.sys.prec
-                =#
                 for x=str8line.xmn:ocn.sys.prec:str8line.xmx
                     y=x*str8line.m_findy+str8line.b_findy
                     buildSection,area=lof_test4pnt(x,y,ocn)
                     if (buildSection == false)
-                        #println("Post x: "*string(buildSection)*" - y= "*string(y)*" - x= "*string(x))
                         buildEdge = false
                         @goto no_str8line
                     end
@@ -240,7 +210,6 @@ function lof_edgeifyOss(oss,ocn,nodes,edges)
             end
         end
         if (buildEdge == true)
-            #println("Building Edge!!")
             lof_addEdge(nd_tail,nd_head,edges)
         end
         @label no_str8line
@@ -248,6 +217,7 @@ function lof_edgeifyOss(oss,ocn,nodes,edges)
     end
 end
 
+#**
 function lof_pntWithinNG(x,y,area2tst)
     inside=true
     vertices=xy[]
@@ -282,7 +252,7 @@ function lof_pntWithinNG(x,y,area2tst)
     end
     return inside
 end
-#Complete these 2 functions then test in edges are correct
+#Complete these 2 functions then test in edges are correct **
 function lof_pntWithin(x,y,area2tst)
     #return true if inside area
     inside=false
@@ -361,6 +331,7 @@ function lof_pntWithin(x,y,area2tst)
     return inside
 end
 
+#**
 function lof_addEdge(nd_tail,nd_head,Alledges)
     #build and store both directions of edge
     lnth=lof_pnt2pnt_dist(nd_tail.xy,nd_head.xy)
@@ -382,6 +353,7 @@ function lof_addEdge(nd_tail,nd_head,Alledges)
 end
 #stage_go
 #owpp=ocn.owpps[3]
+#**
 function lof_test4pnt(x,y,ocn)
     within = false
     outside = true
@@ -418,6 +390,7 @@ function lof_test4pnt(x,y,ocn)
     return outside,area
 end
 
+#**
 function lof_lineDirection(nd_tail,nd_head)
     if (abs(nd_tail.xy.y-nd_head.xy.y) <  abs(nd_tail.xy.x-nd_head.xy.x))
         vertLn=false
@@ -427,7 +400,7 @@ function lof_lineDirection(nd_tail,nd_head)
     return vertLn
 end
 
-
+#**
 function lof_getStr8line(nd_hd,nd_tl)
     dummy_line=line()
     dummy_line.xmx=max(nd_hd.xy.x,nd_tl.xy.x)
@@ -449,59 +422,51 @@ function lof_getStr8line(nd_hd,nd_tl)
     return dummy_line
 end
 
-function lof_posPccs(ocn)
-    for pcc in ocn.pccs
-        bsf_distance=Inf
-        bsf_node=Int32
-        for (indx,node) in enumerate(ocn.discretedom.nodes)
-            distance=lof_pnt2pnt_dist(pcc.node.xy,node.xy)
-            if  distance < bsf_distance
-                bsf_distance=deepcopy(distance)
-                bsf_node=deepcopy(indx)
-            end
-        end
-        println("bsf: "*string(bsf_node)*"at "*string(bsf_distance))
-        ocn.discretedom.nodes[bsf_node]=pcc.node
-    end
-end
 
+#**
 function lof_numNodes(ocn)
     for (indx,nd) in enumerate(ocn.discretedom.nodes)
         nd.num=deepcopy(indx)
     end
 end
 #ng=ocn.nogos[1]
+#**
 function lof_nodifySparse(ocn)
+    konst=3#normal operation
     #place nodes on boundary on no go zones
     for ng in ocn.nogos
         for lns in [ng.wbnd,ng.ebnd]
             for ln in lns
-                for y_step = ln.ymn:ocn.sys.prec:ln.ymx
+                for y_step = ln.ymn:ocn.sys.prec/konst:ln.ymx
                     dummy_node=node()
                     dummy_node.xy.y=y_step
                     dummy_node.xy.x=y_step*ln.m_findx+ln.b_findx
                     push!(ocn.discretedom.nodes,deepcopy(dummy_node))
+                    push!(ng.nodes,ocn.discretedom.nodes[length(ocn.discretedom.nodes)])
                 end
                 dummy_node=node()
                 dummy_node.xy.y=ln.ymx
                 dummy_node.xy.x=ln.ymx*ln.m_findx+ln.b_findx
                 push!(ocn.discretedom.nodes,deepcopy(dummy_node))
+                push!(ng.nodes,ocn.discretedom.nodes[length(ocn.discretedom.nodes)])
             end
         end
         #lns=[ng.sbnd,ng.nbnd][1]
         #ln=lns[1]
         for lns in [ng.sbnd,ng.nbnd]
             for ln in lns
-                for x_step = ln.xmn:ocn.sys.prec:ln.xmx
+                for x_step = ln.xmn:ocn.sys.prec/konst:ln.xmx
                     dummy_node=node()
                     dummy_node.xy.x=x_step
                     dummy_node.xy.y=x_step*ln.m_findy+ln.b_findy
                     push!(ocn.discretedom.nodes,deepcopy(dummy_node))
+                    push!(ng.nodes,ocn.discretedom.nodes[length(ocn.discretedom.nodes)])
                 end
                 dummy_node=node()
                 dummy_node.xy.x=ln.xmx
                 dummy_node.xy.y=ln.xmx*ln.m_findy+ln.b_findy
                 push!(ocn.discretedom.nodes,deepcopy(dummy_node))
+                push!(ng.nodes,ocn.discretedom.nodes[length(ocn.discretedom.nodes)])
             end
         end
     end
@@ -510,7 +475,7 @@ function lof_nodifySparse(ocn)
     for owpp in ocn.owpps
         for lns in [owpp.zone.wbnd,owpp.zone.ebnd]
             for ln in lns
-                for y_step = ln.ymn:ocn.sys.prec:ln.ymx
+                for y_step = ln.ymn:ocn.sys.prec/konst:ln.ymx
                     dummy_node=node()
                     dummy_node.xy.y=y_step
                     dummy_node.xy.x=y_step*ln.m_findx+ln.b_findx
@@ -526,7 +491,7 @@ function lof_nodifySparse(ocn)
         end
         for lns in [owpp.zone.sbnd,owpp.zone.nbnd]
             for ln in lns
-                for x_step = ln.xmn:ocn.sys.prec:ln.xmx
+                for x_step = ln.xmn:ocn.sys.prec/konst:ln.xmx
                     dummy_node=node()
                     dummy_node.xy.x=x_step
                     dummy_node.xy.y=x_step*ln.m_findy+ln.b_findy
@@ -549,43 +514,7 @@ function lof_nodifySparse(ocn)
     unique!(ocn.discretedom.nodes)
 end
 
-#=function lof_edgeify(ocn)
-    hyp=2*ocn.sys.prec
-    for (indx0,nd0) in enumerate(ocn.discretedom.nodes)
-        for indx1 = indx0+1:1:length(ocn.discretedom.nodes)
-            lnth=lof_pnt2pnt_dist(nd0.xy,ocn.discretedom.nodes[indx1].xy)
-            if (lnth < hyp)
-                dummy_edgeAB=edge()
-                dummy_edgeBA=edge()
-
-                dummy_edgeAB.tail=nd0.num
-                dummy_edgeAB.head=ocn.discretedom.nodes[indx1].num
-                dummy_edgeAB.lngth=lnth
-
-                dummy_edgeBA.tail=ocn.discretedom.nodes[indx1].num
-                dummy_edgeBA.head=nd0.num
-                dummy_edgeBA.lngth=lnth
-
-                push!(nd0.edges,deepcopy(dummy_edgeAB))
-                push!(ocn.discretedom.nodes[indx1].edges,deepcopy(dummy_edgeBA))
-                push!(ocn.discretedom.edges,nd0.edges[length(nd0.edges)])
-                push!(ocn.discretedom.edges,ocn.discretedom.nodes[indx1].edges[length(ocn.discretedom.nodes[indx1].edges)])
-            end
-        end
-    end
-    for (ind0,owpp) in enumerate(ocn.owpps)
-        owpp.node.num=length(ocn.discretedom.nodes)+1
-        push!(ocn.discretedom.nodes,owpp.node)
-        for (ind1,periNd) in enumerate(owpp.zone.pnts)
-            dummy_edge=edge()
-            dummy_edge.tail=owpp.node.num
-            dummy_edge.head=periNd.num
-            dummy_edge.lngth=0.5#length to connect to any point on perimeter of windfarm
-            push!(owpp.node.edges,dummy_edge)
-        end
-    end
-end=#
-
+#**
 function lof_nogoZones(ocn)
     for i=1:ocn.sys.nogoNum
         nogoT=nogo()
@@ -593,18 +522,20 @@ function lof_nogoZones(ocn)
         push!(ocn.nogos,deepcopy(nogoT))
     end
 end
-
+#owpp=ocn.owpps[1]
+#**
 function lof_mVrng(ocn)
     for owpp in ocn.owpps
-        mvrng=cstF_mVrng(5,owpp.mva,owpp.wnd,ocn.finance,ocn.sys.prec)
-        owpp.mv_zone.pos_height=deepcopy(mvrng)+owpp.zone.pos_height
-        owpp.mv_zone.pos_width=deepcopy(mvrng)+owpp.zone.pos_width
-        owpp.mv_zone.neg_height=deepcopy(mvrng)+owpp.zone.neg_height
-        owpp.mv_zone.neg_width=deepcopy(mvrng)+owpp.zone.neg_width
+        mvrng=cstF_mVrng(5,owpp.mva,owpp.wnd,ocn.finance,ocn.sys)
+        owpp.mv_zone.pos_height=deepcopy(mvrng)+owpp.zone.pos_height-ocn.sys.mvCl
+        owpp.mv_zone.pos_width=deepcopy(mvrng)+owpp.zone.pos_width-ocn.sys.mvCl
+        owpp.mv_zone.neg_height=deepcopy(mvrng)+owpp.zone.neg_height-ocn.sys.mvCl
+        owpp.mv_zone.neg_width=deepcopy(mvrng)+owpp.zone.neg_width-ocn.sys.mvCl
         owpp.mv_zone.area=(owpp.mv_zone.pos_height+owpp.mv_zone.neg_height)*(owpp.mv_zone.pos_width+owpp.mv_zone.neg_width)
     end
 end
 
+#**
 function lof_setAreaOwpp(ocn)
     #find dominant axis
     if (abs(ocn.owpps[1].node.xy.y-ocn.owpps[length(ocn.owpps)].node.xy.y)>abs(ocn.owpps[1].node.xy.x-ocn.owpps[length(ocn.owpps)].node.xy.x))
@@ -695,6 +626,7 @@ end
 ocn=ocean
 ngs=ocn.nogos[1]
 =#
+#**
 function lof_bndafy(ocn)
     ocn.nbnd,ocn.ebnd,ocn.sbnd,ocn.wbnd=lof_bndNESW(ocn.bndryPnts)
     for ngs in ocn.nogos
@@ -715,6 +647,8 @@ end
 nds=ocn.bndryPnts
 =#
 #finds line equations and x/y limits of each for all shapes
+
+#**
 function lof_bndNESW(nds)
 
     vert=Array{line,1}()
@@ -824,20 +758,8 @@ function lof_bndNESW(nds)
 
     return nb,eb,sb,wb
 end
-#=
-lngth_owpps=Array{Tuple{Float64,Int64},1}()
-ordrd_owpps=Array{bus,1}()
-for (indx,owp) in enumerate(ocn.owpps)
-    owp.num=deepcopy(indx)
-    push!(lngth_owpps,(deepcopy(lof_pnt2pnt_dist(owp.node.xy,pcc.node.xy)),deepcopy(owp.num)))
-end
-sort!(lngth_owpps, by = x -> x[1])
 
-ngs=ocean.nogos[1]
-nds=ngs.bndryPnts
-=#
-
-
+#**
 function lof_bndNESW_nogo(nds)
     #Create arrays to return
     nb=Array{line,1}()
@@ -905,7 +827,7 @@ function lof_bndNESW_nogo(nds)
     end
     return nb,eb,sb,wb,nds
 end
-
+#**
 function lof_makeDline(x0,x1,y0,y1,vert)
     dummy_line=line()
     dummy_line.ymn=min(y0,y1)
@@ -930,6 +852,7 @@ function lof_makeDline(x0,x1,y0,y1,vert)
     return dummy_line
 end
 
+#**
 function lof_sortNogo(pnts)
     _nodes=deepcopy(pnts)
     sorted_nodes=node[]
@@ -978,21 +901,7 @@ function lof_sortNogo(pnts)
     return sorted_nodes
 end
 
-function lof_nodify(ocn)
-    wbnd,ebnd=lof_bndPerimeter(ocn.bndryPnts)
-    Allnodes=lof_addNodes(ocn,wbnd,ebnd)
-    Allnodes=lof_deleteNgNodes(ocn.nogos,Allnodes)
-    ngs_dummy=owppNGnodes(ocn)
-    ocn.discretedom.nodes=lof_deleteNgNodes(ngs_dummy,Allnodes)
-
-
-    #lof_busPlaceOnNodes(ocn.owpps,ocn.discretedom.nodes)
-    #lof_busPlaceOnNodes(ocn.pccs,ocn.discretedom.nodes)
-    #lof_nogoAreaNodes(ocn)
-    lof_owppAreaNodes(ocn)
-    lof_mvAreaNodes(ocn)
-end
-
+#**
 function owppNGnodes(ocn, mv)
     ngs_dummy=Array{nogo,1}()
     for owpp in ocn.owpps
@@ -1026,6 +935,255 @@ function owppNGnodes(ocn, mv)
     return ngs_dummy
 end
 
+#**
+function lof_getPccData(id_count)
+    df = DataFrame(XLSX.readtable("layout//data.xlsx", "pcc_data")...)
+    pccs=Array{bus,1}()
+    for index=1:length(df[:, 1])
+        dummy_bus=bus()
+        dummy_bus.node.gps.lng=df.longitude[index]
+        dummy_bus.node.gps.lat=df.latitude[index]
+        dummy_bus.kV=df.kv[index]
+        dummy_bus.id=id_count
+        push!(pccs,deepcopy(dummy_bus))
+        pccs[length(pccs)].num=length(pccs)
+        id_count=id_count+1
+    end
+    return pccs,id_count
+end
+#**
+function lof_getOwppData(id_count)
+    df = DataFrame(XLSX.readtable("layout//data.xlsx", "owpp_data")...)
+    owpps=Array{bus,1}()
+    for index=1:length(df[:, 1])
+        dummy_bus=bus()
+        dummy_bus.node.gps.lng=df.longitude[index]
+        dummy_bus.node.gps.lat=df.latitude[index]
+        dummy_bus.name=df.name[index]
+        dummy_bus.id=id_count
+        dummy_bus.mva=df.mva[index]
+        push!(owpps,deepcopy(dummy_bus))
+        owpps[length(owpps)].num=length(owpps)
+        id_count=id_count+1
+    end
+    lof_getOwppWindData(owpps)
+    return owpps,id_count
+end
+#**
+function lof_getOwppWindData(owpps)
+    df = DataFrame(XLSX.readtable("layout//data.xlsx", "wind_data")...)
+    for owpp in owpps
+        wnd=wndF_wndPrf([getproperty(df,Symbol(owpp.name))])
+        owpp.wnd=deepcopy(wnd)
+    end
+end
+#**
+function lof_getBndData()
+    df = DataFrame(XLSX.readtable("layout//data.xlsx", "domain_data")...)
+    boundary=Array{node,1}()
+    for index=1:length(df[:, 1])
+        dummy_node=node()
+        dummy_node.gps.lng=df.longitude[index]
+        dummy_node.gps.lat=df.latitude[index]
+        push!(boundary,deepcopy(dummy_node))
+    end
+    return boundary
+end
+#**
+function lof_getNoGoData(index)
+    df = DataFrame(XLSX.readtable("layout//data.xlsx", "nogo_data"*string(index))...)
+    nogo=Array{node,1}()
+    for index=1:length(df[:, 1])
+        dummy_node=node()
+        dummy_node.gps.lng=df.longitude[index]
+        dummy_node.gps.lat=df.latitude[index]
+        push!(nogo,deepcopy(dummy_node))
+    end
+    return nogo
+end
+#**
+function lof_getSysData()
+    sht = XLSX.readxlsx("layout//data.xlsx")["sys_data"]
+    sys=system()
+    sys.nogoNum=sht["B1"]
+    sys.prec=sht["B2"]
+    sys.mwPerKm=sht["B3"]
+    sys.mvCl=sht["B4"]
+    return sys
+end
+############################ GPS to cartesian transform ########################
+################################################################################
+#sets the gps coords that used as reference coords
+#**
+function lof_bseCrd(ocean)
+    base=gps()
+    #for india (type layouts)
+    if ocean.owpps[length(ocean.owpps)].node.gps.lat < ocean.pccs[length(ocean.pccs)].node.gps.lat
+        base.lat=ocean.owpps[length(ocean.owpps)].node.gps.lat#base lat
+        base.lng=ocean.owpps[length(ocean.owpps)].node.gps.lng#base long
+    #for belgium (type layouts)
+elseif ocean.pccs[length(ocean.pccs)].node.gps.lat < ocean.owpps[length(ocean.owpps)].node.gps.lat
+        base.lat=ocean.pccs[length(ocean.pccs)].node.gps.lat#base lat
+        base.lng=ocean.pccs[length(ocean.pccs)].node.gps.lng#base long
+    else
+        error("No proper base coordinates system established!")
+    end
+    return base
+end
+
+#calculates lengths based on latitude
+#as lattitude changes number of km should be updated
+#**
+function lof_gps2cartesian4nodes(location,base)
+    lnthLT=111#number of km in 1 degree of longitude at equator
+    for value in location
+        value.xy.x=lof_deg2lgth(value.gps.lng-base.lng,lof_lg1deg(value.gps.lat,lnthLT))
+        value.xy.y=lof_deg2lgth(value.gps.lat-base.lat,lnthLT)
+    end
+end
+
+#as lattitude changes number of km should be updated
+#**
+function lof_gps2cartesian4bus(location,base)
+    lnthLT=111#number of km in 1 degree of longitude at equator
+    for value in location
+        value.node.xy.x=lof_deg2lgth(value.node.gps.lng-base.lng,lof_lg1deg(value.node.gps.lat,lnthLT))
+        value.node.xy.y=lof_deg2lgth(value.node.gps.lat-base.lat,lnthLT)
+    end
+end
+
+#rotates and slides cartesian axis
+#**
+function lof_transformAxis(ocn)
+    offset=lof_rotateAxis(ocn)
+    lof_slideAxis(ocn,offset)
+end
+
+#finds angle to rotate and applies to owpps and pccs
+#rotates axis to align n-s with y
+#**
+function lof_rotateAxis(ocn)
+    theta=atan((ocn.pccs[length(ocn.pccs)].node.xy.x-ocn.owpps[length(ocn.owpps)].node.xy.x)/(ocn.owpps[length(ocn.owpps)].node.xy.y-ocn.pccs[length(ocn.pccs)].node.xy.y))
+    ocn.theta=theta
+    offset=0.0
+    offset=lof_rotateGroup4bus(ocn.owpps,theta,offset)
+    offset=lof_rotateGroup4bus(ocn.pccs,theta,offset)
+    ocn.offset=deepcopy(offset)
+    lof_rotateGroup4node(ocn.bndryPnts,theta)
+    for i=1:length(ocn.nogos)
+        lof_rotateGroup4node(ocn.nogos[i].bndryPnts,theta)
+    end
+    return ocn.offset
+end
+
+#loops through to apply rotations for a specified group
+#**
+function lof_rotateGroup4bus(locations,theta,os)
+    for value in locations
+        xy=lof_rotatePnt(value.node.xy.x,value.node.xy.y,theta)
+        value.node.xy.x=xy[1]
+        value.node.xy.y=xy[2]
+        if value.node.xy.x<os
+            os=value.node.xy.x
+        end
+    end
+    return os
+end
+
+#loops through to apply rotations for a specified group
+#**
+function lof_rotateGroup4node(locations,theta)
+    for value in locations
+        xy=lof_rotatePnt(value.xy.x,value.xy.y,theta)
+        value.xy.x=xy[1]
+        value.xy.y=xy[2]
+    end
+end
+
+#applies rotational matrix individual coordinates
+#**
+function lof_rotatePnt(x,y,theta)
+    co_od=[x y]
+    rotated=co_od*[cos(theta) -1*sin(theta);sin(theta) cos(theta)]
+    return rotated
+end
+
+#translates the entire region by specified offset
+#sets unique IDs for owpps and pccs
+#**
+function lof_slideAxis(ocn,os)
+    for value in ocn.owpps
+        value.node.xy.x=value.node.xy.x-os
+    end
+    for value in ocn.pccs
+        value.node.xy.x=value.node.xy.x-os
+    end
+    for value in ocn.bndryPnts
+        value.xy.x=value.xy.x-os
+    end
+    for i=1:length(ocn.nogos)
+        for value in ocn.nogos[i].bndryPnts
+            value.xy.x=value.xy.x-os
+        end
+    end
+end
+
+#changes angle to an arc length
+#**
+function lof_deg2lgth(d,dPl)
+    return d*dPl
+end
+
+#calculates length of 1 deg of longitude at given lattitude
+#**
+function lof_lg1deg(lat,lngth)
+    return cos(lof_d2r(lat))*lngth
+end
+
+#Change radians to degrees
+#** - not actualy called but could be useful
+function lof_r2d(rad)
+    return rad*180/pi
+end
+
+#Change degrees to radians
+#**
+function lof_d2r(deg)
+    return deg*pi/180
+end
+
+
+#returns the hypotenuse distance between 2 cartesian points
+#minimum distance for a path is 1km
+#**
+function lof_pnt2pnt_dist(pnt1,pnt2)
+    hyp=sqrt((pnt2.x-pnt1.x)^2+(pnt2.y-pnt1.y)^2)
+    return hyp
+end
+
+
+
+
+######################################### depricated ###########################
+
+#=
+function lof_posPccs(ocn)
+    for pcc in ocn.pccs
+        bsf_distance=Inf
+        bsf_node=Int32
+        for (indx,node) in enumerate(ocn.discretedom.nodes)
+            distance=lof_pnt2pnt_dist(pcc.node.xy,node.xy)
+            if  distance < bsf_distance
+                bsf_distance=deepcopy(distance)
+                bsf_node=deepcopy(indx)
+            end
+        end
+        println("bsf: "*string(bsf_node)*"at "*string(bsf_distance))
+        ocn.discretedom.nodes[bsf_node]=pcc.node
+    end
+end
+=#
+
 #=
 function lof_nogoPerimeter(ngs)
     wbndNG=Array{line,1}()
@@ -1042,7 +1200,7 @@ function lof_nogoPerimeter(ngs)
     return wbndNG, ebndNG
 end
 =#
-
+#=
 function lof_nogoAreaNodes(ocn)
     for node in ocn.discretedom.nodes
         for owpp in ocn.owpps
@@ -1056,7 +1214,7 @@ function lof_nogoAreaNodes(ocn)
         end
     end
 end
-
+=#
 #=
 function lof_busPlaceOnNodes(buses,nodes)
     dummy_node=node()
@@ -1073,7 +1231,7 @@ function lof_busPlaceOnNodes(buses,nodes)
     end
 end
 =#
-
+#=
 function lof_owppAreaNodes(ocn)
     for owpp in ocn.owpps
 
@@ -1130,7 +1288,8 @@ function lof_owppAreaNodes(ocn)
         unique!(owpp.zone.pnts)
     end
 end
-
+=#
+#=
 function lof_mvAreaNodes(ocn)
     for node in ocn.discretedom.nodes
         for owpp in ocn.owpps
@@ -1144,10 +1303,12 @@ function lof_mvAreaNodes(ocn)
         end
     end
 end
+=#
 #=
 nogoReg=ngs_dummy
 ngs=nogoReg[2]
 =#
+#=
 function lof_deleteNgNodes(nogoReg,Allnodes)
     for ngs in nogoReg
         wbnd,ebnd=lof_bndPerimeter(ngs.nodes)
@@ -1181,7 +1342,8 @@ function lof_deleteNgNodes(nogoReg,Allnodes)
     end
     return deepcopy(Allnodes)
 end
-
+=#
+#=
 function lof_addNodes(ocn,wbnd,ebnd)
     dummy_nodes=Array{node,1}()
     ymx=wbnd[length(wbnd)].ymax
@@ -1209,11 +1371,12 @@ function lof_addNodes(ocn,wbnd,ebnd)
     end
     return dummy_nodes
 end
-
+=#
 #=
 bnd=ngs.nodes
 bnd=ocn.bndryPnts
 =#
+#=
 function lof_bndPerimeter(bnd)
     #finds mid line dividing east and west regions
 
@@ -1318,213 +1481,58 @@ function lof_bndPerimeter(bnd)
     end
     return wbnd,ebnd
 end
+=#
 
-function lof_getPccData(id_count)
-    df = DataFrame(XLSX.readtable("layout//data.xlsx", "pcc_data")...)
-    pccs=Array{bus,1}()
-    for index=1:length(df[:, 1])
-        dummy_bus=bus()
-        dummy_bus.node.gps.lng=df.longitude[index]
-        dummy_bus.node.gps.lat=df.latitude[index]
-        dummy_bus.kV=df.kv[index]
-        dummy_bus.id=id_count
-        push!(pccs,deepcopy(dummy_bus))
-        pccs[length(pccs)].num=length(pccs)
-        id_count=id_count+1
-    end
-    return pccs,id_count
-end
+#=
+function lof_nodify(ocn)
+    wbnd,ebnd=lof_bndPerimeter(ocn.bndryPnts)
+    Allnodes=lof_addNodes(ocn,wbnd,ebnd)
+    Allnodes=lof_deleteNgNodes(ocn.nogos,Allnodes)
+    ngs_dummy=owppNGnodes(ocn)
+    ocn.discretedom.nodes=lof_deleteNgNodes(ngs_dummy,Allnodes)
 
-function lof_getOwppData(id_count)
-    df = DataFrame(XLSX.readtable("layout//data.xlsx", "owpp_data")...)
-    owpps=Array{bus,1}()
-    for index=1:length(df[:, 1])
-        dummy_bus=bus()
-        dummy_bus.node.gps.lng=df.longitude[index]
-        dummy_bus.node.gps.lat=df.latitude[index]
-        dummy_bus.name=df.name[index]
-        dummy_bus.id=id_count
-        dummy_bus.mva=df.mva[index]
-        push!(owpps,deepcopy(dummy_bus))
-        owpps[length(owpps)].num=length(owpps)
-        id_count=id_count+1
-    end
-    lof_getOwppWindData(owpps)
-    return owpps,id_count
-end
 
-function lof_getOwppWindData(owpps)
-    df = DataFrame(XLSX.readtable("layout//data.xlsx", "wind_data")...)
-    for owpp in owpps
-        wnd=wndF_wndPrf([getproperty(df,Symbol(owpp.name))])
-        owpp.wnd=deepcopy(wnd)
-    end
+    #lof_busPlaceOnNodes(ocn.owpps,ocn.discretedom.nodes)
+    #lof_busPlaceOnNodes(ocn.pccs,ocn.discretedom.nodes)
+    #lof_nogoAreaNodes(ocn)
+    lof_owppAreaNodes(ocn)
+    lof_mvAreaNodes(ocn)
 end
+=#
 
-function lof_getBndData()
-    df = DataFrame(XLSX.readtable("layout//data.xlsx", "domain_data")...)
-    boundary=Array{node,1}()
-    for index=1:length(df[:, 1])
-        dummy_node=node()
-        dummy_node.gps.lng=df.longitude[index]
-        dummy_node.gps.lat=df.latitude[index]
-        push!(boundary,deepcopy(dummy_node))
-    end
-    return boundary
-end
+#=function lof_edgeify(ocn)
+    hyp=2*ocn.sys.prec
+    for (indx0,nd0) in enumerate(ocn.discretedom.nodes)
+        for indx1 = indx0+1:1:length(ocn.discretedom.nodes)
+            lnth=lof_pnt2pnt_dist(nd0.xy,ocn.discretedom.nodes[indx1].xy)
+            if (lnth < hyp)
+                dummy_edgeAB=edge()
+                dummy_edgeBA=edge()
 
-function lof_getNoGoData(index)
-    df = DataFrame(XLSX.readtable("layout//data.xlsx", "nogo_data"*string(index))...)
-    nogo=Array{node,1}()
-    for index=1:length(df[:, 1])
-        dummy_node=node()
-        dummy_node.gps.lng=df.longitude[index]
-        dummy_node.gps.lat=df.latitude[index]
-        push!(nogo,deepcopy(dummy_node))
-    end
-    return nogo
-end
+                dummy_edgeAB.tail=nd0.num
+                dummy_edgeAB.head=ocn.discretedom.nodes[indx1].num
+                dummy_edgeAB.lngth=lnth
 
-function lof_getSysData()
-    sht = XLSX.readxlsx("layout//data.xlsx")["sys_data"]
-    sys=system()
-    sys.nogoNum=sht["B1"]
-    sys.prec=sht["B2"]
-    sys.mwPerKm=sht["B3"]
-    return sys
-end
-############################ GPS to cartesian transform ########################
-################################################################################
-#sets the gps coords that used as reference coords
-function lof_bseCrd(ocean)
-    base=gps()
-    #for india (type layouts)
-    if ocean.owpps[length(ocean.owpps)].node.gps.lat < ocean.pccs[length(ocean.pccs)].node.gps.lat
-        base.lat=ocean.owpps[length(ocean.owpps)].node.gps.lat#base lat
-        base.lng=ocean.owpps[length(ocean.owpps)].node.gps.lng#base long
-    #for belgium (type layouts)
-elseif ocean.pccs[length(ocean.pccs)].node.gps.lat < ocean.owpps[length(ocean.owpps)].node.gps.lat
-        base.lat=ocean.pccs[length(ocean.pccs)].node.gps.lat#base lat
-        base.lng=ocean.pccs[length(ocean.pccs)].node.gps.lng#base long
-    else
-        error("No proper base coordinates system established!")
-    end
-    return base
-end
+                dummy_edgeBA.tail=ocn.discretedom.nodes[indx1].num
+                dummy_edgeBA.head=nd0.num
+                dummy_edgeBA.lngth=lnth
 
-#calculates lengths based on latitude
-#as lattitude changes number of km should be updated
-function lof_gps2cartesian4nodes(location,base)
-    lnthLT=111#number of km in 1 degree of longitude at equator
-    for value in location
-        value.xy.x=lof_deg2lgth(value.gps.lng-base.lng,lof_lg1deg(value.gps.lat,lnthLT))
-        value.xy.y=lof_deg2lgth(value.gps.lat-base.lat,lnthLT)
-    end
-end
-
-#as lattitude changes number of km should be updated
-function lof_gps2cartesian4bus(location,base)
-    lnthLT=111#number of km in 1 degree of longitude at equator
-    for value in location
-        value.node.xy.x=lof_deg2lgth(value.node.gps.lng-base.lng,lof_lg1deg(value.node.gps.lat,lnthLT))
-        value.node.xy.y=lof_deg2lgth(value.node.gps.lat-base.lat,lnthLT)
-    end
-end
-
-#rotates and slides cartesian axis
-function lof_transformAxis(ocn)
-    offset=lof_rotateAxis(ocn)
-    lof_slideAxis(ocn,offset)
-end
-
-#finds angle to rotate and applies to owpps and pccs
-#rotates axis to align n-s with y
-function lof_rotateAxis(ocn)
-    theta=atan((ocn.pccs[length(ocn.pccs)].node.xy.x-ocn.owpps[length(ocn.owpps)].node.xy.x)/(ocn.owpps[length(ocn.owpps)].node.xy.y-ocn.pccs[length(ocn.pccs)].node.xy.y))
-    ocn.theta=theta
-    offset=0.0
-    offset=lof_rotateGroup4bus(ocn.owpps,theta,offset)
-    offset=lof_rotateGroup4bus(ocn.pccs,theta,offset)
-    ocn.offset=deepcopy(offset)
-    lof_rotateGroup4node(ocn.bndryPnts,theta)
-    for i=1:length(ocn.nogos)
-        lof_rotateGroup4node(ocn.nogos[i].bndryPnts,theta)
-    end
-    return ocn.offset
-end
-
-#loops through to apply rotations for a specified group
-function lof_rotateGroup4bus(locations,theta,os)
-    for value in locations
-        xy=lof_rotatePnt(value.node.xy.x,value.node.xy.y,theta)
-        value.node.xy.x=xy[1]
-        value.node.xy.y=xy[2]
-        if value.node.xy.x<os
-            os=value.node.xy.x
+                push!(nd0.edges,deepcopy(dummy_edgeAB))
+                push!(ocn.discretedom.nodes[indx1].edges,deepcopy(dummy_edgeBA))
+                push!(ocn.discretedom.edges,nd0.edges[length(nd0.edges)])
+                push!(ocn.discretedom.edges,ocn.discretedom.nodes[indx1].edges[length(ocn.discretedom.nodes[indx1].edges)])
+            end
         end
     end
-    return os
-end
-
-#loops through to apply rotations for a specified group
-function lof_rotateGroup4node(locations,theta)
-    for value in locations
-        xy=lof_rotatePnt(value.xy.x,value.xy.y,theta)
-        value.xy.x=xy[1]
-        value.xy.y=xy[2]
-    end
-end
-
-#applies rotational matrix individual coordinates
-function lof_rotatePnt(x,y,theta)
-    co_od=[x y]
-    rotated=co_od*[cos(theta) -1*sin(theta);sin(theta) cos(theta)]
-    return rotated
-end
-
-#translates the entire region by specified offset
-#sets unique IDs for owpps and pccs
-function lof_slideAxis(ocn,os)
-    for value in ocn.owpps
-        value.node.xy.x=value.node.xy.x-os
-    end
-    for value in ocn.pccs
-        value.node.xy.x=value.node.xy.x-os
-    end
-    for value in ocn.bndryPnts
-        value.xy.x=value.xy.x-os
-    end
-    for i=1:length(ocn.nogos)
-        for value in ocn.nogos[i].bndryPnts
-            value.xy.x=value.xy.x-os
+    for (ind0,owpp) in enumerate(ocn.owpps)
+        owpp.node.num=length(ocn.discretedom.nodes)+1
+        push!(ocn.discretedom.nodes,owpp.node)
+        for (ind1,periNd) in enumerate(owpp.zone.pnts)
+            dummy_edge=edge()
+            dummy_edge.tail=owpp.node.num
+            dummy_edge.head=periNd.num
+            dummy_edge.lngth=ocn.sys.mvCl#length to connect to any point on perimeter of windfarm
+            push!(owpp.node.edges,dummy_edge)
         end
     end
-end
-
-#changes angle to an arc length
-function lof_deg2lgth(d,dPl)
-    return d*dPl
-end
-
-#calculates length of 1 deg of longitude at given lattitude
-function lof_lg1deg(lat,lngth)
-    return cos(lof_d2r(lat))*lngth
-end
-
-#Change radians to degrees
-function lof_r2d(rad)
-    return rad*180/pi
-end
-
-#Change degrees to radians
-function lof_d2r(deg)
-    return deg*pi/180
-end
-
-
-#returns the hypotenuse distance between 2 cartesian points
-#minimum distance for a path is 1km
-function lof_pnt2pnt_dist(pnt1,pnt2)
-    hyp=sqrt((pnt2.x-pnt1.x)^2+(pnt2.y-pnt1.y)^2)
-    return hyp
-end
+end=#
