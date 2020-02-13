@@ -93,20 +93,26 @@ function cstF_xfo_sum(res)
     ttl=res.cpx+res.tlc+res.cm+res.eens
     return ttl
 end
-
+#=
+rd=5
+S=owpp.mva
+wp=owpp.wnd
+ks=ocn.finance
+prec=ocn.sys.prec
+=#
 #**
-function cstF_mVrng(rd,S,wp,ks,prec)
+function cstF_mVrng(rd,S,wp,ks,sys)
     mv=66
     hv=220
     l=rd
     cst_mv=0
     cst_hv=Inf
     while cst_mv < cst_hv
-        l=l+prec
+        l=l+sys.mvCl
         cst_mv=cstF_MvCbl(l,S,mv,wp,ks).costs.ttl
-        cst_hv=cstF_HvCblo2o(l-0.5,S,hv,wp,ks).costs.ttl+cstF_MvCbl(0.5,S,mv,wp,ks).costs.ttl+10
+        cst_hv=cstF_HvCblo2o(l-sys.mvCl,S,hv,wp,ks).costs.ttl+cstF_MvCbl(sys.mvCl,S,mv,wp,ks).costs.ttl+ks.FC_bld
     end
-    return l
+    return l-sys.mvCl
 end
 
 #no realistic scenario exists where 33kV is a better option **
@@ -121,9 +127,12 @@ function cstF_MvCbl3366(l,S,wp,ks)
     return c66
 end
 
-
+#l=dumb_pth.G_cost
+#S=owp.mva
+#wp=owp.wnd
+#ks=ocn.finance
 #**
-function cstF_MvHvCblpcc(l,S,wp,ks,pcc)
+function cstF_MvHvCblpcc(l,S,wp,ks,pcc,sys)
     #MV costs
     cmv=cstF_MvCbl3366(l,S,wp,ks)
     xpccMV=cstF_xfo_pcc(S,wp,ks)
@@ -131,28 +140,35 @@ function cstF_MvHvCblpcc(l,S,wp,ks,pcc)
     xpccMV.hv=pcc.kV
     mvCst=cmv.costs.ttl+xpccMV.costs.ttl
     #HV costs
-    cmv_05=cstF_MvCbl3366(0.5,S,wp,ks)
-    chv=cstF_HvCblallKvo2p(l-0.5,S,wp,ks,pcc)
+    cmv_05=cstF_MvCbl3366(sys.mvCl,S,wp,ks)
+    chv=cstF_HvCblallKvo2p(l-sys.mvCl,S,wp,ks,pcc)
     xOssHV=cstF_xfo_oss(S,wp,ks,cmv_05.elec.volt,chv[1].elec.volt)
-    hvCst=cmv_05.costs.ttl+chv[1].costs.ttl+chv[2].costs.ttl+xOssHV.costs.ttl+10
+    hvCst=cmv_05.costs.ttl+chv[1].costs.ttl+chv[2].costs.ttl+xOssHV.costs.ttl+ks.FC_bld
 
     cbls=[[cmv,xpccMV],[cmv_05,chv[1],xOssHV,chv[2]]]
     low_cost=findmin([mvCst,hvCst])[2]
     return cbls[low_cost]
 end
+#=
+l=as_pths[i+1].G_cost
+S=owp.mva
+wp=owp.wnd
+ks=ocn.finance
+kv=circ.pcc_cbls[1].elec.volt
+=#
 
-#**
-function cstF_MvHvCbloss(l,S,wp,ks,kv)
+#** - does check for fixed construction cost of OSS
+function cstF_MvHvCbloss(l,S,wp,ks,kv,sys)
     #MV
     cmv=cstF_MvCbl3366(l,S,wp,ks)
 
     #HV
-    cmv_05=cstF_MvCbl3366(0.5,S,wp,ks)
-    chv,xhv=cstF_HvCblallKvo2o(l-0.5,S,wp,ks,kv)
+    cmv_05=cstF_MvCbl3366(sys.mvCl,S,wp,ks)
+    chv,xhv=cstF_HvCblallKvo2o(l-sys.mvCl,S,wp,ks,kv)
     xhv[1].lv=cmv_05.elec.volt
     xhv[2].lv=chv.elec.volt
 
-    hvCst=cmv_05.costs.ttl+chv.costs.ttl+xhv[1].costs.ttl+xhv[2].costs.ttl+10
+    hvCst=cmv_05.costs.ttl+chv.costs.ttl+xhv[1].costs.ttl+xhv[2].costs.ttl+ks.FC_bld
     mvCst=cmv.costs.ttl+xhv[1].costs.ttl
     cbls=[[cmv],[cmv_05,chv]]
     xmV=deepcopy(xhv[1])
@@ -260,6 +276,35 @@ function cstF_MvCbl(l,S,kv,wp,ks)
     end
     return cb#return optimal cable object
 end
+#=kv=220
+l=20
+S=1000
+wp=oceanhv2.owpps[5].wnd
+ks=oceanhv2.finance
+cb=cstF_HvCblo2o(l,S,kv,wp,ks)
+mva=cb.mva
+cabl=cb.size
+nm=cb.num
+cstF_Compound_HvCblo2o(l,S,kv,wp,ks,mva,cabl,nm)=#
+function cstF_Compound_HvCblo2o(l,S,kv,wp,ks,mva,cabl,nm)
+    cb=cbl()#create 1 object of type cbl_costs
+    cb.costs.ttl=Inf#Initialize to very high total for comparison
+    cbls_all=eqpF_cbl_opt(kv,l)#returns all base data available for kv cables
+    cbls_2use=eqpF_cbl_sel_compound(cbls_all,S,l,mva,cabl,nm)#Selects 1 to ...(adjust in data) of the cables in parallel appropriate for required capacity
+    for value in cbls_2use
+        value.costs.cbc=cstF_cbl_cpx(value)#capex
+        value.costs.qc=cstF_cbl_qo2o(value,ks)#cost of compensastion
+        value.costs.rlc=cstF_acCbl_rlc(value,S,ks,wp)#cost of losses
+        value.costs.cm=cstF_eqp_cm(value,ks)#corrective maintenance
+        value.costs.eens=eensF_eqp_eens(value,S,ks,wp)#eens calculation
+        value.costs.ttl=cstF_cbl_sum(value.costs)#totals the cable cost
+        if value.costs.ttl<cb.costs.ttl
+            cb=deepcopy(value)#store lowest cost option
+        end
+    end
+    return cb#return optimal cable object
+end
+
 
 #Cost of optimal cable under l,S,kv,wp **
 function cstF_HvCblo2o(l,S,kv,wp,ks)
@@ -300,7 +345,12 @@ function cstF_HvCblo2p(l,S,kv,wp,ks)
     end
     return cb#return optimal cable object
 end
-
+#=
+S=500
+wp=opt_Wsum(deepcopy(wo),wMv)
+ks=ocn.finance
+hv=circ.pcc_cbls[length(circ.pcc_cbls)].elec.volt
+=#
 #**
 function cstF_xfo_oss(S,wp::wind,ks::cstS_ks,lv=69.0,hv=69.0)
 
@@ -309,17 +359,17 @@ function cstF_xfo_oss(S,wp::wind,ks::cstS_ks,lv=69.0,hv=69.0)
     xfos_all=eqpD_xfo_opt()#get all available xformer sizes
     xfos_2use=eqpF_xfo_sel(xfos_all,S)#select combinations to calculate
 
-    for value in xfos_2use
-        value.lv=lv
-        value.hv=hv
-        value.costs.cpx=cstF_oss_cpx(value,ks)#capex oss
-        value.costs.tlc=cstF_xfo_tlc(value,S,ks,wp)#cost of losses
-        value.costs.cm=cstF_eqp_cm(value,ks)#corrective maintenance
-        value.costs.eens=eensF_eqp_eens(value,S,ks,wp)#eens calculation
-        value.costs.ttl=cstF_xfo_sum(value.costs)#totals the xfo cost
+    for valu in xfos_2use
+        valu.lv=lv
+        valu.hv=hv
+        valu.costs.cpx=cstF_oss_cpx(valu,ks)#capex oss
+        valu.costs.tlc=cstF_xfo_tlc(valu,S,ks,wp)#cost of losses
+        valu.costs.cm=cstF_eqp_cm(valu,ks)#corrective maintenance
+        valu.costs.eens=eensF_eqp_eens(valu,S,ks,wp)#eens calculation
+        valu.costs.ttl=cstF_xfo_sum(valu.costs)#totals the xfo cost
         #store lowest cost option
-        if value.costs.ttl<xfm.costs.ttl
-            xfm=deepcopy(value)
+        if valu.costs.ttl<xfm.costs.ttl
+            xfm=deepcopy(valu)
         end
     end
     return xfm

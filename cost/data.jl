@@ -25,6 +25,7 @@ function cstD_cfs()
     ks.T_op=sht["B10"]#Operational lifetime in hours
     ks.E_op=sht["B11"]#Energy price £/Wh
     ks.cf=sht["B12"]#Capitalization factor
+    ks.FC_bld=sht["B13"]#Vuild cost
     return ks
 end
 

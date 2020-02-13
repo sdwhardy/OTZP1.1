@@ -18,6 +18,10 @@ complex_shape=HalfSpace(Float32[0.5, -1.0], 1.0) ∩ HalfSpace(Float32[-0.5, -1.
 #poly_gone = off_set_unit_sqr
 poly_gone = rec_1x2
 #poly_gone = complex_shape
+ngs=nogo()
+mosek_solver = with_optimizer(Mosek.Optimizer, QUIET=false)
+ngs.nbnd,ngs.ebnd,ngs.sbnd,ngs.wbnd,ngs.bndryPnts=lof_bndNESW_nogo(ocean.nogos[2].bndryPnts)
+simplex=opt_makeHalfSpace(ngs)
 poly_gone=simplex
 
 #Find largest area ellipse within polygone
@@ -29,8 +33,9 @@ toPlot=@time processDual(value(Elips))
 #gui()
 dia_Major,XY0,XY1=get_MajorAxis(toPlot)
 rad_Minor,rad_Major,cntrXY,xyMinor,xyMajor,offset=get_ElipseData(toPlot,XY0,XY1,dia_Major)
-plot(polyhedron(poly_gone), ratio=1)
-plot!(toPlot)
+plot!(polyhedron(poly_gone), ratio=1)
+plot!(toPlot,color=:red,linewidth=4, label="")
+gui()
 plot!([cntrXY.x,xyMajor.x],[cntrXY.y,xyMajor.y])
 plot!([cntrXY.x,xyMinor.x],[cntrXY.y,xyMinor.y])
 

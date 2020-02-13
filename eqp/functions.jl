@@ -87,6 +87,24 @@ function eqpF_cbl_sel(cbls,S,l)
     end
     return cbls_2use
 end
+
+function eqpF_cbl_sel_compound(cbls,S,l,mva,cabl,nm)
+    cbls_2use=Array{cbl,1}()
+#Get limits and max cables possible in parallel - specified in eqp_data.jl
+    lims=eqpD_eqp_lims(S)
+    parCmax=eqpD_MAXcbls(cbls[1][1])
+    for i in cbls
+        for j=1:parCmax
+            if ((j*i[8])>lims[1]*S && (j*i[8])<lims[2]*S)
+                if ((j*i[8]<=nm*mva) || (i[2]==cabl && j==nm))
+                    push!(cbls_2use,eqpF_cbl_struct(i,l,j))
+                end
+            end
+        end
+    end
+    return cbls_2use
+end
+
 #return cable inductive reactance **
 function eqpF_xl(l)
     xl=2*pi*eqpD_freq()*l

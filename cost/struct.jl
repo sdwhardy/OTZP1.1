@@ -46,5 +46,6 @@ mutable struct cstS_ks
    T_op::Float32
    E_op::Float32
    cf::Float32
+   FC_bld::Float32
 end
-cstS_ks()=cstS_ks(0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0)
+cstS_ks()=cstS_ks(0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0)

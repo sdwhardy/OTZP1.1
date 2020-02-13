@@ -122,7 +122,7 @@ end
 
 #failure data for cables **
 function eqpD_cbl_fail(cbl)
-    cbl.reliability.fr=0.04#/yr/100km
+    cbl.reliability.fr=(0.08/100)*cbl.length#/yr/100km
     cbl.reliability.mttr=2.0#/yr/100km
     cbl.reliability.mc=0.56
     return nothing
