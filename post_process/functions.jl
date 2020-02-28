@@ -81,6 +81,62 @@ function ppf_equipment(ocn,circ)
     ppf_printOcnXY_cables(ocn,circ)
 end
 
+function ppf_equipment_OSS_MOG_test(ocn,circ,dec_mhv)
+    println("MV cables: ")
+    for mvc in circ.owp_MVcbls
+        println(string(mvc.mva*mvc.num)*" MVA, "*string(mvc.elec.volt)*" KV, "*string(mvc.length)*" KM, "*string(mvc.costs.ttl)*" EURO, "*string(mvc.pth[1].num)*" - "*string(mvc.pth[length(mvc.pth)].num))
+    end
+    println()
+    println("OSS: ")
+    for mvc in circ.osss_owp
+        xfmTTL=0
+        println(string(mvc.node.num)*": ")
+        for x in mvc.xfmrs
+            xfmTTL=(xfmTTL+(x.costs.ttl))
+            print(string(x.num)*" - "*string(x.mva)*" MVA, "*string(x.lv)*" KV, "*string(x.hv)*" KV, ")
+        end
+        println(string(mvc.base_cost+xfmTTL)*" EURO")
+    end
+    println()
+    println()
+    println("HV cables: ")
+    for mvc in circ.owp_HVcbls
+        println(string(mvc.mva*mvc.num)*" MVA, "*string(mvc.elec.volt)*" KV, "*string(mvc.length)*" KM, "*string(mvc.costs.ttl)*" EURO, "*string(mvc.pth[1].num)*" - "*string(mvc.pth[length(mvc.pth)].num))
+    end
+    println()
+    println("MOG: ")
+    for mvc in circ.osss_mog
+        xfmTTL=0
+        println(string(mvc.node.num)*": ")
+        for x in mvc.xfmrs
+            xfmTTL=(xfmTTL+(x.costs.ttl))
+            println(string(x.num)*" - "*string(x.mva)*" MVA, "*string(x.lv)*" KV, "*string(x.hv)*" KV, ")
+        end
+        println(string(mvc.base_cost+xfmTTL)*" EURO")
+    end
+    println()
+    println()
+    println("O2O cables: ")
+    for mvc in circ.oss2oss_cbls
+        println(string(mvc.mva*mvc.num)*" MVA, "*string(mvc.elec.volt)*" KV, "*string(mvc.length)*" KM, "*string(mvc.costs.ttl)*" EURO, "*string(mvc.pth[1].num)*" - "*string(mvc.pth[length(mvc.pth)].num))
+    end
+    println()
+    println("PCC cables: ")
+    for mvc in circ.pcc_cbls
+        println(string(mvc.mva*mvc.num)*" MVA, "*string(mvc.elec.volt)*" KV, "*string(mvc.length)*" KM, "*string(mvc.costs.ttl)*" EURO, "*string(mvc.pth[1].num)*" - "*string(mvc.pth[length(mvc.pth)].num))
+    end
+    println()
+    println("PCC: ")
+    xfmTTL=0
+    println(string(circ.pcc.node.num)*": ")
+    for x in circ.pcc.xfmrs
+        xfmTTL=(xfmTTL+(x.costs.ttl))
+        println(string(x.num)*" - "*string(x.mva)*" MVA, "*string(x.lv)*" KV, "*string(x.hv)*" KV, ")
+    end
+    println(string(circ.pcc.base_cost+xfmTTL)*" EURO")
+    ppf_printOcnXY_cables_OSS_MOG_test(ocn,circ,dec_mhv)
+end
+
 function ppf_equipment_OSS_MOG(ocn,circ)
     println("MV cables: ")
     for mvc in circ.owp_MVcbls
@@ -222,10 +278,10 @@ function ppf_printOcnXY_cables(ocn,pths)
 end
 
 
-function ppf_printOcnXY_cables_OSS_MOG(ocn,pths)
+function ppf_printOcnXY_cables_OSS_MOG_test(ocn,pths,dec_mhv)
 
 	plotly()
-	p=plot([ocn.pccs[1].node.xy.x],[ocn.pccs[1].node.xy.y],color = :green,markersize=2,seriestype=:scatter,xticks = 0:2:30,xlims=(0,30),yticks = 0:5:56,label="",xaxis = ("km", font(15, "Courier")),yaxis = ("km", font(15, "Courier")))
+	p=plot([ocn.pccs[1].node.xy.x],[ocn.pccs[1].node.xy.y],color = :green,markersize=2,seriestype=:scatter,xticks = 0:2:30,xlims=(0,30),yticks = 0:5:56,label=string(dec_mhv),xaxis = ("km", font(15, "Courier")),yaxis = ("km", font(15, "Courier")))
 	for indx = 2:length(ocn.pccs)
 		plot!(p,[ocn.pccs[indx].node.xy.x],[ocn.pccs[indx].node.xy.y],color = :green,seriestype=:scatter,label="")
 	end
@@ -318,6 +374,122 @@ function ppf_printOcnXY_cables_OSS_MOG(ocn,pths)
 	tx=Tuple[]
 	for (i,oss) in enumerate(pths.osss_mog)
 		txt=text(string(i+1),15,:black,:right)
+		push!(tx,(oss.node.xy.x,oss.node.xy.y,txt))
+	end
+	xs=[x[1] for x in tx]
+	ys=[x[2] for x in tx]
+	plot!(p,xs,ys,annotation=tx,color = :black,seriestype=:scatter,label="")
+	p
+	gui()
+end
+
+function ppf_printOcnXY_cables_OSS_MOG(ocn,pths)
+
+	plotly()
+	p=plot([ocn.pccs[1].node.xy.x],[ocn.pccs[1].node.xy.y],color = :green,markersize=2,seriestype=:scatter,xticks = 0:2:30,xlims=(0,30),yticks = 0:5:56,label="",xaxis = ("km", font(15, "Courier")),yaxis = ("km", font(15, "Courier")))
+	for indx = 2:length(ocn.pccs)
+		plot!(p,[ocn.pccs[indx].node.xy.x],[ocn.pccs[indx].node.xy.y],color = :green,seriestype=:scatter,label="")
+	end
+	xs=Float32[]
+	ys=Float32[]
+	tx=Tuple[]
+
+
+	for (i,owpp) in enumerate(ocn.owpps)
+		txt=text(string(i),15,:blue,:left)
+		push!(tx,(owpp.node.xy.x,owpp.node.xy.y,txt))
+	#=	plot!(p,[owpp.node.xy.x],[owpp.node.xy.y],color = :blue,seriestype=:scatter,label="")
+		xs=Float64[]
+		ys=Float64[]
+
+		push!(xs,owpp.node.xy.x-owpp.zone.neg_width)
+		push!(ys,owpp.node.xy.y+owpp.zone.pos_height)
+
+		push!(xs,owpp.node.xy.x+owpp.zone.pos_width)
+		push!(ys,owpp.node.xy.y+owpp.zone.pos_height)
+
+		push!(xs,owpp.node.xy.x+owpp.zone.pos_width)
+		push!(ys,owpp.node.xy.y-owpp.zone.neg_height)
+
+		push!(xs,owpp.node.xy.x-owpp.zone.neg_width)
+		push!(ys,owpp.node.xy.y-owpp.zone.neg_height)
+
+		push!(xs,owpp.node.xy.x-owpp.zone.neg_width)
+		push!(ys,owpp.node.xy.y+owpp.zone.pos_height)
+
+		plot!(p,xs,ys,color = :red,linewidth = 1,linestyle=:dot,label="")
+	=#
+	end
+	xs=[x[1] for x in tx]
+	ys=[x[2] for x in tx]
+	plot!(p,xs,ys,annotation=tx,color = :blue,seriestype=:scatter,label="")
+	for ng in ocn.nogos
+			xs=Float64[]
+			ys=Float64[]
+			for pnts in ng.bndryPnts
+				push!(xs,pnts.xy.x)
+				push!(ys,pnts.xy.y)
+			end
+			push!(xs,ng.bndryPnts[1].xy.x)
+			push!(ys,ng.bndryPnts[1].xy.y)
+			plot!(p,xs,ys,color = :red,linewidth = 1,linestyle=:dot,label="")
+	end
+
+
+
+	for cbl in pths.owp_MVcbls
+		xs=Float32[]
+		ys=Float32[]
+		for pth in cbl.pth
+				push!(xs,pth.xy.x)
+				push!(ys,pth.xy.y)
+		end
+		plot!(p,xs,ys,color = :blue,linewidth = 2,label="")
+	end
+	for cbl in pths.owp_HVcbls
+		xs=Float32[]
+		ys=Float32[]
+		for pth in cbl.pth
+			push!(xs,pth.xy.x)
+			push!(ys,pth.xy.y)
+		end
+		plot!(p,xs,ys,color = :black,linewidth = 2,label="")
+	end
+
+	for cbl in pths.oss2oss_cbls
+		xs=Float32[]
+		ys=Float32[]
+		for pth in cbl.pth
+			push!(xs,pth.xy.x)
+			push!(ys,pth.xy.y)
+		end
+		plot!(p,xs,ys,color = :black,linewidth = 2,label="")
+	end
+	for cbl in pths.pcc_cbls
+		xs=Float32[]
+		ys=Float32[]
+		for pth in cbl.pth
+			push!(xs,pth.xy.x)
+			push!(ys,pth.xy.y)
+		end
+		plot!(p,xs,ys,color = :black,linewidth = 2,label="")
+	end
+	xs=Float32[]
+	ys=Float32[]
+	tx=Tuple[]
+
+	for (i,oss) in enumerate(pths.osss_owp)
+		txt=text(string(""),15,:red,:right)
+		push!(tx,(oss.node.xy.x,oss.node.xy.y,txt))
+	end
+	xs=[x[1] for x in tx]
+	ys=[x[2] for x in tx]
+	plot!(p,xs,ys,annotation=tx,color = :black,seriestype=:scatter,label="")
+	xs=Float32[]
+	ys=Float32[]
+	tx=Tuple[]
+	for (i,oss) in enumerate(pths.osss_mog)
+		txt=text(string(""),15,:black,:right)
 		push!(tx,(oss.node.xy.x,oss.node.xy.y,txt))
 	end
 	xs=[x[1] for x in tx]

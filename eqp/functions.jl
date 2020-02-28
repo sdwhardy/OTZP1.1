@@ -88,22 +88,60 @@ function eqpF_cbl_sel(cbls,S,l)
     return cbls_2use
 end
 
-function eqpF_cbl_sel_compound(cbls,S,l,mva,cabl,nm)
-    cbls_2use=Array{cbl,1}()
-#Get limits and max cables possible in parallel - specified in eqp_data.jl
-    lims=eqpD_eqp_lims(S)
-    parCmax=eqpD_MAXcbls(cbls[1][1])
-    for i in cbls
-        for j=1:parCmax
-            if ((j*i[8])>lims[1]*S && (j*i[8])<lims[2]*S)
-                if ((j*i[8]<=nm*mva) || (i[2]==cabl && j==nm))
-                    push!(cbls_2use,eqpF_cbl_struct(i,l,j))
-                end
-            end
+function eqpF_nextSizeDown(S,l,sze,kv,nm)
+    cbls_all=eqpF_cbl_opt(kv,l)#returns all base data available for kv cables
+    cbls_2use=eqpF_cbl_sel(cbls_all,S,l)#Selects 1 to ...(adjust in data) of the cables in parallel appropriate for required capacity
+    cbls_2return=Array{cbl,1}()
+    cbl0=cbl()
+    cbl1=cbl()
+    for cb in cbls_2use
+        if cb.size==sze && cb.num==nm
+            cbl0=deepcopy(cb)
+            break
         end
     end
-    return cbls_2use
+
+    cbl1.mva=0
+    cbl1.num=0
+
+    for cb in cbls_2use
+        if (cb.mva*cb.num<cbl0.mva*cbl0.num && cb.mva*cb.num>cbl1.mva*cbl1.num)
+            cbl1=deepcopy(cb)
+        end
+    end
+    push!(cbls_2return,cbl0)
+    push!(cbls_2return,cbl1)
+    return cbls_2return
 end
+
+#sze=cabl
+function eqpF_nextSizeUp(S,l,sze,kv,nm)
+    cbls_all=eqpF_cbl_opt(kv,l)#returns all base data available for kv cables
+    cbls_2use=eqpF_cbl_sel(cbls_all,S,l)#Selects 1 to ...(adjust in data) of the cables in parallel appropriate for required capacity
+    cbls_2return=Array{cbl,1}()
+    cbl0=cbl()
+    cbl1=cbl()
+    #cb=cbls_2use[length(cbls_2use)-3]
+    for cb in cbls_2use
+        if (cb.size==sze && cb.num==nm)
+            cbl0=deepcopy(cb)
+            break
+        end
+    end
+
+    cbl1.mva=Inf
+    cbl1.num=Inf
+
+    for cb in cbls_2use
+        if (cb.mva*cb.num>cbl0.mva*cbl0.num && cb.mva*cb.num<cbl1.mva*cbl1.num)
+            cbl1=deepcopy(cb)
+        end
+    end
+    push!(cbls_2return,deepcopy(cbl0))
+    push!(cbls_2return,deepcopy(cbl1))
+    return cbls_2return
+end
+
 
 #return cable inductive reactance **
 function eqpF_xl(l)

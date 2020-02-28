@@ -276,6 +276,53 @@ function cstF_MvCbl(l,S,kv,wp,ks)
     end
     return cb#return optimal cable object
 end
+
+function cstF_MvCbl_nextSizeDown(l,S,kv,wp,ks,cabl,nm)
+    cb=cbl()#create 1 object of type cbl_costs
+    cb.costs.ttl=Inf#Initialize to very high total for comparison
+    cbls_2use=eqpF_nextSizeDown(S,l,cabl,kv,nm)
+    for value in cbls_2use
+        value.costs.cbc=cstF_cbl_cpx(value)#capex
+        #value.costs.qc=cstF_cbl_q(value,os,ks)#cost of compensastion
+        value.costs.qc=0.0#assuming wind turbines can meet all q
+        value.costs.rlc=cstF_acCbl_rlc(value,S,ks,wp)#cost of losses
+        value.costs.cm=cstF_eqp_cm(value,ks)#corrective maintenance
+        value.costs.eens=eensF_eqp_eens(value,S,ks,wp)#eens calculation
+        value.costs.ttl=cstF_cbl_sum(value.costs)#totals the cable cost
+        if value.costs.ttl<cb.costs.ttl
+            cb=deepcopy(value)#store lowest cost option
+        end
+    end
+    return cb#return optimal cable object
+end
+#=
+l=mv_l
+S=circ.owpps[tale.num].mva
+kv=circ.owp_MVcbls[mvc_i].elec.volt
+wp=circ.owpps[tale.num].wnd
+ks=ocn.finance
+cabl=circ.owp_MVcbls[mvc_i].size
+nm=circ.owp_MVcbls[mvc_i].num
+=#
+function cstF_MvCbl_nextSizeUp(l,S,kv,wp,ks,cabl,nm)
+    cb=cbl()#create 1 object of type cbl_costs
+    cb.costs.ttl=Inf#Initialize to very high total for comparison
+    cbls_2use=eqpF_nextSizeUp(S,l,cabl,kv,nm)#Selects 1 to ...(adjust in data) of the cables in parallel appropriate for required capacity
+    for value in cbls_2use
+        value.costs.cbc=cstF_cbl_cpx(value)#capex
+        #value.costs.qc=cstF_cbl_q(value,os,ks)#cost of compensastion
+        value.costs.qc=0.0#assuming wind turbines can meet all q
+        value.costs.rlc=cstF_acCbl_rlc(value,S,ks,wp)#cost of losses
+        value.costs.cm=cstF_eqp_cm(value,ks)#corrective maintenance
+        value.costs.eens=eensF_eqp_eens(value,S,ks,wp)#eens calculation
+        value.costs.ttl=cstF_cbl_sum(value.costs)#totals the cable cost
+        if value.costs.ttl<cb.costs.ttl
+            cb=deepcopy(value)#store lowest cost option
+        end
+    end
+    return cb#return optimal cable object
+end
+
 #=kv=220
 l=20
 S=1000
@@ -286,14 +333,74 @@ mva=cb.mva
 cabl=cb.size
 nm=cb.num
 cstF_Compound_HvCblo2o(l,S,kv,wp,ks,mva,cabl,nm)=#
-function cstF_Compound_HvCblo2o(l,S,kv,wp,ks,mva,cabl,nm)
+
+function cstF_nextSizeDown(l,S,kv,wp,ks,cabl,nm)
     cb=cbl()#create 1 object of type cbl_costs
     cb.costs.ttl=Inf#Initialize to very high total for comparison
-    cbls_all=eqpF_cbl_opt(kv,l)#returns all base data available for kv cables
-    cbls_2use=eqpF_cbl_sel_compound(cbls_all,S,l,mva,cabl,nm)#Selects 1 to ...(adjust in data) of the cables in parallel appropriate for required capacity
+    #cbls_all=eqpF_cbl_opt(kv,l)#returns all base data available for kv cables
+    cbls_2use=eqpF_nextSizeDown(S,l,cabl,kv,nm)#Selects 1 to ...(adjust in data) of the cables in parallel appropriate for required capacity
     for value in cbls_2use
         value.costs.cbc=cstF_cbl_cpx(value)#capex
         value.costs.qc=cstF_cbl_qo2o(value,ks)#cost of compensastion
+        value.costs.rlc=cstF_acCbl_rlc(value,S,ks,wp)#cost of losses
+        value.costs.cm=cstF_eqp_cm(value,ks)#corrective maintenance
+        #println(S)
+        value.costs.eens=eensF_eqp_eens(value,S,ks,wp)#eens calculation
+        value.costs.ttl=cstF_cbl_sum(value.costs)#totals the cable cost
+        if value.costs.ttl<cb.costs.ttl
+            cb=deepcopy(value)#store lowest cost option
+        end
+    end
+    return cb#return optimal cable object
+end
+
+function cstF_nextSizeUp(l,S,kv,wp,ks,cabl,nm)
+    cb=cbl()#create 1 object of type cbl_costs
+    cb.costs.ttl=Inf#Initialize to very high total for comparison
+    #cbls_all=eqpF_cbl_opt(kv,l)#returns all base data available for kv cables
+    cbls_2use=eqpF_nextSizeUp(S,l,cabl,kv,nm)#Selects 1 to ...(adjust in data) of the cables in parallel appropriate for required capacity
+    for value in cbls_2use
+        value.costs.cbc=cstF_cbl_cpx(value)#capex
+        value.costs.qc=cstF_cbl_qo2o(value,ks)#cost of compensastion
+        value.costs.rlc=cstF_acCbl_rlc(value,S,ks,wp)#cost of losses
+        value.costs.cm=cstF_eqp_cm(value,ks)#corrective maintenance
+        value.costs.eens=eensF_eqp_eens(value,S,ks,wp)#eens calculation
+        value.costs.ttl=cstF_cbl_sum(value.costs)#totals the cable cost
+        if value.costs.ttl<cb.costs.ttl
+            cb=deepcopy(value)#store lowest cost option
+        end
+    end
+    return cb#return optimal cable object
+end
+
+
+function cstF_nextSizeDownPcc(l,S,kv,wp,ks,cabl,nm)
+    cb=cbl()#create 1 object of type cbl_costs
+    cb.costs.ttl=Inf#Initialize to very high total for comparison
+    #cbls_all=eqpF_cbl_opt(kv,l)#returns all base data available for kv cables
+    cbls_2use=eqpF_nextSizeDown(S,l,cabl,kv,nm)#Selects 1 to ...(adjust in data) of the cables in parallel appropriate for required capacity
+    for value in cbls_2use
+        value.costs.cbc=cstF_cbl_cpx(value)#capex
+        value.costs.qc=cstF_cbl_qo2p(value,ks)#cost of compensastion
+        value.costs.rlc=cstF_acCbl_rlc(value,S,ks,wp)#cost of losses
+        value.costs.cm=cstF_eqp_cm(value,ks)#corrective maintenance
+        value.costs.eens=eensF_eqp_eens(value,S,ks,wp)#eens calculation
+        value.costs.ttl=cstF_cbl_sum(value.costs)#totals the cable cost
+        if value.costs.ttl<cb.costs.ttl
+            cb=deepcopy(value)#store lowest cost option
+        end
+    end
+    return cb#return optimal cable object
+end
+
+function cstF_nextSizeUpPcc(l,S,kv,wp,ks,cabl,nm)
+    cb=cbl()#create 1 object of type cbl_costs
+    cb.costs.ttl=Inf#Initialize to very high total for comparison
+    #cbls_all=eqpF_cbl_opt(kv,l)#returns all base data available for kv cables
+    cbls_2use=eqpF_nextSizeUp(S,l,cabl,kv,nm)#Selects 1 to ...(adjust in data) of the cables in parallel appropriate for required capacity
+    for value in cbls_2use
+        value.costs.cbc=cstF_cbl_cpx(value)#capex
+        value.costs.qc=cstF_cbl_qo2p(value,ks)#cost of compensastion
         value.costs.rlc=cstF_acCbl_rlc(value,S,ks,wp)#cost of losses
         value.costs.cm=cstF_eqp_cm(value,ks)#corrective maintenance
         value.costs.eens=eensF_eqp_eens(value,S,ks,wp)#eens calculation

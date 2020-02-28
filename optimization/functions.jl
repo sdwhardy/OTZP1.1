@@ -142,7 +142,7 @@ function opt_willCombine(bn0,bn1,l)
     return cmb, bn01
 end
 ########################################## Start Compound System ###############################
-#ocn=ocean_hv
+#ocn=ocean
 #**
 function opt_compoundOSS(ocn)
     owpps_dec_mhv=Array{Int32, 1}()
@@ -155,14 +155,14 @@ function opt_compoundOSS(ocn)
         push!(owpps_tbl_mhv,deepcopy(crc.binary))
     end
 #=
-dec=255
+dec=23
 println("Testing mode!!!!!!")
 =#
     #for dec in owpps_dec_mhv[22:23]
     for dec in owpps_dec_mhv[7:length(owpps_dec_mhv)]
 
         owpp_tbl_mhv=owpps_tbl_mhv[dec]
-        println("dec: "*string(owpp_tbl_mhv))
+        #println("dec: "*string(owpp_tbl_mhv))
         min_Bin=findlast(x->x==1,owpp_tbl_mhv)
         osss_Pos=findfirst(x->x==1,owpp_tbl_mhv)
         zeros_mhv=findall(x->x==0,owpp_tbl_mhv[1:length(owpp_tbl_mhv)])
@@ -170,7 +170,7 @@ println("Testing mode!!!!!!")
         oss_dec=floor(Int32,2^(osss_Pos-1))
         for bin in reverse(owpps_tbl_mhv[min_dec+1:dec-1])
 
-            #bin=reverse(owpps_tbl_mhv[min_dec+1:dec-1])[5]
+            #bin=reverse(owpps_tbl_mhv[min_dec+1:dec-1])[7]
             #println("bin: "*string(bin))
             owpp_dec_mhv=Int32[]
             if (findall(x->x==1,bin[1:osss_Pos]) == [])
@@ -270,7 +270,7 @@ function opt_compoundCbl(circ,oss_system,ocn)
 
     #find oss to mog connections
     pth=deepcopy(as_Astar(circ.osss_mog[1].node,oss_system.osss_mog[1].node,ocn.discretedom.nodes))
-    oss2ossCbl=cstF_Compound_HvCblo2o(pth.G_cost,circ.oss_mva,circ.pcc_cbls[length(circ.pcc_cbls)].elec.volt,circ.oss_wind,ocn.finance,circ.pcc_cbls[length(circ.pcc_cbls)].mva,circ.pcc_cbls[length(circ.pcc_cbls)].size,circ.pcc_cbls[length(circ.pcc_cbls)].num)
+    oss2ossCbl=cstF_nextSizeDown(pth.G_cost,circ.oss_mva,circ.pcc_cbls[length(circ.pcc_cbls)].elec.volt,circ.oss_wind,ocn.finance,circ.pcc_cbls[length(circ.pcc_cbls)].size,circ.pcc_cbls[length(circ.pcc_cbls)].num)
     return oss2ossCbl,pth
 end
 
@@ -395,6 +395,18 @@ function opt_copyBaseEquipment(crc,base_dec,ocn)
             end
         end
     end
+
+    for hv_c in crc.owp_HVcbls
+        for oss_num in oss_mog
+            if (hv_c.pth[1].num==oss_num)
+                push!(oss_system.owp_HVcbls,deepcopy(hv_c))
+                if (hv_c.pth[length(hv_c.pth)].num != mog)
+                    push!(oss_mog,deepcopy(hv_c.pth[length(hv_c.pth)].num))
+                end
+            end
+        end
+    end
+
     for mvhv_oss in crc.osss_owp
         for oss_num in oss_mog
             if (mvhv_oss.node.num==oss_num)
@@ -402,10 +414,18 @@ function opt_copyBaseEquipment(crc,base_dec,ocn)
             end
         end
     end
-    for hv_c in crc.owp_HVcbls
+
+    for mvhv_mog in crc.osss_mog[2:length(crc.osss_mog)]
         for oss_num in oss_mog
-            if (hv_c.pth[1].num==oss_num)
-                push!(oss_system.owp_HVcbls,deepcopy(hv_c))
+            if (mvhv_mog.node.num==oss_num)
+                push!(oss_system.osss_mog,deepcopy(mvhv_mog))
+            end
+        end
+    end
+    for o2o_c in crc.oss2oss_cbls
+        for oss_num in oss_mog
+            if (o2o_c.pth[1].num==oss_num)
+                push!(oss_system.oss2oss_cbls,deepcopy(o2o_c))
             end
         end
     end
@@ -450,61 +470,63 @@ oss_systems_all=oss_systems
 =#
 function opt_buildSystem(oss_systems_all,rnk,ocn,owpp_dec_mhv_orig)
     owpp_dec_mhv_xpnd,oss_systems_xpnd=opt_setBreakDown(oss_systems_all,owpp_dec_mhv_orig)
-#i_set=2
+#i_set=3
     for i_set=1:1:length(owpp_dec_mhv_xpnd)
         oss_systems=oss_systems_xpnd[i_set]
         owpp_dec_mhv=owpp_dec_mhv_xpnd[i_set]
 
         #take base information
-        oss_system=opt_copyBaseEquipment(ocn.circuits[rnk],owpp_dec_mhv[1],ocn)
-        pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400=opt_copyWindProfiles(ocn.owpps,oss_system)
-        #ppf_equipment_OSS_MOG(ocn,oss_system)
+        if (length(owpp_dec_mhv)==2)
+            oss_system=opt_copyBaseEquipment(ocn.circuits[rnk],owpp_dec_mhv[1],ocn)
+            pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400=opt_copyWindProfiles(ocn.owpps,oss_system)
+            println(owpp_dec_mhv)
+            #ppf_equipment_OSS_MOG_test(ocn,oss_system,owpp_dec_mhv)
 
-        #=base_sys=0
-        for crc in oss_systems[2:length(oss_systems)]
-            base_sys=base_sys+crc.cost-crc.pcc_cbls[1].costs.ttl+(crc.pcc_cbls[1].costs.ttl/crc.pcc_cbls[1].length)*lof_pnt2pnt_dist(crc.pcc_cbls[1].pth[1].xy,oss_system.osss_mog[1].node.xy)
-        end
-        opt_ttlMvCirc(oss_system)
-        #println(string(mox+oss_system.cost+base_sys)*" - "*string(ocn.circuits[rnk].cost))
-        if (oss_system.cost+base_sys <= (ocn.circuits[rnk].cost)*1)=#
-            #println("inside!!!")
-            #store wind for transformer calculation at MOG
-            #combinesSyss=Float64[]
-            #push!(combinesSyss,oss_systems[1].decimal)
-        ############################# update this section with new set calculation ########################
-            if (length(oss_systems)>1)
-                connect_Type=""
-                #crc=oss_systems[2:length(oss_systems)][1]
-                for crc in oss_systems[2:length(oss_systems)]
-                    #push!(combinesSyss,crc.decimal)
-                    #copy base cables and transformers
-                    if (length(crc.owpps)==1)
-                        oss_system,pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400=opt_str8Oss2Oss(crc,oss_system,ocn,pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400)
-                    else
-
-                        if (opt_fromScrtch(oss_system.osss_mog[1],crc,ocn.yaxisMajor))#check if full recalc required
-                            connect_Type=connect_Type*"_Scratch"
-                            oss2ossCbl,pth=opt_compoundCbl(crc,oss_system,ocn)
-                            #oss2ossCbl,pth=opt_combineScratch(crc,oss_system,ocn)
+            #=base_sys=0
+            for crc in oss_systems[2:length(oss_systems)]
+                base_sys=base_sys+crc.cost-crc.pcc_cbls[1].costs.ttl+(crc.pcc_cbls[1].costs.ttl/crc.pcc_cbls[1].length)*lof_pnt2pnt_dist(crc.pcc_cbls[1].pth[1].xy,oss_system.osss_mog[1].node.xy)
+            end
+            opt_ttlMvCirc(oss_system)
+            #println(string(mox+oss_system.cost+base_sys)*" - "*string(ocn.circuits[rnk].cost))
+            if (oss_system.cost+base_sys <= (ocn.circuits[rnk].cost)*1)=#
+                #println("inside!!!")
+                #store wind for transformer calculation at MOG
+                #combinesSyss=Float64[]
+                #push!(combinesSyss,oss_systems[1].decimal)
+            ############################# update this section with new set calculation ########################
+                if (length(oss_systems)>1)
+                    connect_Type=""
+                    #crc=oss_systems[2:length(oss_systems)][1]
+                    for crc in oss_systems[2:length(oss_systems)]
+                        #push!(combinesSyss,crc.decimal)
+                        #copy base cables and transformers
+                        if (length(crc.owpps)==1)
+                            oss_system,pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400=opt_str8Oss2Oss(crc,oss_system,ocn,pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400)
                         else
-                            connect_Type=connect_Type*"_Orig"
-                            oss2ossCbl,pth=opt_compoundCbl(crc,oss_system,ocn)
+
+                            if (opt_fromScrtch(oss_system.osss_mog[1],crc,ocn.yaxisMajor))#check if full recalc required
+                                connect_Type=connect_Type*"_Scratch"
+                                oss2ossCbl,pth=opt_compoundCbl(crc,oss_system,ocn)
+                                #oss2ossCbl,pth=opt_combineScratch(crc,oss_system,ocn)
+                            else
+                                connect_Type=connect_Type*"_Orig"
+                                oss2ossCbl,pth=opt_compoundCbl(crc,oss_system,ocn)
+                            end
+                            #println(string(crc.pcc_cbls[1].num)*" - "*string(crc.pcc_cbls[1].size)*" || "*string(oss2ossCbl.num)*" - "*string(oss2ossCbl.size))
+                            oss2ossCbl,oss_system=opt_combineCblRoute(pth,oss2ossCbl,oss_system)
+                            pHv,wHv,p132,w132,p220,w220,p400,w400=opt_combineCblPW(oss_system,crc,pHv,wHv,p132,w132,p220,w220,p400,w400)
                         end
-                        #println(string(crc.pcc_cbls[1].num)*" - "*string(crc.pcc_cbls[1].size)*" || "*string(oss2ossCbl.num)*" - "*string(oss2ossCbl.size))
-                        oss2ossCbl,oss_system=opt_combineCblRoute(pth,oss2ossCbl,oss_system)
-                        pHv,wHv,p132,w132,p220,w220,p400,w400=opt_combineCblPW(oss_system,crc,pHv,wHv,p132,w132,p220,w220,p400,w400)
+                    end
+
+                    oss_system.osss_mog[1]=opt_mogXfmrs(oss_system.osss_mog[1],pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400,ocn.finance,oss_system.pcc_cbls[length(oss_system.pcc_cbls)].elec.volt)
+                    opt_ttlMvCirc(oss_system)
+                    #println(string(oss_system.cost)*" - "*string(ocn.circuits[rnk].cost))
+                    if (oss_system.cost < ocn.circuits[rnk].cost)
+                        #println(string(rnk)*" - "*connect_Type)
+                        ocn.circuits[rnk]=deepcopy(oss_system)
                     end
                 end
-
-                oss_system.osss_mog[1]=opt_mogXfmrs(oss_system.osss_mog[1],pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400,ocn.finance,oss_system.pcc_cbls[length(oss_system.pcc_cbls)].elec.volt)
-                opt_ttlMvCirc(oss_system)
-                #println(string(oss_system.cost)*" - "*string(ocn.circuits[rnk].cost)*" - "*string(combinesSyss))
-                if (oss_system.cost < ocn.circuits[rnk].cost)
-                    #println(string(rnk)*" - "*connect_Type)
-                    ocn.circuits[rnk]=deepcopy(oss_system)
-                end
-            end
-        #else
+            end#else
             #println("skip!!!!")
         #end
     end
@@ -667,6 +689,8 @@ function opt_mvhvEquipment(circ,owp,buses,pcc,ocn,bn,opNode,domain_oss,edges_oss
             ossmv=bus()
             ossmv.node=currentNode
             ossmv.base_cost=ocn.finance.FC_bld
+            ossmv.mva=owp.mva
+            ossmv.wnd=owp.wnd
             push!(circ.osss_owp,ossmv)
             push!(circ.osss_owp[length(circ.osss_owp)].xfmrs,deepcopy(xs[1]))
 
@@ -1092,7 +1116,10 @@ function opt_str8Oss2Oss(crc,oss_system,ocn,pMv,pHv,p132,p220,p400,wMv,wHv,w132,
 
         #OSS
         ossmv=bus()
-        ossmv.node=currentNode.parent
+        ossmv.node=currentNode
+        ossmv.mva=crc.base_owp.mva
+        ossmv.wnd=crc.base_owp.wnd
+        #ossmv.node=currentNode.parent
         ossmv.base_cost=ocn.finance.FC_bld
         push!(ossmv.xfmrs,deepcopy(xs[1]))
         push!(oss_system.osss_owp,ossmv)
@@ -1162,8 +1189,9 @@ function opt_str8Connect(owp,pcc,ocn,bn)
         ossmv.node=currentNode
         ossmv.base_cost=ocn.finance.FC_bld
         ossmv.mva=deepcopy(owp.mva)
-        push!(circ.osss_mog,ossmv)
-        push!(circ.osss_mog[1].xfmrs,deepcopy(cs[3]))
+        ossmv.wnd=deepcopy(owp.wnd)
+        push!(circ.osss_owp,ossmv)
+        push!(circ.osss_owp[1].xfmrs,deepcopy(cs[3]))
         #PCC
         push!(circ.pcc.xfmrs,deepcopy(cs[4]))
     end
@@ -1443,6 +1471,11 @@ function optSysCompare(MVC,HVC)
     end
     return HVC
 end
+
+#=systm=bsf[1]
+mv_rng=mvrng
+mv_cl=ocean_bsf.sys.mvCl=#
+
 
 ################################## depricated ##################################
 

@@ -1,4 +1,6 @@
+
 #using JuliaInterpreter
+
 #using Debugger, ProxSDP
 using DataFrames, XLSX, CSV, JLD2, FileIO
 using StatsPlots, Plots
@@ -29,9 +31,13 @@ include("optimization/functions0size.jl")
 include("optimization/elipse_functions.jl")
 include("topology/functions.jl")
 
+ocean_hv=load("tempFiles/data/solutions/hv_ocean8.jld2")["ocean"]
+@time opt_compoundOSS(ocean_hv)
+@time ocean_hvc = opt_readjust_circuits(ocean_hvc)#255 = 37.924910 seconds
 
-
-
+ocean_hvc=load("tempFiles/data/solutions/compound_hv_ocean8.jld2")["ocean"]
+ppf_testing(ocean_hvc)
+ppf_equipment_OSS_MOG(ocean_hvc,ocean_hvc.circuits[28])
 #=
     #with path finding
     @time ocean=lof_layoutEez_basis()
@@ -46,27 +52,32 @@ function main()
     @time ocean=lof_layoutEez_basis()
     @time ocean.owpps=lof_order2Pcc(ocean,ocean.pccs[2])
     @time ocean,oe_length=lof_layoutEez_expand_testing(ocean,ocean.pccs[2])
+    ocean.pccs[2].node.xy.y=15
     number_of_owpps=length(ocean.owpps)
     #ocean=load("tempFiles/data/solutions/clean_ocean8.jld2")["ocean"]
     ppf_saveSystem(ocean,"clean_ocean"*string(number_of_owpps))
 
     @time ocean.circuits=opt_hvOSSplacement_zero_size(ocean,ocean.pccs[2])
     ppf_saveSystem(ocean,"hv_ocean"*string(number_of_owpps))
-    @time opt_compoundOSS(ocean)
+    @time opt_compoundOSS_zeroSize(ocean)
     ppf_saveSystem(ocean,"compound_hv_ocean"*string(number_of_owpps))
+    @time ocean = opt_readjust_circuits(ocean)
+
     @time best_full_syss,ocean.circuits=opt_rollUp(ocean)
     ppf_saveSystem(ocean,"compound_hv_rolledUp_ocean"*string(number_of_owpps))
     ppf_saveCircuit(best_full_syss,"best_full_hv_systems"*string(number_of_owpps))
 
     ocean_hv_nodes=load("tempFiles/data/solutions/hv_ocean"*string(number_of_owpps)*".jld2")["ocean"].discretedom.nodes
     ocean=load("tempFiles/data/solutions/clean_ocean"*string(number_of_owpps)*".jld2")["ocean"]
-    @time ocean.circuits=opt_mvOSSplacement_zero_size(ocean,ocean.owpps,ocean.pccs[2],ocean_hv_nodes)
+    @time ocean.circuits=opt_mvOSSplacement_zero_size(ocean,ocean.owpps,ocean.pccs[2],ocean.discretedom.nodes)
     ocean_hv=load("tempFiles/data/solutions/hv_ocean"*string(number_of_owpps)*".jld2")["ocean"]
     ocean=opt_updateMVocean(ocean,ocean_hv,oe_length)
     ocean_hv=eez()
+    @time ocean = opt_readjust_circuits(ocean)
     ppf_saveSystem(ocean,"mv_ocean"*string(number_of_owpps))
 
-    @time opt_compoundOSS(ocean)
+    @time opt_compoundOSS_zeroSize(ocean)
+    @time ocean = opt_readjust_circuits(ocean)
     ppf_saveSystem(ocean,"compound_mv_ocean"*string(number_of_owpps))
     @time best_full_syss,ocean.circuits=opt_rollUp(ocean)
     ppf_saveSystem(ocean,"compound_mv_rolledUp_ocean"*string(number_of_owpps))
@@ -81,23 +92,58 @@ function main()
     return ocean,best_full_syss
 end
 @time ocean,best_full_syss=main()
-ppf_equipment_OSS_MOG(ocean,best_full_syss[1])
-
+ppf_equipment_OSS_MOG(ocean_hv,ocean_hv.circuits[234])
 
 
 #################
+ocean=load("tempFiles/data/solutions/clean_ocean8.jld2")["ocean"]
 ocean_hv=load("tempFiles/data/solutions/hv_ocean8.jld2")["ocean"]
 @time opt_compoundOSS(ocean_hv)
 #################
+ocean_cmv=load("tempFiles/data/solutions/compound_mv_rolledUp_readjusted_ocean8.jld2")["ocean"]
+@time ocean_cmv = opt_readjust_circuits(ocean_cmv)
+best_full_syss_cmv,ocean_cmv.circuits=opt_rollUp(ocean_cmv)
+ppf_saveSystem(ocean_cmv,"compound_mv_rolledUp_readjusted_ocean8")
+ppf_saveCircuit(best_full_syss_cmv,"best_full_syss_reajusted_mv8")
+
+ocean_chv=load("tempFiles/data/solutions/compound_hv_rolledUp_readjusted_ocean8.jld2")["ocean"]
+@time ocean_chv = opt_readjust_circuits(ocean_chv)
+best_full_syss_chv,ocean_chv.circuits=opt_rollUp(ocean_chv)
+ppf_saveSystem(ocean_chv,"compound_hv_rolledUp_readjusted_ocean8")
+ppf_saveCircuit(best_full_syss_chv,"best_full_syss_reajusted_hv8")
+
+ocean_cmv.circuits=optSysCompare(ocean_chv.circuits,ocean_cmv.circuits)
+best_full_syss_mvhv,ocean_cmv.circuits=opt_rollUp(ocean_cmv)
+ppf_saveSystem(ocean_cmv,"compound_mvhv_rolledUp_readjusted_ocean8")
+ppf_saveCircuit(best_full_syss_mvhv,"best_full_syss_reajusted_mvhv8")
+
+##################################################################################################
+bsf_hv=load("tempFiles/data/circuits/circ_best_full_syss_reajusted_hv8.jld2")["circuits"]
+bsf_mv=load("tempFiles/data/circuits/circ_best_full_syss_reajusted_mv8.jld2")["circuits"]
+bsf_mvhv=load("tempFiles/data/circuits/circ_best_full_syss_reajusted_mvhv8.jld2")["circuits"]
 
 ocean_chv=load("tempFiles/data/solutions/compound_hv_ocean8.jld2")["ocean"]
-
-ocean_mv=load("tempFiles/data/solutions/mv_ocean8.jld2")["ocean"]
 ocean_cmv=load("tempFiles/data/solutions/compound_mv_ocean8.jld2")["ocean"]
-bc_cmv=load("tempFiles/data/circuits/circ_best_full_hvmv_systems8.jld2")["circuits"]
+@time ocean_cmv = opt_readjust_circuits(ocean_cmv)
+@time ocean_chv = opt_readjust_circuits(ocean_chv)
+push!(bsf_hv,ocean_chv.circuits[255])
+push!(bsf_mv,ocean_cmv.circuits[255])
 
-ppf_equipment_OSS_MOG(ocn,oss_system)
-ppf_equipment_OSS_MOG(ocean_cmv,bc_cmv[2])
+ocean_chv=load("tempFiles/data/solutions/compound_hv_rolledUp_readjusted_ocean8.jld2")["ocean"]
+ocean_cmv=load("tempFiles/data/solutions/compound_mv_rolledUp_readjusted_ocean8.jld2")["ocean"]
+push!(bsf_hv,ocean_chv.circuits[255])
+push!(bsf_mv,ocean_cmv.circuits[255])
+bsf_mvhv=combineAndrank(bsf_mv,bsf_hv,bsf_mvhv)
+ppf_equipment_OSS_MOG(ocean_cmv,bsf_mvhv[1])
+for (i,c) in enumerate(bsf_mvhv)
+    println(string(i)*" - "*string(c.cost))
+end
+##################################################################################################
+ppf_equipment_OSS_MOG(ocean_chv,bsf_mvhv[1])
+println(ocean_chv.circuits[1].cost+ocean_chv.circuits[2].cost+ocean_chv.circuits[4].cost+ocean_chv.circuits[8].cost+ocean_chv.circuits[16].cost+ocean_chv.circuits[32].cost+ocean_chv.circuits[64].cost+ocean_chv.circuits[128].cost)
+ppf_equipment_OSS_MOG(ocean_chv,best_full_syss_chv[1])
+ppf_equipment_OSS_MOG(ocean_cmv,best_full_syss_cmv[1])
+combineAndrank(best_full_syss_cmv,best_full_syss_chv,best_full_syss_mvhv)
 ppf_testing(ocean_cmv)
 function cbl_count(ocnhv)
     cbles=0
@@ -111,9 +157,91 @@ function cbl_count(ocnhv)
     println(cbles)
     println(oss)
 end
-cbl_count(bc_cmv)
+cost_bd(bsf_mvhv)
+function cost_bd(ocnhv)
+    c_loss=0
+    c_cm=0
+    c_eens=0
+    c_cpx=0
+    c_q=0
 
-ppf_equipment_OSS_MOG(oceanvv,best_full_syss[1])
+    x_cpx=0
+    x_eens=0
+    x_cm=0
+    x_loss=0
+
+
+    println("c_cpx c_loss c_eens c_cm c_q x_cpx x_loss x_eens x_cm")
+    for (i,circ) in enumerate(ocnhv)
+        for cbl in circ.owp_MVcbls
+            c_cpx=c_cpx+cbl.costs.cbc
+            c_q=c_q+cbl.costs.qc
+            c_loss=c_loss+cbl.costs.rlc
+            c_cm=c_cm+cbl.costs.cm
+            c_eens=c_eens+cbl.costs.eens
+        end
+        for cbl in circ.owp_HVcbls
+
+            c_cpx=c_cpx+cbl.costs.cbc
+            c_q=c_q+cbl.costs.qc
+            c_loss=c_loss+cbl.costs.rlc
+            c_cm=c_cm+cbl.costs.cm
+            c_eens=c_eens+cbl.costs.eens
+            #println(c_cpx+c_q+c_loss+c_cm+c_eens)
+        end
+        for cbl in circ.oss2oss_cbls
+
+            c_cpx=c_cpx+cbl.costs.cbc
+            c_q=c_q+cbl.costs.qc
+            c_loss=c_loss+cbl.costs.rlc
+            c_cm=c_cm+cbl.costs.cm
+            c_eens=c_eens+cbl.costs.eens
+            #println(c_cpx+c_q+c_loss+c_cm+c_eens)
+        end
+        for cbl in circ.pcc_cbls
+            c_cpx=c_cpx+cbl.costs.cbc
+            c_q=c_q+cbl.costs.qc
+            c_loss=c_loss+cbl.costs.rlc
+            c_cm=c_cm+cbl.costs.cm
+            c_eens=c_eens+cbl.costs.eens
+            #println(c_cpx+c_q+c_loss+c_cm+c_eens)
+        end
+        for mog in circ.osss_mog
+            x_cpx=x_cpx+mog.base_cost
+            for x in mog.xfmrs
+                x_cpx=x_cpx+x.costs.cpx
+                x_loss=x_loss+x.costs.tlc
+                x_cm=x_cm+x.costs.cm
+                x_eens=x_eens+x.costs.eens
+            end
+        end
+        for mog in circ.osss_owp
+            x_cpx=x_cpx+mog.base_cost
+            for x in mog.xfmrs
+                x_cpx=x_cpx+x.costs.cpx
+                x_loss=x_loss+x.costs.tlc
+                x_cm=x_cm+x.costs.cm
+                x_eens=x_eens+x.costs.eens
+            end
+        end
+        println(string(i)*" "*string(c_cpx)*" "*string(c_loss)*" "*string(c_eens)*" "*string(c_cm)*" "*string(c_q)*" "*string(x_cpx)*" "*string(x_loss)*" "*string(x_eens)*" "*string(x_cm))
+        c_loss=0
+        x_loss=0
+        c_cm=0
+        x_cm=0
+        c_eens=0
+        x_eens=0
+        c_cpx=0
+        x_cpx=0
+        c_q=0
+    end
+
+end
+
+circ=bsf_mvhv[1]
+cbl_count(bsf_mvhv)
+lof_pnt2pnt_dist(ocean_cmv.owpps[1].node.xy,ocean_cmv.owpps[2].node.xy)_
+ppf_equipment_OSS_MOG(ocean_cmv,bsf_mv[8])
 ppf_equipment_OSS_MOG(oceanhv,best_full_syss[1])
     #combining/refinnig solution
 
@@ -164,12 +292,24 @@ main()
 ocean.circuits[15]
 sea.circuits[14]
 
-l=5
+l=26.26666136
 km=l
-S=1500
-kv=66
+S=2*250
+kv=220
+wa=wind[]
+wo=wind()
+wo.pu=zeros(Float32,8759)
+wo.ce=zeros(Float32,8759)
+wo.delta=0
+wo.lf=0
+push!(wa,ocean.owpps[2].wnd)
+push!(wa,ocean.owpps[1].wnd)
+
+wnd=opt_Wsum(deepcopy(wo),wa)
+println(cstF_HvCblo2p(l,S,kv,wnd,cstD_cfs()).costs.ttl)
+
+println(cstF_MvCbl(l,S,kv,ocean.owpps[1].wnd,cstD_cfs()).costs.ttl)
 cstF_HvCblallKvo2p(l,S,wnd,ocean.finance)
-cb=cstF_MvCbl(l,S,kv,wnd,cstD_cfs())
 kv=132
 cbo=cstF_HvCblo2o(l,S,kv,wnd,cstD_cfs())
 kv=220
