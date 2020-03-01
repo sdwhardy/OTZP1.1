@@ -62,6 +62,7 @@ end
 #farm()=farm(69.69,69.69,69.69,69.69,69.69,line(),line(),line(),line(),node[])
 farm()=farm(69.69,69.69,69.69,69.69,69.69,node[],edge[],line[],line[],line[],line[])
 
+###########################################################################
 #the structure for a transformer
 mutable struct xfo
    mva::Float32
