@@ -1,7 +1,7 @@
 ###################################################################
 mutable struct xy
-      x::Float32
-      y::Float32
+      x::Float64
+      y::Float64
 end
 xy()=xy(69.69,69.69)
 ###################################################################
@@ -50,7 +50,7 @@ relia()=relia(69.69,69.69,69.69)
 #the structure of costs for a cable
 mutable struct cbl_costs
    qc::Float32
-   cbc::Float32
+   cpx::Float32
    rlc::Float32
    cm::Float32
    eens::Float32
@@ -145,6 +145,12 @@ mutable struct system
 end
 system()=system(69,69.69,69.69,69.69)
 ####################################################################
+mutable struct oya
+   chichi::Tuple{Int32,Int32}
+   haha::Tuple{Int32,Int32}
+end
+oya()=oya((0,0),(0,0))
+####################################################################
 mutable struct circuit
       binary::Array{Int8}
       decimal::Int32
@@ -160,8 +166,9 @@ mutable struct circuit
       base_owp::bus
       oss_wind::wind
       oss_mva::Float32
+      oyas::oya
 end
-circuit()=circuit(Int8[],69,bus(),bus[],bus[],bus[],69.69,cbl[],cbl[],cbl[],cbl[],0,bus(),wind(),69.69)
+circuit()=circuit(Int8[],69,bus(),bus[],bus[],bus[],69.69,cbl[],cbl[],cbl[],cbl[],bus(),wind(),69.69,oya())
 #########################################################################
 mutable struct eqp_data
    cbls33kV::Array{Array{Float32, 1}, 1}
@@ -176,14 +183,15 @@ mutable struct eez
       osss::Array{bus}
       owpps::Array{bus}
       pccs::Array{bus}
-      buses::Array{bus}
+      buses::Int64
       sys::system
       finance::cstS_ks
-      circuits::Array{circuit}
+      mv_circuits::Array{circuit}
+      hv_circuits::Array{circuit}
       theta::Float32
       offset::Float32
       base::gps
       eqp_data::eqp_data
 end
-eez()=eez(bus[],bus[],bus[],bus[],system(),cstS_ks(),circuit[],69.69,69.69,gps(),eqp_data())
+eez()=eez(bus[],bus[],bus[],0,system(),cstS_ks(),circuit[],circuit[],69.69,69.69,gps(),eqp_data())
 ###################################################################

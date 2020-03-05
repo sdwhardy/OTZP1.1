@@ -22,7 +22,6 @@ function lof_layoutEez_expand(ocn,pcc)
     lof_setAreaOwpp(ocn)
     #set range of MV
     lof_mVrng(ocn)
-    ocn.buses=vcat(ocn.pccs, ocn.owpps)#collects all buses
 
     ##########Printing
     for value in ocn.pccs
@@ -74,7 +73,12 @@ function lof_order2Pcc(ocn,pcc)
     end
     for (i,owp) in enumerate(ordrd_owpps)
         owp.num=deepcopy(i)
+        owp.node.num=deepcopy(i)
     end
+    for (i,pc) in enumerate(ocn.pccs)
+        pc.node.num=deepcopy(i+length(ocn.owpps))
+    end
+    ocn.buses=length(ocn.owpps)+length(ocn.pccs)
     return ordrd_owpps
 end
 
@@ -323,4 +327,37 @@ function lof_getEqpData()
         end
     end
     return eqps
+end
+
+
+#**
+function lof_lineDirection(nd_tail,nd_head)
+    if (abs(nd_tail.xy.y-nd_head.xy.y) <  abs(nd_tail.xy.x-nd_head.xy.x))
+        vertLn=false
+    else
+        vertLn=true
+    end
+    return vertLn
+end
+
+#**
+function lof_getStr8line(nd_hd,nd_tl)
+    dummy_line=line()
+    dummy_line.xmx=max(nd_hd.xy.x,nd_tl.xy.x)
+    dummy_line.xmn=min(nd_hd.xy.x,nd_tl.xy.x)
+    dummy_line.ymx=max(nd_hd.xy.y,nd_tl.xy.y)
+    dummy_line.ymn=min(nd_hd.xy.y,nd_tl.xy.y)
+
+    if (nd_hd.xy.x==nd_tl.xy.x)
+        dummy_line.b_findy,dummy_line.m_findy=reverse([[nd_hd.xy.x,nd_tl.xy.x+(10^-5)] ones(2)]\[nd_hd.xy.y,nd_tl.xy.y])
+    else
+        dummy_line.b_findy,dummy_line.m_findy=reverse([[nd_hd.xy.x,nd_tl.xy.x] ones(2)]\[nd_hd.xy.y,nd_tl.xy.y])
+    end
+
+    if (nd_hd.xy.y==nd_tl.xy.y)
+        dummy_line.b_findx,dummy_line.m_findx=reverse([[nd_hd.xy.y,nd_tl.xy.y+(10^-5)] ones(2)]\[nd_hd.xy.x,nd_tl.xy.x])
+    else
+        dummy_line.b_findx,dummy_line.m_findx=reverse([[nd_hd.xy.y,nd_tl.xy.y] ones(2)]\[nd_hd.xy.x,nd_tl.xy.x])
+    end
+    return dummy_line
 end
