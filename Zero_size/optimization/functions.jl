@@ -267,17 +267,22 @@ end
 ######################################################################
 
 function opt_readjust_circuits(ocn,circs)
+    longest_cable=lof_pnt2pnt_dist(ocn.owpps[length(ocn.owpps)].node.xy,ocn.pccs[length(ocn.pccs)].node.xy)
     for i=1:length(circs)
-        c_o=deepcopy(circs[i].cost)
+        c_o=deepcopy(circs[i])
         new_coords=opt_reAdjust_oss(circs[i],ocn.owpps[1].mv_zone,ocn.sys.mvCl,10e-6)
-        circs[i]=opt_reAdjust_cbls(circs[i],new_coords,ocn)
-        if ((c_o+10)<circs[i].cost)
-            println("Error: re-adjustment failed, circuit: ")
-            print(string(i)*" Initial: "*string(c_o))
-            print(" - Adjusted: "*string(circs[i].cost))
+        circs[i]=opt_reAdjust_cbls(circs[i],new_coords,ocn,longest_cable)
+        if ((c_o.cost)<circs[i].cost)
+            #println("Error: re-adjustment failed, circuit: ")
+            #print(string(i)*" Initial: "*string(c_o))
+            #print(" - Adjusted: "*string(circs[i].cost))
             new_coords=opt_reAdjust_oss(circs[i],ocn.owpps[1].mv_zone,ocn.sys.mvCl,10e-8)
-            circs[i]=opt_reAdjust_cbls(circs[i],new_coords,ocn)
-            print(" - re-adjusted: "*string(circs[i].cost))
+            circs[i]=opt_reAdjust_cbls(circs[i],new_coords,ocn,longest_cable)
+            #print(" - re-adjusted: "*string(circs[i].cost))
+            if ((c_o.cost)<circs[i].cost)
+                circs[i]=deepcopy(c_o)
+                #println("kept original layout!")
+            end
         end
     end
     return circs
@@ -384,7 +389,7 @@ function opt_reAdjust_oss(system,mv_rng,mv_cl,eps)
 end
 #circ=circs[i]
 #co_ords=new_coords
-function opt_reAdjust_cbls(circ,co_ords,ocn)
+function opt_reAdjust_cbls(circ,co_ords,ocn,longest_cable)
     for mg_i=1:1:length(circ.osss_mog)
         circ.osss_mog[mg_i].node.xy.x=deepcopy(co_ords[1][mg_i])
         circ.osss_mog[mg_i].node.xy.y=deepcopy(co_ords[2][mg_i])
@@ -395,9 +400,9 @@ function opt_reAdjust_cbls(circ,co_ords,ocn)
     end
     #set
     circ.owp_MVcbls=opt_updateMVC(circ,ocn)
-    circ.owp_HVcbls=opt_updateHVC(circ,ocn)
-    circ.oss2oss_cbls=opt_updateo2o(circ,ocn)
-    circ.pcc_cbls=opt_updatePcc(circ,ocn)
+    circ.owp_HVcbls=opt_updateHVC(circ,ocn,longest_cable)
+    circ.oss2oss_cbls=opt_updateo2o(circ,ocn,longest_cable)
+    circ.pcc_cbls=opt_updatePcc(circ,ocn,2*longest_cable)
     opt_ttlMvCirc(circ)
     return circ
 end
@@ -436,8 +441,12 @@ function opt_updateMVC(circ,ocn)
             kble=cstF_MvCbl_nextSizeDown(mv_l,tale.mva,circ.owp_MVcbls[mvc_i].elec.volt,tale.wnd,ocn.finance,circ.owp_MVcbls[mvc_i].size,circ.owp_MVcbls[mvc_i].num,ocn.eqp_data)
             circ.owp_MVcbls[mvc_i]=kble
         elseif (mv_l>circ.owp_MVcbls[mvc_i].length)
-            kble=cstF_MvCbl_nextSizeUp(mv_l,tale.mva,circ.owp_MVcbls[mvc_i].elec.volt,tale.wnd,ocn.finance,circ.owp_MVcbls[mvc_i].size,circ.owp_MVcbls[mvc_i].num,ocn.eqp_data)
-            circ.owp_MVcbls[mvc_i]=kble
+            if (mv_l<ocn.owpps[length(ocn.owpps)].mv_zone)
+                kble=cstF_MvCbl_nextSizeUp(mv_l,tale.mva,circ.owp_MVcbls[mvc_i].elec.volt,tale.wnd,ocn.finance,circ.owp_MVcbls[mvc_i].size,circ.owp_MVcbls[mvc_i].num,ocn.eqp_data)
+                circ.owp_MVcbls[mvc_i]=kble
+            else
+                circ.owp_MVcbls[mvc_i].costs.ttl=Inf
+            end
         else
         end
         push!(circ.owp_MVcbls[mvc_i].pth,tale.node)
@@ -446,7 +455,7 @@ function opt_updateMVC(circ,ocn)
     return circ.owp_MVcbls
 end
 
-function opt_updateHVC(circ,ocn)
+function opt_updateHVC(circ,ocn,longest_cable)
     S=0
     wp=wind()
     for hvc_i=1:1:length(circ.owp_HVcbls)
@@ -477,8 +486,12 @@ function opt_updateHVC(circ,ocn)
             kble=cstF_nextSizeDown(hv_l,S,circ.owp_HVcbls[hvc_i].elec.volt,wp,ocn.finance,circ.owp_HVcbls[hvc_i].size,circ.owp_HVcbls[hvc_i].num,ocn.eqp_data)
             circ.owp_HVcbls[hvc_i]=kble
         elseif (hv_l>circ.owp_HVcbls[hvc_i].length)
-            kble=cstF_nextSizeUp(hv_l,S,circ.owp_HVcbls[hvc_i].elec.volt,wp,ocn.finance,circ.owp_HVcbls[hvc_i].size,circ.owp_HVcbls[hvc_i].num,ocn.eqp_data)
-            circ.owp_HVcbls[hvc_i]=kble
+            if (hv_l<longest_cable)
+                kble=cstF_nextSizeUp(hv_l,S,circ.owp_HVcbls[hvc_i].elec.volt,wp,ocn.finance,circ.owp_HVcbls[hvc_i].size,circ.owp_HVcbls[hvc_i].num,ocn.eqp_data)
+                circ.owp_HVcbls[hvc_i]=kble
+            else
+                circ.owp_HVcbls[hvc_i].costs.ttl=Inf
+            end
         else
         end
         push!(circ.owp_HVcbls[hvc_i].pth,tale)
@@ -487,7 +500,7 @@ function opt_updateHVC(circ,ocn)
     return circ.owp_HVcbls
 end
 
-function opt_updateo2o(circ,ocn)
+function opt_updateo2o(circ,ocn,longest_cable)
     S=0
     wp=wind()
     for o2o_i=1:1:length(circ.oss2oss_cbls)
@@ -512,8 +525,12 @@ function opt_updateo2o(circ,ocn)
             kble=cstF_nextSizeDown(o2o_l,S,circ.oss2oss_cbls[o2o_i].elec.volt,wp,ocn.finance,circ.oss2oss_cbls[o2o_i].size,circ.oss2oss_cbls[o2o_i].num,ocn.eqp_data)
             circ.oss2oss_cbls[o2o_i]=kble
         elseif (o2o_l>circ.oss2oss_cbls[o2o_i].length)
-            kble=cstF_nextSizeUp(o2o_l,S,circ.oss2oss_cbls[o2o_i].elec.volt,wp,ocn.finance,circ.oss2oss_cbls[o2o_i].size,circ.oss2oss_cbls[o2o_i].num,ocn.eqp_data)
-            circ.oss2oss_cbls[o2o_i]=kble
+            if (o2o_l<longest_cable)
+                kble=cstF_nextSizeUp(o2o_l,S,circ.oss2oss_cbls[o2o_i].elec.volt,wp,ocn.finance,circ.oss2oss_cbls[o2o_i].size,circ.oss2oss_cbls[o2o_i].num,ocn.eqp_data)
+                circ.oss2oss_cbls[o2o_i]=kble
+            else
+                circ.oss2oss_cbls[o2o_i].costs.ttl=Inf
+            end
         else
         end
         push!(circ.oss2oss_cbls[o2o_i].pth,tale)
@@ -522,7 +539,7 @@ function opt_updateo2o(circ,ocn)
     return circ.oss2oss_cbls
 end
 
-function opt_updatePcc(circ,ocn)
+function opt_updatePcc(circ,ocn,longest_cable)
     S=0
     wp=wind()
     for pcc_i=1:1:length(circ.pcc_cbls)
@@ -552,8 +569,12 @@ function opt_updatePcc(circ,ocn)
             kble=cstF_nextSizeDownPcc(pcc_l,S,circ.pcc_cbls[pcc_i].elec.volt,wp,ocn.finance,circ.pcc_cbls[pcc_i].size,circ.pcc_cbls[pcc_i].num,ocn.eqp_data)
             circ.pcc_cbls[pcc_i]=kble
         elseif (pcc_l>circ.pcc_cbls[pcc_i].length)
-            kble=cstF_nextSizeUpPcc(pcc_l,S,circ.pcc_cbls[pcc_i].elec.volt,wp,ocn.finance,circ.pcc_cbls[pcc_i].size,circ.pcc_cbls[pcc_i].num,ocn.eqp_data)
-            circ.pcc_cbls[pcc_i]=kble
+            if (pcc_l<longest_cable)
+                kble=cstF_nextSizeUpPcc(pcc_l,S,circ.pcc_cbls[pcc_i].elec.volt,wp,ocn.finance,circ.pcc_cbls[pcc_i].size,circ.pcc_cbls[pcc_i].num,ocn.eqp_data)
+                circ.pcc_cbls[pcc_i]=kble
+            else
+                circ.pcc_cbls[pcc_i].costs.ttl=Inf
+            end
         else
         end
         push!(circ.pcc_cbls[pcc_i].pth,tale)

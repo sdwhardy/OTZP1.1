@@ -8,6 +8,20 @@ function ppf_saveSystem(ocn,nme)
     save("Zero_size/tempfiles/data/solutions/"*nme*".jld2", "ocean",ocn)
 end
 
+
+function ppf_saveCircuit(oss_systems,nme)
+
+    #check appropriate directories exist
+	if (isdir("Zero_size/tempfiles/data/circuits/") == false)
+		mkdir("Zero_size/tempfiles/data/circuits")
+    else
+    end
+
+    #save cicuits
+    save("Zero_size/tempfiles/data/circuits/circ_"*nme*".jld2", "circuits",oss_systems)
+#	load("tempFiles/data/circuits/CRC_"*string(1)*string(2)*".jld2")["circuits"]
+end
+
 function ppf_testing(circ)
     total=0
     for i=1:length(circ)
@@ -160,11 +174,10 @@ function ppf_cbl_count(ocnhv)
     cbles=0
     oss=0
     for (i,circ) in enumerate(ocnhv)
-        cbles=cbles+length(circ.pcc_cbls)+length(circ.oss2oss_cbls)+length(circ.owp_HVcbls)+length(circ.owp_MVcbls)
-        oss=oss+length(circ.osss_mog)+length(circ.osss_owp)
-        println(string(i)*" - "*string(oss))
+        cbles=length(circ.pcc_cbls)
+        oss=length(circ.osss_mog)+length(circ.osss_owp)
+        println(string(i)*" OSS: "*string(oss)*" PCC Cables: "*string(cbles))
         oss=0
+		cbles=0
     end
-    println(cbles)
-    println(oss)
 end

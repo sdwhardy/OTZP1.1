@@ -87,7 +87,7 @@ function opt_decomposeLO(forward, full, aft_bn, circs, ocn)
         lm=length(Q_2bd)
     end
     if (length(Q_2bd)>0)
-        for q_set in Q_2bd[1:length(Q_2bd)]
+        for q_set in Q_2bd[1:lm]
             #println("q owpps: "*string(length(q_set.owpps)))
             #println("f owpps: "*string(length(forward.owpps)))
             single_parent=circuit()
@@ -103,9 +103,10 @@ function opt_decomposeLO(forward, full, aft_bn, circs, ocn)
             single_parent.osss_mog[1]=opt_mogXfmrs(single_parent.osss_mog[1],pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400,ocn.finance,single_parent.pcc_cbls[length(single_parent.pcc_cbls)].elec.volt)
             opt_ttlMvCirc(single_parent)
             #nsb_sum_int=round(Int32,top_bin2dec(nsb_sum_bn))
-            #println("SP cost1: "*string(single_parent.cost)*" full cost: "*string(full.cost))
+
             single_parent=opt_circOpt(single_parent,ocn)
             if (single_parent.cost<full.cost)
+                println("SP cost1: "*string(single_parent.cost)*" full cost: "*string(full.cost))
                 full=deepcopy(single_parent)
             end
         end
@@ -380,16 +381,24 @@ end
 
 #optimize an individual circuit
 function opt_circOpt(crc,ocn)
-    c_o=deepcopy(crc.cost)
-    new_coords=opt_reAdjust_oss(crc,ocn.owpps[1].mv_zone,ocn.sys.mvCl,10e-6)
-    crc=opt_reAdjust_cbls(crc,new_coords,ocn)
-    if ((c_o+10)<crc.cost)
-        println("Error: re-adjustment failed, circuit: ")
-        print("Initial: "*string(c_o))
-        print(" - Adjusted: "*string(crc.cost))
-        new_coords=opt_reAdjust_oss(crc,ocn.owpps[1].mv_zone,ocn.sys.mvCl,10e-8)
-        crc=opt_reAdjust_cbls(crc,new_coords,ocn)
-        print(" - re-adjusted: "*string(crc.cost))
+    longest_cable=lof_pnt2pnt_dist(ocn.owpps[length(ocn.owpps)].node.xy,ocn.pccs[length(ocn.pccs)].node.xy)
+    c_o=deepcopy(crc)
+    #println(string(c_o.decimal)*") mvC:"*string(length(c_o.owp_MVcbls))*", hvC:"*string(length(c_o.owp_HVcbls))*", oss:"*string(length(c_o.osss_owp))*", mog:"*string(length(c_o.osss_mog))*", o2oC:"*string(length(c_o.oss2oss_cbls)))
+    new_coords=opt_reAdjust_oss(crc,ocn.owpps[1].mv_zone,ocn.sys.mvCl,10e-7)
+    crc=opt_reAdjust_cbls(crc,new_coords,ocn,longest_cable)
+    if ((c_o.cost)<crc.cost)
+        #println("Error: re-adjustment failed, circuit: ")
+        #print("Initial: "*string(c_o.cost))
+        #print(" - Adjusted: "*string(crc.cost))
+        new_coords=opt_reAdjust_oss(c_o,ocn.owpps[1].mv_zone,ocn.sys.mvCl,10e-6)
+        crc=opt_reAdjust_cbls(crc,new_coords,ocn,longest_cable)
+        #print(" - re-adjusted: "*string(crc.cost))
+        #println()
+        #println(string(c_o.decimal)*") mvC:"*string(length(c_o.owp_MVcbls))*", hvC:"*string(length(c_o.owp_HVcbls))*", oss:"*string(length(c_o.osss_owp))*", mog:"*string(length(c_o.osss_mog))*", o2oC:"*string(length(c_o.oss2oss_cbls)))
+        if ((c_o.cost)<crc.cost)
+            crc=deepcopy(c_o)
+            #println("kept original layout!")
+        end
     end
     return crc
 end
