@@ -8,7 +8,7 @@ function opt_mvOSSplacement(ocn,pcc)
     owpps_tbl=top_hvTopos(length(ocn.owpps))
     owpps_tbl=owpps_tbl[end:-1:1,end:-1:1]
     bus_dummies=Array{bus,1}()
-    oss_systems=circuit[]
+    oss_systems=Array{Array{circuit, 1}, 1}()
     dummy_sys=circuit()
     dummy_sys.cost=0
 
@@ -22,9 +22,11 @@ function opt_mvOSSplacement(ocn,pcc)
                     push!(bus_dummies,ocn.owpps[indx1])
                 end
             end
-            push!(oss_systems,opt_mvOssSystem(mv_regionOWPP,bus_dummies,pcc,ocn,owpps_tbl[indx0,:]))
+            oss_system=opt_mvOssSystem(mv_regionOWPP,bus_dummies,pcc,ocn,owpps_tbl[indx0,:])
+            oss_system.id=string(oss_system.decimal)*"#m"
+            push!(oss_systems,[oss_system])
         else
-            push!(oss_systems,dummy_sys)
+            push!(oss_systems,[dummy_sys])
         end
     end
     return oss_systems
@@ -82,7 +84,7 @@ function opt_OssOptimalMV(xys,buses,mv_regionOWPP)
     m = Model(with_optimizer(Ipopt.Optimizer, print_level=0))
     @variable(m, x)
     @variable(m, y)
-    eps=1e-9
+    eps=1e-8
 
     @NLobjective(m, Min,sum(sqrt((xys[i].x-x)^2+(xys[i].y-y)^2+eps) for i in 1:length(xys)))
     for (ind,op) in enumerate(mv_regionOWPP)
@@ -100,7 +102,7 @@ end
 
 function opt_updateMVocean(ocn)
     for (i,circ) in enumerate(ocn.mv_circuits)
-        if (circ.cost<1)
+        if (circ[length(circ)].cost<1)
             ocn.mv_circuits[i]=ocn.hv_circuits[i]
         end
     end
@@ -110,7 +112,7 @@ end
 ################################################################################
 #**
 function opt_hvOSSplacement(ocn,pcc)
-    hv_circs=circuit[]
+    hv_circs=Array{Array{circuit, 1}, 1}()
     owpps_tbl_hv=top_hvTopos(length(ocn.owpps))
     owpps_tbl_hv=owpps_tbl_hv[end:-1:1,end:-1:1]
     oss_system=circuit()
@@ -128,7 +130,8 @@ function opt_hvOSSplacement(ocn,pcc)
         else
             oss_system=opt_str8Connect(bus_dummies[1],pcc,ocn,owpps_tbl_hv[indx0,:])
         end
-        push!(hv_circs,oss_system)
+        oss_system.id=string(oss_system.decimal)*"#h"
+        push!(hv_circs,[oss_system])
     end
     return hv_circs
 end
@@ -268,20 +271,22 @@ end
 
 function opt_readjust_circuits(ocn,circs)
     longest_cable=lof_pnt2pnt_dist(ocn.owpps[length(ocn.owpps)].node.xy,ocn.pccs[length(ocn.pccs)].node.xy)
-    for i=1:length(circs)
-        c_o=deepcopy(circs[i])
-        new_coords=opt_reAdjust_oss(circs[i],ocn.owpps[1].mv_zone,ocn.sys.mvCl,10e-6)
-        circs[i]=opt_reAdjust_cbls(circs[i],new_coords,ocn,longest_cable)
-        if ((c_o.cost)<circs[i].cost)
-            #println("Error: re-adjustment failed, circuit: ")
-            #print(string(i)*" Initial: "*string(c_o))
-            #print(" - Adjusted: "*string(circs[i].cost))
-            new_coords=opt_reAdjust_oss(circs[i],ocn.owpps[1].mv_zone,ocn.sys.mvCl,10e-8)
-            circs[i]=opt_reAdjust_cbls(circs[i],new_coords,ocn,longest_cable)
-            #print(" - re-adjusted: "*string(circs[i].cost))
-            if ((c_o.cost)<circs[i].cost)
-                circs[i]=deepcopy(c_o)
-                #println("kept original layout!")
+    for (i0,cs0) in enumerate(circs)
+        for (i1,cs1) in enumerate(cs0)
+            c_o=deepcopy(circs[i0][i1])
+            new_coords=opt_reAdjust_oss(circs[i0][i1],ocn.owpps[1].mv_zone,ocn.sys.mvCl,10e-6)
+            circs[i0][i1]=opt_reAdjust_cbls(circs[i0][i1],new_coords,ocn,longest_cable)
+            if ((c_o.cost)<circs[i0][i1].cost)
+                #println("Error: re-adjustment failed, circuit: ")
+                #print(string(i)*" Initial: "*string(c_o))
+                #print(" - Adjusted: "*string(circs[i].cost))
+                new_coords=opt_reAdjust_oss(circs[i0][i1],ocn.owpps[1].mv_zone,ocn.sys.mvCl,10e-8)
+                circs[i0][i1]=opt_reAdjust_cbls(circs[i0][i1],new_coords,ocn,longest_cable)
+                #print(" - re-adjusted: "*string(circs[i].cost))
+                if ((c_o.cost)<circs[i0][i1].cost)
+                    circs[i0][i1]=deepcopy(c_o)
+                    #println("kept original layout!")
+                end
             end
         end
     end
@@ -441,7 +446,7 @@ function opt_updateMVC(circ,ocn)
             kble=cstF_MvCbl_nextSizeDown(mv_l,tale.mva,circ.owp_MVcbls[mvc_i].elec.volt,tale.wnd,ocn.finance,circ.owp_MVcbls[mvc_i].size,circ.owp_MVcbls[mvc_i].num,ocn.eqp_data)
             circ.owp_MVcbls[mvc_i]=kble
         elseif (mv_l>circ.owp_MVcbls[mvc_i].length)
-            if (mv_l<ocn.owpps[length(ocn.owpps)].mv_zone)
+            if (mv_l<ocn.owpps[length(ocn.owpps)].mv_zone+10e-3)
                 kble=cstF_MvCbl_nextSizeUp(mv_l,tale.mva,circ.owp_MVcbls[mvc_i].elec.volt,tale.wnd,ocn.finance,circ.owp_MVcbls[mvc_i].size,circ.owp_MVcbls[mvc_i].num,ocn.eqp_data)
                 circ.owp_MVcbls[mvc_i]=kble
             else

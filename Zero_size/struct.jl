@@ -167,8 +167,9 @@ mutable struct circuit
       oss_wind::wind
       oss_mva::Float32
       oyas::oya
+      id::String
 end
-circuit()=circuit(Int8[],69,bus(),bus[],bus[],bus[],69.69,cbl[],cbl[],cbl[],cbl[],bus(),wind(),69.69,oya())
+circuit()=circuit(Int8[],69,bus(),bus[],bus[],bus[],69.69,cbl[],cbl[],cbl[],cbl[],bus(),wind(),69.69,oya(),"id")
 #########################################################################
 mutable struct eqp_data
    cbls33kV::Array{Array{Float32, 1}, 1}
@@ -186,12 +187,12 @@ mutable struct eez
       buses::Int64
       sys::system
       finance::cstS_ks
-      mv_circuits::Array{circuit}
-      hv_circuits::Array{circuit}
+      mv_circuits::Array{Array{circuit, 1}, 1}
+      hv_circuits::Array{Array{circuit, 1}, 1}
       theta::Float32
       offset::Float32
       base::gps
       eqp_data::eqp_data
 end
-eez()=eez(bus[],bus[],bus[],0,system(),cstS_ks(),circuit[],circuit[],69.69,69.69,gps(),eqp_data())
+eez()=eez(bus[],bus[],bus[],0,system(),cstS_ks(),Array{Array{circuit, 1}, 1}(),Array{Array{circuit, 1}, 1}(),69.69,69.69,gps(),eqp_data())
 ###################################################################

@@ -8,6 +8,18 @@ function ppf_saveSystem(ocn,nme)
     save("Zero_size/tempfiles/data/solutions/"*nme*".jld2", "ocean",ocn)
 end
 
+function ppf_printIt(ocean,bsf_mvhv)
+    for i=1:12
+        ppf_equipment_OSS_MOG(ocean,bsf_mvhv[i])
+    end
+	#gui()
+end
+
+function ppf_printCost(bsf_mvhv)
+	for (i,c) in enumerate(bsf_mvhv)
+	    println(string(i)*" - "*string(c.cost))
+	end
+end
 
 function ppf_saveCircuit(oss_systems,nme)
 
@@ -174,9 +186,14 @@ function ppf_cbl_count(ocnhv)
     cbles=0
     oss=0
     for (i,circ) in enumerate(ocnhv)
+
         cbles=length(circ.pcc_cbls)
+		cbleso20=length(circ.oss2oss_cbls)
         oss=length(circ.osss_mog)+length(circ.osss_owp)
-        println(string(i)*" OSS: "*string(oss)*" PCC Cables: "*string(cbles))
+		#if (oss>7 && cbles>1 && cbleso20==0)
+        	println(string(i)*" OSS: "*string(oss)*" PCC Cables: "*string(cbles)*" Cost: "*string(circ.cost)*" ID: "*string(circ.id))
+		#end
+
         oss=0
 		cbles=0
     end

@@ -1,3 +1,14 @@
+function lof_combineIDs(id1,id2)
+    return string(id1)*"_"*string(id2)
+end
+
+function lof_compareIDs(id1,id2)
+    same=false
+    if (id1==id2)
+        same=true
+    end
+    return same
+end
 
 function lof_layoutEez_basis()
         #reading data from excel input files
