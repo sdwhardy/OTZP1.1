@@ -28,6 +28,7 @@ function lof_layoutEez_basis()
         return ocean
 end
 #**
+
 function lof_layoutEez_expand(ocn,pcc)
     #set area of owpp
     lof_setAreaOwpp(ocn)
@@ -59,7 +60,7 @@ end
 #**
 function lof_mVrng(ocn)
     for owpp in ocn.owpps
-        mvrng=cstF_mVrng(6,owpp.mva,owpp.wnd,ocn.finance,ocn.sys,ocn.eqp_data)
+        mvrng=cstF_mVrng(4,owpp.mva,owpp.wnd,ocn.finance,ocn.sys,ocn.eqp_data)
         owpp.mv_zone=deepcopy(mvrng)
     end
 end

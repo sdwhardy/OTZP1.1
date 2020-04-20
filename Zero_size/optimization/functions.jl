@@ -2,7 +2,9 @@ include("compound/functions.jl")#
 
 ################################### MV Topologies ##############################
 ################################################################################
-
+#ocn=ocean
+#pcc=ocean.pccs[2]
+#indx0=102
 #MV topology main function
 function opt_mvOSSplacement(ocn,pcc)
     owpps_tbl=top_hvTopos(length(ocn.owpps))
@@ -71,7 +73,10 @@ end
 
 function opt_findOptPointMV(buses,ocn,mv_regionOWPP)
     rmnXys=Array{xy,1}()
-    for bs in buses
+    #=for bs in buses
+        push!(rmnXys,deepcopy(bs.node.xy))
+    end=#
+    for bs in mv_regionOWPP
         push!(rmnXys,deepcopy(bs.node.xy))
     end
     opNode=opt_OssOptimalMV(rmnXys,buses,mv_regionOWPP)
@@ -79,7 +84,7 @@ function opt_findOptPointMV(buses,ocn,mv_regionOWPP)
     opNode.num=deepcopy(ocn.buses)
     return opNode
 end
-
+#xys=rmnXys
 function opt_OssOptimalMV(xys,buses,mv_regionOWPP)
     m = Model(with_optimizer(Ipopt.Optimizer, print_level=0))
     @variable(m, x)
@@ -155,7 +160,7 @@ function opt_str8Connect(owp,pcc,ocn,bn)
         #PCC
         push!(circ.pcc.xfmrs,deepcopy(cs[2]))
     elseif length(cs) == 4
-        mvhvOSSnd=opt_oss4mv2hv(pcc.node,owp)
+        mvhvOSSnd=opt_oss4mv2hv(pcc.node,owp,ocn.sys.mvCl)
         ocn.buses=ocn.buses+1
         mvhvOSSnd.num=ocn.buses
         #Cable
@@ -200,14 +205,14 @@ function opt_findOptPointHV(buses,pcc,ocn,owp)
     for bs in buses
         push!(rmnxys,deepcopy(bs.node.xy))
     end
-    opNode=opt_HVOssOptimal(rmnxys,owp,pcc)
+    opNode=opt_HVOssOptimal(rmnxys,owp,pcc,ocn.sys.mvCl)
     ocn.buses=ocn.buses+1
     opNode.num=deepcopy(ocn.buses)
     return opNode
 end
 
 #xys=rmnxys
-function opt_HVOssOptimal(xys,owp,pcc)
+function opt_HVOssOptimal(xys,owp,pcc,mv_cl)
     m = Model(with_optimizer(Ipopt.Optimizer, print_level=1))
     @variable(m, x)
     @variable(m, y)
@@ -229,6 +234,8 @@ function opt_HVOssOptimal(xys,owp,pcc)
     epsil=1e-9
     push!(xys,pcc.node.xy)
     @NLobjective(m, Min,sum(sqrt((xys[i].x-x)^2+(xys[i].y-y)^2+epsil) for i in 1:length(xys)))
+
+    @constraint(m,((owp.node.xy.x-x)^2+(owp.node.xy.y-y)^2) >= mv_cl^2)
 
     @constraint(m, y <= y_mx)
     @constraint(m, y >= y_mn)
@@ -269,7 +276,8 @@ end
 ######################### Optimize topology ##########################
 ######################################################################
 
-function opt_readjust_circuits(ocn,circs)
+function opt_readjust_circuits(ocn,circs,pcnt)
+    imp=0
     longest_cable=lof_pnt2pnt_dist(ocn.owpps[length(ocn.owpps)].node.xy,ocn.pccs[length(ocn.pccs)].node.xy)
     for (i0,cs0) in enumerate(circs)
         for (i1,cs1) in enumerate(cs0)
@@ -288,9 +296,18 @@ function opt_readjust_circuits(ocn,circs)
                     #println("kept original layout!")
                 end
             end
+            if (imp>((circs[i0][i1].cost-c_o.cost)/c_o.cost)*100)
+                imp=deepcopy(((circs[i0][i1].cost-c_o.cost)/c_o.cost)*100)
+            end
+            #if (-1>((circs[i0][i1].cost-c_o.cost)/c_o.cost)*100)
+                #println(string(i0)*"-"*string(i1)*" Improved: "*string(((circs[i0][i1].cost-c_o.cost)/c_o.cost)*100)*"%")
+            #end
+
         end
     end
-    return circs
+    println("Max: "*string(imp)*"%")
+    pcnt=deepcopy(imp)
+    return circs, pcnt
 end
 
 
@@ -620,7 +637,7 @@ function opt_mvhvEquipment(circ,owp,buses,pcc,ocn,bn,opNode)
             push!(wMv,op.wnd)
         elseif (length(cb)==2)
             #Cable
-            mvhvOSSnd=opt_oss4mv2hv(opNode,op)
+            mvhvOSSnd=opt_oss4mv2hv(opNode,op,ocn.sys.mvCl)
             ocn.buses=ocn.buses+1
             mvhvOSSnd.num=ocn.buses
 
@@ -712,8 +729,44 @@ function opt_Wsum(wo,wA)
 end
 
 #**
+function opt_oss4mv2hv(mogNd,owp,lmv)
+    d1=lmv
+    x0=owp.node.xy.x
+    y0=owp.node.xy.y
+    #Q1
+    x1=mogNd.xy.x
+    y1=mogNd.xy.y
+    A0=x1-x0
+    B0=y1-y0
+    #Q1
+    if (B0!=0)
+        C0=A0/B0
+        if (B0>0)
+            y2=d1/(sqrt(C0^2+1))+y0
+            x2=C0*(y2-y0)+x0
+        elseif (B0<0)
+            y2=d1/(-1*sqrt(C0^2+1))+y0
+            x2=C0*(y2-y0)+x0
+        end
+    else
+        if (A0>0)
+            y2=y0
+            x2=x0+d1
+        elseif (A0<0)
+            y2=y0
+            x2=x0-d1
+        else
+            y2=y0
+            x2=x0
+        end
+    end
+    co_ord=node()
+    co_ord.xy.x=x2
+    co_ord.xy.y=y2
+    return co_ord
+end
 #places an oss mv_distance towards connection point
-function opt_oss4mv2hv(mogNd,owp)
+#=function opt_oss4mv2hv_old(mogNd,owp)
     A=owp.node.xy.y-mogNd.xy.y
     B=mogNd.xy.x-owp.node.xy.x
     C=owp.node.xy.x*mogNd.xy.y-mogNd.xy.x*owp.node.xy.y
@@ -774,7 +827,7 @@ function opt_oss4mv2hv(mogNd,owp)
         println("Error: did not match a quandrant in OSS placement at zone radius!!!!")
     end
     return co_ords
-end
+end=#
 
 #binary to decimal conversion
 function top_bin2dec(bn)
@@ -886,7 +939,7 @@ function opt_str8Oss2Oss(circ,oss_system,ocn,pMv,pHv,p132,p220,p400,wMv,wHv,w132
         push!(wMv,circ.base_owp.wnd)
     elseif (length(cb)==2)
         #Cable
-        mvhvOSSnd=opt_oss4mv2hv(oss_system.osss_mog[1].node,circ.base_owp)
+        mvhvOSSnd=opt_oss4mv2hv(oss_system.osss_mog[1].node,circ.base_owp,ocn.sys.mvCl)
         ocn.buses=ocn.buses+1
         mvhvOSSnd.num=ocn.buses
 

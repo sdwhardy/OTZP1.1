@@ -18,7 +18,14 @@ function cstF_cbl_qo2o(cbl,ks)
     Q_pcc=Q*(1-div)
     qc=ks.Qc_oss*Q_oss+ks.Qc_oss*Q_pcc
     return qc
-end
+endwp=ocn.owpps[1]
+rd=4
+S=ocn.owpps[1].mva
+wp=ocn.owpps[1].wnd
+ks=ocn.finance
+sys=ocn.sys
+    mvrng=cstF_mVrng(4,owpp.mva,owpp.wnd,ocn.finance,ocn.sys,ocn.eqp_data)
+    cstF_MvCbl(l,S,wp,ks,cd66)
 
 #AC compensation cost **
 function cstF_cbl_qo2p(cbl,ks)
@@ -101,18 +108,25 @@ ks=ocn.finance
 prec=ocn.sys.prec
 =#
 #**
+
+
 function cstF_mVrng(rd,S,wp,ks,sys)
     mv=66
     hv=220
     l=rd
     cst_mv=0
     cst_hv=Inf
-    while cst_mv < cst_hv
-        l=l+sys.mvCl
-        cst_mv=cstF_MvCbl(l,S,mv,wp,ks).costs.ttl
-        cst_hv=cstF_HvCblo2o(l-sys.mvCl,S,hv,wp,ks).costs.ttl+cstF_MvCbl(sys.mvCl,S,mv,wp,ks).costs.ttl+ks.FC_bld
+    if (sys.mvCl>=0.01)
+        increment=sys.mvCl
+    else
+        increment=0.01
     end
-    return l-sys.mvCl
+    while cst_mv < cst_hv
+        l=l+increment
+        cst_mv=cstF_MvCbl(l,S,mv,wp,ks).costs.ttl
+        cst_hv=cstF_HvCblo2o(l-increment,S,hv,wp,ks).costs.ttl+cstF_MvCbl(increment,S,mv,wp,ks).costs.ttl+ks.FC_bld
+    end
+    return l-increment
 end
 
 #no realistic scenario exists where 33kV is a better option **

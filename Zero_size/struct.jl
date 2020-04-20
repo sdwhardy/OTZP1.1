@@ -193,6 +193,8 @@ mutable struct eez
       offset::Float32
       base::gps
       eqp_data::eqp_data
+      mvc_pct::Float32
+      hvc_pct::Float32
 end
-eez()=eez(bus[],bus[],bus[],0,system(),cstS_ks(),Array{Array{circuit, 1}, 1}(),Array{Array{circuit, 1}, 1}(),69.69,69.69,gps(),eqp_data())
+eez()=eez(bus[],bus[],bus[],0,system(),cstS_ks(),Array{Array{circuit, 1}, 1}(),Array{Array{circuit, 1}, 1}(),69.69,69.69,gps(),eqp_data(),0.0,0.0)
 ###################################################################

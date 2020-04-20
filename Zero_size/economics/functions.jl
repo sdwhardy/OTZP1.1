@@ -202,12 +202,17 @@ function cstF_mVrng(rd,S,wp,ks,sys,ed)
     l=rd
     cst_mv=0
     cst_hv=Inf
-    while cst_mv < cst_hv
-        l=l+sys.mvCl
-        cst_mv=cstF_MvCbl(l,S,wp,ks,ed.cbls66kV).costs.ttl
-        cst_hv=cstF_HvCblo2o(l-sys.mvCl,S,wp,ks,ed.cbls220kV).costs.ttl+cstF_MvCbl(sys.mvCl,S,wp,ks,ed.cbls66kV).costs.ttl+ks.FC_bld
+    if (sys.mvCl>=0.01)
+        increment=sys.mvCl
+    else
+        increment=0.01
     end
-    return l-sys.mvCl
+    while cst_mv < cst_hv
+        l=l+increment
+        cst_mv=cstF_MvCbl(l,S,wp,ks,ed.cbls66kV).costs.ttl
+        cst_hv=cstF_HvCblo2o(l-increment,S,wp,ks,ed.cbls220kV).costs.ttl+cstF_MvCbl(increment,S,wp,ks,ed.cbls66kV).costs.ttl+ks.FC_bld
+    end
+    return l-increment
 end
 
 #MV cables

@@ -9,7 +9,7 @@ function ppf_saveSystem(ocn,nme)
 end
 
 function ppf_printIt(ocean,bsf_mvhv)
-    for i=1:12
+    for i=1:length(bsf_mvhv)
         ppf_equipment_OSS_MOG(ocean,bsf_mvhv[i])
     end
 	#gui()
@@ -187,12 +187,17 @@ function ppf_cbl_count(ocnhv)
     oss=0
     for (i,circ) in enumerate(ocnhv)
 
-        cbles=length(circ.pcc_cbls)
+        #=cbles=length(circ.pcc_cbls)
 		cbleso20=length(circ.oss2oss_cbls)
         oss=length(circ.osss_mog)+length(circ.osss_owp)
-		#if (oss>7 && cbles>1 && cbleso20==0)
+		if (oss<1)
         	println(string(i)*" OSS: "*string(oss)*" PCC Cables: "*string(cbles)*" Cost: "*string(circ.cost)*" ID: "*string(circ.id))
-		#end
+		end=#
+
+			if circ[1].owp_MVcbls[1].length<0.09
+				println(circ[1].decimal)
+			end
+
 
         oss=0
 		cbles=0
