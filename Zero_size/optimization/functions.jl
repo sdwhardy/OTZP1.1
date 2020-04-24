@@ -409,6 +409,106 @@ function opt_reAdjust_oss(system,mv_rng,mv_cl,eps)
     mxy=(JuMP.value.(MOG_x),JuMP.value.(MOG_y),JuMP.value.(OSS_x),JuMP.value.(OSS_y))
     return mxy
 end
+
+
+function opt_reAdjust_ossMV(system,mv_rng,mv_cl,eps)
+    mog_xys=Array{Tuple{xy,Int64},1}()
+    oss_xys=Array{Tuple{xy,Int64},1}()
+    for mog in system.osss_mog
+        push!(mog_xys,(mog.node.xy,mog.node.num))
+    end
+    for os in system.osss_owp
+        push!(oss_xys,(os.node.xy,os.node.num))
+    end
+    m = Model(with_optimizer(Ipopt.Optimizer, print_level=1))
+
+    @variables(m, begin
+               MOG_y[i=1:length(mog_xys)]>=0, (start = mog_xys[i][1].y, base_name = "MOGY_"*string(mog_xys[i][2]))
+               MOG_x[i=1:length(mog_xys)]>=0, (start = mog_xys[i][1].x, base_name = "MOGX_"*string(mog_xys[i][2]))
+           end)
+
+       @variables(m, begin
+                  OSS_y[i=1:length(oss_xys)]>=0, (start = oss_xys[i][1].y, base_name = "OSSY_"*string(oss_xys[i][2]))
+                  OSS_x[i=1:length(oss_xys)]>=0, (start = oss_xys[i][1].x, base_name = "OSSX_"*string(oss_xys[i][2]))
+              end)
+
+    connections=Array{Tuple{Any,Any,Any,Any,Float64},1}()
+    for mv_c in system.owp_MVcbls
+        for (i,mg) in enumerate(mog_xys)
+            if (mg[2]==mv_c.pth[length(mv_c.pth)].num)
+                push!(connections,(mv_c.pth[1].xy.x, mv_c.pth[1].xy.y, MOG_x[i], MOG_y[i], mv_c.costs.ttl/mv_c.length))
+                @constraint(m,((connections[length(connections)][1]-connections[length(connections)][3])^2+(connections[length(connections)][2]-connections[length(connections)][4])^2) <= mv_rng^2)
+            end
+        end
+        for (i,os) in enumerate(oss_xys)
+            if (os[2]==mv_c.pth[length(mv_c.pth)].num)
+                push!(connections,(mv_c.pth[1].xy.x, mv_c.pth[1].xy.y, OSS_x[i], OSS_y[i], mv_c.costs.ttl/mv_c.length))
+                @constraint(m,((connections[length(connections)][1]-connections[length(connections)][3])^2+(connections[length(connections)][2]-connections[length(connections)][4])^2) == mv_cl^2)
+            end
+        end
+    end
+
+    #PCC_connections=Array{Tuple{VariableRef,VariableRef,Float64,Float64,Float64},1}()
+    #=for pcc_c in system.pcc_cbls
+        for (i,mg) in enumerate(mog_xys)
+            if (mg[2]==pcc_c.pth[1].num)
+                push!(connections,(MOG_x[i], MOG_y[i], pcc_c.pth[length(pcc_c.pth)].xy.x, pcc_c.pth[length(pcc_c.pth)].xy.y, pcc_c.costs.ttl/pcc_c.length))
+            end
+        end
+        for (i,os) in enumerate(oss_xys)
+            if (os[2]==pcc_c.pth[length(pcc_c.pth)].num)
+                push!(connections,(OSS_x[i], OSS_y[i], pcc_c.pth[length(pcc_c.pth)].xy.x, pcc_c.pth[length(pcc_c.pth)].xy.y, pcc_c.costs.ttl/pcc_c.length))
+            end
+        end
+    end
+
+    #HV_connections=Array{Tuple{VariableRef,VariableRef,VariableRef,VariableRef,Float64},1}()
+    for hv_c in system.owp_HVcbls
+        tail_x=VariableRef
+        tail_y=VariableRef
+        head_x=VariableRef
+        head_y=VariableRef
+        for (i,mg) in enumerate(mog_xys)
+
+            if (mg[2]==hv_c.pth[length(hv_c.pth)].num)
+                head_x=MOG_x[i]
+                head_y=MOG_y[i]
+            end
+        end
+        for (i,os) in enumerate(oss_xys)
+            if (os[2]==hv_c.pth[1].num)
+                tail_x=OSS_x[i]
+                tail_y=OSS_y[i]
+            end
+        end
+        push!(connections,(tail_x, tail_y, head_x, head_y, hv_c.costs.ttl/hv_c.length))
+    end
+    #o2o_connections=Array{Tuple{VariableRef,VariableRef,VariableRef,VariableRef,Float64},1}()
+    for o2o_c in system.oss2oss_cbls
+        tail_x=VariableRef
+        tail_y=VariableRef
+        head_x=VariableRef
+        head_y=VariableRef
+        for (i,mg) in enumerate(mog_xys)
+            if (mg[2]==o2o_c.pth[1].num)
+                tail_x=MOG_x[i]
+                tail_y=MOG_y[i]
+            end
+            if (mg[2]==o2o_c.pth[length(o2o_c.pth)].num)
+                head_x=MOG_x[i]
+                head_y=MOG_y[i]
+            end
+        end
+
+        push!(connections,(tail_x, tail_y, head_x, head_y, o2o_c.costs.ttl/o2o_c.length))
+    end=#
+
+    @NLobjective(m, Min,sum(sqrt((((connections[i][1]-connections[i][3])^2+(connections[i][2]-connections[i][4])^2)+eps))*connections[i][5] for i in 1:length(connections)))
+
+    optimize!(m)
+    mxy=(JuMP.value.(MOG_x),JuMP.value.(MOG_y),JuMP.value.(OSS_x),JuMP.value.(OSS_y))
+    return mxy
+end
 #circ=circs[i]
 #co_ords=new_coords
 function opt_reAdjust_cbls(circ,co_ords,ocn,longest_cable)
@@ -975,4 +1075,33 @@ function opt_str8Oss2Oss(circ,oss_system,ocn,pMv,pHv,p132,p220,p400,wMv,wHv,w132
         end
     end
     return oss_system,pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400
+end
+
+
+function opt_str8Oss2Oss_wndOnly(circ,oss_system,ocn,pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400)
+    #Calculate length and type of cables
+    l=lof_pnt2pnt_dist(circ.base_owp.node.xy,oss_system.osss_mog[1].node.xy)
+    cb,xs=cstF_MvHvCbloss(l,circ.base_owp.mva,circ.base_owp.wnd,ocn.finance,oss_system.pcc_cbls[1].elec.volt,ocn.sys,ocn.owpps[1].mv_zone,ocn.eqp_data)
+
+    #store cable data
+    if (length(cb)==1)
+        push!(pMv,circ.base_owp.mva)
+        push!(wMv,circ.base_owp.wnd)
+    elseif (length(cb)==2)
+        #store winds and powers
+        if (oss_system.owp_HVcbls[length(oss_system.owp_HVcbls)].elec.volt == oss_system.pcc_cbls[length(oss_system.pcc_cbls)].elec.volt)
+            push!(pHv,circ.base_owp.mva)
+            push!(wHv,circ.base_owp.wnd)
+        elseif (oss_system.owp_HVcbls[length(oss_system.owp_HVcbls)].elec.volt == 132)
+            push!(p132,circ.base_owp.mva)
+            push!(w132,circ.base_owp.wnd)
+        elseif (oss_system.owp_HVcbls[length(oss_system.owp_HVcbls)].elec.volt == 220)
+            push!(p220,circ.base_owp.mva)
+            push!(w220,circ.base_owp.wnd)
+        elseif (oss_system.owp_HVcbls[length(oss_system.owp_HVcbls)].elec.volt == 400)
+            push!(p400,circ.base_owp.mva)
+            push!(w400,circ.base_owp.wnd)
+        end
+    end
+    return pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400
 end

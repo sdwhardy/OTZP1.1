@@ -11,7 +11,11 @@ end
 function opt_setCompPart()
     return 10000
 end
+#=ocn=ocean
+circuits_set[1:254]=circuits
 
+nsb=bn0[3]
+=#
 #%
 function opt_compoundOSS(ocn)
     circuits_set=deepcopy(ocn.hv_circuits)
@@ -40,17 +44,126 @@ function opt_compoundOSS(ocn)
                     #decompose circuits
                     if (identical==false)
                     #if (length(circuits_set[i])>1)
-                        circuits_set[i]=opt_decomposeLO_set(forwardHV, forwardMV, i_min_sum_bn, circuits_set,ocn,nsb_sum_bn)
+                        forwardHVTemp=[]
+                        forwardMVTemp=[]
+                        forwardHVTemp=opt_decomposeLO_solo(forwardHV, i_min_sum_bn, deepcopy(circuits_set),ocn,nsb_sum_bn)
+                        forwardMVTemp=opt_decomposeLO_soloMV(forwardMV, i_min_sum_bn, deepcopy(circuits_set),ocn,nsb_sum_bn)
+                        #if ((length(forwardHVTemp))>ceil(Int,opt_set()))
+                        forwardHVTemp=opt_unicOnly(forwardHVTemp)
+                            #forwardHVTemp=forwardHVTemp[1:ceil(Int,opt_set())]
+                        #else
+                        #end
+                        #if ((length(forwardMVTemp))>ceil(Int,opt_set()))
+                        forwardMVTemp=opt_unicOnly(forwardMVTemp)
+                            #forwardMVTemp=forwardMVTemp[1:ceil(Int,opt_set())]
+                        #else
+                        #end
+                        rnk=round(Int,forwardHV.decimal)
+                        for ch in forwardHVTemp
+                            insert_and_dedup!(circuits_set[i],deepcopy(ch))
+                        end
+                        for cm in forwardMVTemp
+                            insert_and_dedup!(circuits_set[i],deepcopy(cm))
+                        end
+                        #circuits_set[round(Int,forwardHV.decimal)]=opt_unicOnly(circuits_set[round(Int,forwardHV.decimal)])
+                        #circuits_set[round(Int,forwardHV.decimal)]=circuits_set[round(Int,forwardHV.decimal)][1:1]
+                        #println("circuits_set: "*string(length(circuits_set[round(Int,forwardHV.decimal)])))
+
+                        #circuits_set[i]=keep_unic(circuits_set[i])
                     else
-                        circuits_set[i]=opt_decomposeLO_solo(forwardHV, i_min_sum_bn, circuits_set,ocn,nsb_sum_bn)
+                        forwardTemp=opt_decomposeLO_solo(forwardHV, i_min_sum_bn, deepcopy(circuits_set),ocn,nsb_sum_bn)
+                        forwardTemp=opt_unicOnly(forwardTemp)
+                        for cm in forwardTemp
+                            insert_and_dedup!(circuits_set[i],deepcopy(cm))
+                        end
                     end
+
                 end
             end
         end
     end
     return circuits_set
 end
+#ocn=ocean
+#nsb=bn0[1]
+function opt_compoundOSS_fast(ocn)
+    circuits_set=deepcopy(ocn.hv_circuits)
+    for (i,c) in enumerate(ocn.mv_circuits)
+        if (circuits_set[i][1].id != c[1].id)
+            push!(circuits_set[i],deepcopy(ocn.mv_circuits[i][1]))
+        end
+    end
+    for i=7:1:length(ocn.hv_circuits)
+    #for i=length(ocn.hv_circuits)
+        println("rank: "*string(i))
+        i_bn=top_dec2bin(i)
+        bn0=findall(x->x==1,i_bn)
+        if (length(bn0)>2)
+            #copy originals
+            hv_orig=deepcopy(ocn.hv_circuits[i][1])
+            mv_orig=deepcopy(ocn.mv_circuits[i][1])
+            forwardHVTemp2=[]
+            forwardMVTemp2=[]
+            for nsb in bn0
+                nsb_sum_bn,i_min_sum_bn=opt_NSBandi(hv_orig.binary,nsb)
+                bn_i=findall(x->x==1,i_min_sum_bn)
+                if (length(bn_i)>1)
+                    i_min_sum_int=round(Int32,top_bin2dec(i_min_sum_bn))
+                    forwardHV=opt_copyBaseEquipment(deepcopy(hv_orig),nsb_sum_bn,ocn)
+                    forwardMV=opt_copyBaseEquipment(deepcopy(mv_orig),nsb_sum_bn,ocn)
+                    identical=check_pair(forwardHV,forwardMV)
+                    #decompose circuits
+                    if (identical==false)
+                    #if (length(circuits_set[i])>1)
+                    forwardHVTemp=[]
+                    forwardMVTemp=[]
 
+
+
+
+                        @time forwardHVTemp=opt_decomposeLO_solo(forwardHV, i_min_sum_bn, deepcopy(circuits_set),ocn,nsb_sum_bn)
+                        @time forwardMVTemp=opt_decomposeLO_soloMV_fast(forwardMV, i_min_sum_bn, deepcopy(circuits_set),ocn,nsb_sum_bn)
+                        #if ((length(forwardHVTemp))>ceil(Int,opt_set()))
+                        forwardHVTemp=opt_unicOnly(forwardHVTemp)
+                            #forwardHVTemp=forwardHVTemp[1:ceil(Int,opt_set())]
+                        #else
+                        #end
+                        #if ((length(forwardMVTemp))>ceil(Int,opt_set()))
+
+                            #forwardMVTemp=forwardMVTemp[1:ceil(Int,opt_set())]
+                        #else
+                        #end
+                        forwardHVTemp=opt_unicOnly(forwardHVTemp)
+                        insert_and_dedup!(forwardHVTemp2,deepcopy(forwardHVTemp[1]))
+                        forwardMVTemp=opt_unicOnly(forwardMVTemp)
+                        insert_and_dedup!(forwardMVTemp2,deepcopy(forwardMVTemp[1]))
+                        #circuits_set[round(Int,forwardHV.decimal)]=opt_unicOnly(circuits_set[round(Int,forwardHV.decimal)])
+                        #circuits_set[round(Int,forwardHV.decimal)]=circuits_set[round(Int,forwardHV.decimal)][1:1]
+                        #println("circuits_set: "*string(length(circuits_set[round(Int,forwardHV.decimal)])))
+
+                        #circuits_set[i]=keep_unic(circuits_set[i])
+                    else
+                        forwardTemp=opt_decomposeLO_solo(forwardHV, i_min_sum_bn, deepcopy(circuits_set),ocn,nsb_sum_bn)
+                        forwardTemp=opt_unicOnly(forwardTemp)
+                        insert_and_dedup!(forwardHVTemp2,deepcopy(forwardTemp[1]))
+                    end
+                end
+                if (length(forwardHVTemp2)>0)
+                    insert_and_dedup!(circuits_set[i],deepcopy(forwardHVTemp2[1]))
+                end
+                if (length(forwardMVTemp2)>0)
+                    insert_and_dedup!(circuits_set[i],deepcopy(forwardMVTemp2[1]))
+                end
+                circuits_set[i]=opt_unicOnly(circuits_set[i])
+                if (length(circuits_set[i])>2)
+                    circuits_set[i]=circuits_set[i][1:2]
+                end
+            end
+
+        end
+    end
+    return circuits_set
+end
 #=forward=forwardHV
 full=deepcopy(hv_bsf)
 aft_bn=i_min_sum_bn
@@ -62,8 +175,8 @@ circs=ocn.hv_circuits
 #ppf_equipment_OSS_MOG(ocean,forward)
 #ppf_equipment_OSS_MOG(ocean,full)
 #%
-function opt_decomposeLO_set(forwardHV, forwardMV, aft_bn, circuits_set,ocn,nsb_sum_bn)
-    Q_2bd=opt_buildDaBDQ(aft_bn, circuits_set)
+function opt_decomposeLO_set(forwardHV, forwardMV, aft_bn, circset,ocn,nsb_sum_bn)
+    Q_2bd=opt_buildDaBDQ(aft_bn, circset)
     println("Q_2bd: "*string(length(Q_2bd)))
     circuits_setHV=circuit[]
     circuits_setMV=circuit[]
@@ -117,16 +230,16 @@ function opt_decomposeLO_set(forwardHV, forwardMV, aft_bn, circuits_set,ocn,nsb_
     end
     rnk=round(Int,forwardHV.decimal)
     for ch in circuits_setHV
-        insert_and_dedup!(circuits_set[rnk],deepcopy(ch))
+        insert_and_dedup!(circset[rnk],deepcopy(ch))
     end
     for cm in circuits_setMV
-        insert_and_dedup!(circuits_set[rnk],deepcopy(cm))
+        insert_and_dedup!(circset[rnk],deepcopy(cm))
     end
     #circuits_set[round(Int,forwardHV.decimal)]=opt_unicOnly(circuits_set[round(Int,forwardHV.decimal)])
     #circuits_set[round(Int,forwardHV.decimal)]=circuits_set[round(Int,forwardHV.decimal)][1:1]
     #println("circuits_set: "*string(length(circuits_set[round(Int,forwardHV.decimal)])))
-    circuits_set[rnk]=keep_unic(circuits_set[rnk])
-    return circuits_set[rnk]
+    circset[rnk]=keep_unic(circset[rnk])
+    return circset[rnk]
 end
 #=partials_1=deepcopy(Q_2bd)
 forward=forwardHV
@@ -134,10 +247,97 @@ aft_bn=i_min_sum_bn
 q_set = Q_2bd[1]=#
 #%
 function opt_decomposeLO_solo(forward, aft_bn, circuits_set,ocn,nsb_sum_bn)
-    Q_2bd=opt_buildDaBDQ(aft_bn, circuits_set)
+    Q_2bd=opt_buildDaBDQ(aft_bn, circuits_set,forward,ocn)
     #opt_ttlMvCirc(forward)
     #println(Q_2bd[1].id)
     #forward=mv_findFwdOSS(forward,deepcopy(Q_2bd[1]),ocn,nsb_sum_bn)
+    println("Q_2bd: "*string(length(Q_2bd)))
+    cs=circuit[]
+    #sort!(Q_2bd, by = v -> v.cost, rev=false)
+    if (length(Q_2bd)>0)
+        #for q_set in Q_2bd[1:length(Q_2bd)]
+        for q_set in Q_2bd[1:1]
+            #println("q owpps: "*string(length(q_set.owpps)))
+            #println("f owpps: "*string(length(forward.owpps)))
+            single_parent=circuit()
+            single_parent=deepcopy(forward)
+            single_parent.id=lof_combineIDs(single_parent.id,q_set.id)
+            #println("SP cost0: "*string(single_parent.cost))
+            pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400=opt_copyWindProfiles(ocn.owpps,forward)
+            if (length(q_set.owpps)>1)
+                single_parent=opt_compoundCbls_copy(q_set,single_parent,ocn)
+                pHv,wHv,p132,w132,p220,w220,p400,w400=opt_combineCblPW(single_parent,q_set,pHv,wHv,p132,w132,p220,w220,p400,w400)
+            else
+                pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400=opt_str8Oss2Oss_wndOnly(q_set,single_parent,ocn,pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400)
+            end
+            single_parent.osss_mog[1]=opt_mogXfmrs(single_parent.osss_mog[1],pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400,ocn.finance,single_parent.pcc_cbls[length(single_parent.pcc_cbls)].elec.volt)
+            opt_ttlMvCirc(single_parent)
+            #nsb_sum_int=round(Int32,top_bin2dec(nsb_sum_bn))
+
+            #single_parent,ocn.hvc_pct=opt_circOpt(single_parent,ocn,ocn.hvc_pct)
+            #push!(circs[round(Int,single_parent.decimal)],deepcopy(single_parent))
+            insert_and_dedup!(cs,deepcopy(single_parent))
+        end
+    end
+
+    #circuits_set[round(Int,forward.decimal)]=opt_unicOnly(circuits_set[round(Int,forward.decimal)])
+    #circuits_set[round(Int,forward.decimal)]=circuits_set[round(Int,forward.decimal)][1:1]
+    #println("circuits_set: "*string(length(circuits_set[round(Int,forward.decimal)])))
+    return cs
+end
+
+
+function opt_decomposeLO_soloMV(forward, aft_bn, circset,ocn,nsb_sum_bn)
+    #forward=mv_findFwdOSS(forward,aft,ocn,nsb_sum_bn)
+    forward,ocn.hvc_pct=opt_circOptMV(forward,ocn,ocn.hvc_pct)
+    #single_parent,ocn.hvc_pct=opt_circOpt(single_parent,ocn,ocn.hvc_pct)
+    Q_2bd=opt_buildDaBDQ(aft_bn, circset,forward,ocn)
+    cs=circuit[]
+    #opt_ttlMvCirc(forward)
+    #println(Q_2bd[1].id)
+    println("Q_2bd: "*string(length(Q_2bd)))
+    #sort!(Q_2bd, by = v -> v.cost, rev=false)
+    if (length(Q_2bd)>0)
+        #for q_set in Q_2bd[1:length(Q_2bd)]
+        for q_set in Q_2bd[1:1]
+            #println("q owpps: "*string(length(q_set.owpps)))
+            #println("f owpps: "*string(length(forward.owpps)))
+            single_parent=circuit()
+            single_parent=deepcopy(forward)
+            single_parent.id=lof_combineIDs(single_parent.id,q_set.id)
+            #println("SP cost0: "*string(single_parent.cost))
+            pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400=opt_copyWindProfiles(ocn.owpps,forward)
+            if (length(q_set.owpps)>1)
+                single_parent=opt_compoundCbls_copy(q_set,single_parent,ocn)
+                pHv,wHv,p132,w132,p220,w220,p400,w400=opt_combineCblPW(single_parent,q_set,pHv,wHv,p132,w132,p220,w220,p400,w400)
+            else
+                pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400=opt_str8Oss2Oss_wndOnly(q_set,single_parent,ocn,pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400)
+            end
+            single_parent.osss_mog[1]=opt_mogXfmrs(single_parent.osss_mog[1],pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400,ocn.finance,single_parent.pcc_cbls[length(single_parent.pcc_cbls)].elec.volt)
+            opt_ttlMvCirc(single_parent)
+            #nsb_sum_int=round(Int32,top_bin2dec(nsb_sum_bn))
+
+            #single_parent,ocn.hvc_pct=opt_circOpt(single_parent,ocn,ocn.hvc_pct)
+            #push!(circs[round(Int,single_parent.decimal)],deepcopy(single_parent))
+            insert_and_dedup!(cs,deepcopy(single_parent))
+        end
+    end
+
+    #circuits_set[round(Int,forward.decimal)]=opt_unicOnly(circuits_set[round(Int,forward.decimal)])
+    #circuits_set[round(Int,forward.decimal)]=circuits_set[round(Int,forward.decimal)][1:1]
+    #println("circuits_set: "*string(length(circuits_set[round(Int,forward.decimal)])))
+    return cs
+end
+
+
+function opt_decomposeLO_soloMV_fast(forward, aft_bn, circset,ocn,nsb_sum_bn)
+    #forward=mv_findFwdOSS(forward,aft,ocn,nsb_sum_bn)
+    #forward,ocn.hvc_pct=opt_circOptMV(forward,ocn,ocn.hvc_pct)
+    #single_parent,ocn.hvc_pct=opt_circOpt(single_parent,ocn,ocn.hvc_pct)
+    Q_2bd=opt_buildDaBDQ(aft_bn, circset,forward,ocn)
+    cs=circuit[]
+    #opt_ttlMvCirc(forward)
+    #println(Q_2bd[1].id)
     println("Q_2bd: "*string(length(Q_2bd)))
     #sort!(Q_2bd, by = v -> v.cost, rev=false)
     if (length(Q_2bd)>0)
@@ -150,10 +350,10 @@ function opt_decomposeLO_solo(forward, aft_bn, circuits_set,ocn,nsb_sum_bn)
             #println("SP cost0: "*string(single_parent.cost))
             pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400=opt_copyWindProfiles(ocn.owpps,forward)
             if (length(q_set.owpps)>1)
-                single_parent=opt_compoundCbls(q_set,single_parent,ocn)
+                single_parent=opt_compoundCbls_copy(q_set,single_parent,ocn)
                 pHv,wHv,p132,w132,p220,w220,p400,w400=opt_combineCblPW(single_parent,q_set,pHv,wHv,p132,w132,p220,w220,p400,w400)
             else
-                single_parent,pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400=opt_str8Oss2Oss(q_set,single_parent,ocn,pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400)
+                pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400=opt_str8Oss2Oss_wndOnly(q_set,single_parent,ocn,pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400)
             end
             single_parent.osss_mog[1]=opt_mogXfmrs(single_parent.osss_mog[1],pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400,ocn.finance,single_parent.pcc_cbls[length(single_parent.pcc_cbls)].elec.volt)
             opt_ttlMvCirc(single_parent)
@@ -161,17 +361,91 @@ function opt_decomposeLO_solo(forward, aft_bn, circuits_set,ocn,nsb_sum_bn)
 
             #single_parent,ocn.hvc_pct=opt_circOpt(single_parent,ocn,ocn.hvc_pct)
             #push!(circs[round(Int,single_parent.decimal)],deepcopy(single_parent))
-            insert_and_dedup!(circuits_set[round(Int,single_parent.decimal)],deepcopy(single_parent))
+            insert_and_dedup!(cs,deepcopy(single_parent))
         end
     end
 
     #circuits_set[round(Int,forward.decimal)]=opt_unicOnly(circuits_set[round(Int,forward.decimal)])
     #circuits_set[round(Int,forward.decimal)]=circuits_set[round(Int,forward.decimal)][1:1]
     #println("circuits_set: "*string(length(circuits_set[round(Int,forward.decimal)])))
-    return circuits_set[round(Int,forward.decimal)]
+    return cs
 end
 #%
 function mv_findFwdOSS(forward,q_set,ocn,nsb_sum_bn)
+    single_parent=partial_buildUp_Circ(forward,q_set,ocn)
+    forward=opt_copyBaseEquipment(deepcopy(single_parent),nsb_sum_bn,ocn)
+    return forward
+end
+#%
+function partial_buildUp_Circ_DaBDQ(forward,q_set,ocn)
+    #foCost=deepcopy(forward.cost)
+    if (length(q_set.owpps)>1)
+        for (i,pcc_c) in enumerate(q_set.pcc_cbls)
+            q_set.pcc_cbls[i].costs.ttl=0.0
+            con_bus=bus()
+            for os in q_set.osss_owp
+                if (os.node.num==pcc_c.pth[1].num)
+                    con_bus=deepcopy(os)
+                    break
+                end
+            end
+            for os in q_set.osss_mog
+                if (os.node.num==pcc_c.pth[1].num)
+                    con_bus=deepcopy(os)
+                    break
+                end
+            end
+            pth=deepcopy(lof_pnt2pnt_dist(con_bus.node.xy,forward.osss_mog[1].node.xy))
+            #println(string(con_bus.node.num)*" con_bus.mva: "*string(con_bus.mva)*" size: "*string(pcc_c.size)*" num: "*string(pcc_c.num))
+            oss2ossCbl=cstF_nextSizeDown(pth,con_bus.mva,pcc_c.elec.volt,con_bus.wnd,ocn.finance,pcc_c.size,pcc_c.num,ocn.eqp_data)
+            push!(oss2ossCbl.pth,con_bus.node)
+            push!(oss2ossCbl.pth,forward.osss_mog[1].node)
+            push!(q_set.oss2oss_cbls,oss2ossCbl)
+        end
+    else
+        #Calculate length and type of cables
+        q_set.owp_MVcbls=[]
+        q_set.owp_HVcbls=[]
+        q_set.pcc_cbls[1].costs.ttl=0.0
+        l=lof_pnt2pnt_dist(q_set.base_owp.node.xy,forward.osss_mog[1].node.xy)
+        cb,xs=cstF_MvHvCbloss(l,q_set.base_owp.mva,q_set.base_owp.wnd,ocn.finance,forward.pcc_cbls[1].elec.volt,ocn.sys,ocn.owpps[1].mv_zone,ocn.eqp_data)
+
+        #store cable data
+        if (length(cb)==1)
+            push!(cb[1].pth,deepcopy(q_set.base_owp.node))
+            push!(cb[1].pth,deepcopy(forward.osss_mog[1].node))
+            push!(q_set.owp_MVcbls,cb[1])
+        elseif (length(cb)==2)
+            #Cable
+            mvhvOSSnd=opt_oss4mv2hv(forward.osss_mog[1].node,q_set.base_owp,ocn.sys.mvCl)
+            ocn.buses=ocn.buses+1
+            mvhvOSSnd.num=ocn.buses
+
+            push!(cb[1].pth,deepcopy(q_set.base_owp.node))
+            push!(cb[1].pth,deepcopy(mvhvOSSnd))
+            push!(cb[2].pth,deepcopy(mvhvOSSnd))
+            push!(cb[2].pth,deepcopy(forward.osss_mog[1].node))
+            push!(q_set.owp_MVcbls,deepcopy(cb[1]))
+            push!(q_set.owp_HVcbls,deepcopy(cb[2]))
+
+            #OSS
+            ossmv=bus()
+            ossmv.node=mvhvOSSnd
+            ossmv.base_cost=ocn.finance.FC_bld
+            ossmv.mva=q_set.base_owp.mva
+            ossmv.wnd=q_set.base_owp.wnd
+            q_set.osss_owp=[]
+            push!(q_set.osss_owp,ossmv)
+            push!(q_set.osss_owp[length(q_set.osss_owp)].xfmrs,deepcopy(xs[1]))
+        end
+    end
+
+    opt_ttlMvCirc(q_set)
+    return q_set
+end
+
+
+function partial_buildUp_Circ(forward,q_set,ocn)
     single_parent=circuit()
     single_parent=deepcopy(forward)
     single_parent.id=lof_combineIDs(single_parent.id,q_set.id)
@@ -185,28 +459,27 @@ function mv_findFwdOSS(forward,q_set,ocn,nsb_sum_bn)
     end
     single_parent.osss_mog[1]=opt_mogXfmrs(single_parent.osss_mog[1],pMv,pHv,p132,p220,p400,wMv,wHv,w132,w220,w400,ocn.finance,single_parent.pcc_cbls[length(single_parent.pcc_cbls)].elec.volt)
     opt_ttlMvCirc(single_parent)
-    #nsb_sum_int=round(Int32,top_bin2dec(nsb_sum_bn))
 
     single_parent,ocn.hvc_pct=opt_circOpt(single_parent,ocn,ocn.hvc_pct)
-    forward=opt_copyBaseEquipment(deepcopy(single_parent),nsb_sum_bn,ocn)
-    return forward
+    return single_parent
 end
 #%
-function opt_buildDaBDQ(aft_bn, circs)
+#circs=circuits_set
+function opt_buildDaBDQ(aft_bn, circs, forward,ocn)
     #println(string(top_bin2dec(aft_bn))*" :aft_bn: "*string(aft_bn))
     aftbn_1s=findall(x->x==1,aft_bn)
     Q_2bd=Array{Array{Tuple{Int32,Int32},1},1}()
     if (length(aftbn_1s)>1)
-        Q_2bd=opt_factorBn(aft_bn,circs,aftbn_1s)
+        Q_2bd=opt_factorBn(aft_bn,circs,aftbn_1s, forward,ocn)
     end
     return Q_2bd
 end
 
 #aft_bn[5]=1
 #%
-function opt_factorBn(aft_bn,circs,aftbn_1s)
+function opt_factorBn(aft_bn,circs,aftbn_1s, forward,ocn)
     tbl_Circs, aftmid_indx=opt_factTble(aft_bn,circs,aftbn_1s)
-    hvmv_fset,mv_c=opt_rollUp_partial(tbl_Circs, aftmid_indx)
+    hvmv_fset,mv_c=opt_rollUp_partial(tbl_Circs, aftmid_indx, forward,ocn)
     return hvmv_fset
 end
 #%
@@ -321,7 +594,13 @@ function id_breakDown_Check(eyeD)
     return a
 end
 #%
-function opt_rollUp_partial(circs, aftmid_indx)
+#circs=deepcopy(tbl_Circs)
+function opt_rollUp_partial(circs, aftmid_indx, forward,ocn)
+    for (i0,cs) in enumerate(circs)
+        for (i1,c) in enumerate(cs)
+            circs[i0][i1]=partial_buildUp_Circ_DaBDQ(forward,c,ocn)
+        end
+    end
     complete_systems=circuit[]
     for crc in circs[length(circs)]
         #push!(complete_systems, deepcopy(crc))
@@ -361,10 +640,10 @@ function opt_rollUp_partial(circs, aftmid_indx)
                             else
                                 #push!(circs[rnk_i], deepcopy(opt_replaceRnk(circs[rnk_i][1],crc1,crc3)))
                                 insert_and_dedup!(circs[rnk_i], deepcopy(opt_replaceRnk(circs[rnk_i][1],crc1,crc3)))
-                                circs[rnk_i]=opt_unicOnly2(circs[rnk_i])
-                                #=if (length(circs[rnk_i])>2*opt_set())
+                                circs[rnk_i]=opt_unicOnly(circs[rnk_i])
+                                if (length(circs[rnk_i])>2*opt_set())
                                     circs[rnk_i]=circs[rnk_i][1:2*opt_set()]
-                                end=#
+                                end
 
                             end
                         end
@@ -489,6 +768,33 @@ function opt_circOpt(crc,ocn,prcnt)
     #println(string(c_o.decimal)*" Improved: "*string((crc.cost-c_o.cost)/c_o.cost)*"%")
     return crc,prcnt
 end
+
+function opt_circOptMV(crc,ocn,prcnt)
+    longest_cable=lof_pnt2pnt_dist(ocn.owpps[length(ocn.owpps)].node.xy,ocn.pccs[length(ocn.pccs)].node.xy)
+    c_o=deepcopy(crc)
+    #println(string(c_o.decimal)*") mvC:"*string(length(c_o.owp_MVcbls))*", hvC:"*string(length(c_o.owp_HVcbls))*", oss:"*string(length(c_o.osss_owp))*", mog:"*string(length(c_o.osss_mog))*", o2oC:"*string(length(c_o.oss2oss_cbls)))
+    new_coords=opt_reAdjust_ossMV(crc,ocn.owpps[1].mv_zone,ocn.sys.mvCl,10e-7)
+    crc=opt_reAdjust_cbls(crc,new_coords,ocn,longest_cable)
+    if ((c_o.cost)<crc.cost)
+        #println("Error: re-adjustment failed, circuit: ")
+        #print("Initial: "*string(c_o.cost))
+        #print(" - Adjusted: "*string(crc.cost))
+        new_coords=opt_reAdjust_ossMV(c_o,ocn.owpps[1].mv_zone,ocn.sys.mvCl,10e-6)
+        crc=opt_reAdjust_cbls(crc,new_coords,ocn,longest_cable)
+        #print(" - re-adjusted: "*string(crc.cost))
+        #println()
+        #println(string(c_o.decimal)*") mvC:"*string(length(c_o.owp_MVcbls))*", hvC:"*string(length(c_o.owp_HVcbls))*", oss:"*string(length(c_o.osss_owp))*", mog:"*string(length(c_o.osss_mog))*", o2oC:"*string(length(c_o.oss2oss_cbls)))
+        if ((c_o.cost)<crc.cost)
+            crc=deepcopy(c_o)
+            #println("kept original layout!")
+        end
+    end
+    if (prcnt>((crc.cost-c_o.cost)/c_o.cost)*100)
+        prcnt=deepcopy(((crc.cost-c_o.cost)/c_o.cost)*100)
+    end
+    #println(string(c_o.decimal)*" Improved: "*string((crc.cost-c_o.cost)/c_o.cost)*"%")
+    return crc,prcnt
+end
 #%
 function opt_NSBandi(binry,nsb)
     nsb_sum_bn=Int8[]
@@ -571,7 +877,7 @@ function opt_copyBaseEquipment(crc,base_bin,ocn)
             end
         end
     end
-
+    opt_ttlMvCirc(oss_system)
     return oss_system
 end
 #%
@@ -654,6 +960,29 @@ function opt_compoundCbls(circ,oss_system,ocn)
     end
     return oss_system
 end
+function opt_compoundCbls_copy(circ,oss_system,ocn)
+
+    for cb in circ.owp_MVcbls
+        push!(oss_system.owp_MVcbls,cb)
+    end
+
+    for cb in circ.owp_HVcbls
+        push!(oss_system.owp_HVcbls,cb)
+    end
+
+    for cb in circ.oss2oss_cbls
+        push!(oss_system.oss2oss_cbls,cb)
+    end
+
+    for xm in circ.osss_owp
+        push!(oss_system.osss_owp,xm)
+    end
+
+    for xm in circ.osss_mog
+        push!(oss_system.osss_mog,xm)
+    end
+    return oss_system
+end
 
 insert_and_dedup!(v::Vector, x) = (splice!(v, searchsorted(v,x,by = v -> v.cost), [x]); v)
 
@@ -733,7 +1062,7 @@ end
 
 #circs=hv_fset
 #c=circs[1]
-#=
+
 function opt_unicOnly_comSys(circs)
     if (length(circs)>1)
         i=1
@@ -755,7 +1084,7 @@ function opt_unicOnly_comSys(circs)
     end
     return circs
 end
-=#
+
 
 
 function opt_unicOnly2(circs)
@@ -1053,12 +1382,12 @@ function opt_sortFllSys(complete_systems)
 end
 =#
 #circs=big_setsHV
-#=
-function opt_rollUp(ocn, circs)
+
+function opt_rollUp(circs)
     complete_systems=circuit[]
     for c in circs[length(circs)]
         insert_and_dedup!(complete_systems, deepcopy(c))
-        complete_systems=opt_unicOnly_comSys(complete_systems)
+        complete_systems=keep_unic(complete_systems)
     end
     for (indx0,crc0) in enumerate(circs[1:floor(Int64,length(circs)/2)])
         lm0=0
@@ -1087,10 +1416,12 @@ function opt_rollUp(ocn, circs)
                         rnk=floor(Int64,top_bin2dec(bn01))
                         if (rnk==length(circs))
                             insert_and_dedup!(complete_systems, deepcopy(opt_replaceRnk(circs[rnk][1],crc1,crc3)))
-                            complete_systems=opt_unicOnly_comSys(complete_systems)
+                            #complete_systems=opt_unicOnly_comSys(complete_systems)
+                            complete_systems=keep_unic(complete_systems)
                         else
                             insert_and_dedup!(circs[rnk], deepcopy(opt_replaceRnk(circs[rnk][1],crc1,crc3)))
-                            circs[rnk]=opt_unicOnly2(circs[rnk])
+                            circs[rnk]=keep_unic(circs[rnk])
+                            circs[rnk]=opt_unicOnly(circs[rnk])
                         end
                     end
                 end
@@ -1098,10 +1429,10 @@ function opt_rollUp(ocn, circs)
             end
         println("Circuit Number: "*string(indx0))
     end
-    complete_systems=keep_unic(complete_systems)
+    #complete_systems=keep_unic(complete_systems)
     #complete_systems=deepcopy(opt_sortFllSys(complete_systems))
     return complete_systems, circs
-end=#
+end
 #=
 function opt_rollUp_firstInLine(ocn, circs)
     complete_systems=circuit[]
