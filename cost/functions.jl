@@ -520,7 +520,7 @@ end
 ################################## DC calculations #############################
 ################################################################################
 #Cost of DC line from OSS to PCC
-#=function cstF_DCcbl2pcc(l,S,wp,oss,gens,ocn)#6
+function cstF_DCcbl2pcc(l,S,wp,oss,gens,ocn)#6
     cbcn=cstF_dcCblCon_ttl(l,S,wp)
     cstF_correctDc(cbcn,oss,gens,ocn)
     rxb=eqpD_dcAdm()
@@ -570,7 +570,7 @@ function cstF_dcCblCon_ttl(l,S,wp)
 end
 
 #Removes AC OSS cost if DC is used
-#=function cstF_correctDc(cbcn,oss,gens,ocn)
+function cstF_correctDc(cbcn,oss,gens,ocn)
     #makes all oss to gen distances
     genDists=Array{Float32,1}()
     mvConects=Array{Int32,1}()
@@ -593,8 +593,8 @@ end
         cbcn.costs.ttl=cbcn.costs.ttl-oppc+xfm
     end
     cbcn.costs.ttl=cbcn.costs.ttl-(cstD_cfs().FC_ac*(length(gens)-length(mvConects)))
-end=#
-#=
+end
+
 function cstF_mvConnect(l,gen,oss,ocn)
     S=gen.mva
     mv=gen.kv
@@ -607,7 +607,7 @@ function cstF_mvConnect(l,gen,oss,ocn)
         answer=false
     end
     return answer
-end=#
+end
 ################################################################################
 ################################# DC Cable Costs ###############################
 ################################################################################

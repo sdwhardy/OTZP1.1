@@ -14,7 +14,7 @@ function eqpF_km_cap(l,v,q,a)
     f=eqpD_freq()
 #Calculates the square of new hvac cable capacity after 50-50 compensation at distance km.
     mva=(sqrt(3)*v*10^3*a/10^6)^2-((0.5*((v*10^3)^2*2*pi*f*l*q*10^-9))/10^6)^2
-#takes square root if positive returns zero if negative
+#takes square root if negative returns zero if negative
     if mva>=0
         mva=sqrt(mva)
     else

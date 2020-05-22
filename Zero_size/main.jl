@@ -19,11 +19,11 @@ function main()
     ocean.hv_circuits=opt_hvOSSplacement(ocean,ocean.pccs[2])
     ocean.mv_circuits=opt_mvOSSplacement(ocean,ocean.pccs[2])
 
-    #ocean.mv_circuits=opt_updateMVocean(ocean)
-    #ocean_clean=deepcopy(ocean)
-    #ocean=ocean_clean
-    ocean.hv_circuits,ocean.hvc_pct= opt_readjust_circuits(ocean,ocean.hv_circuits,ocean.hvc_pct)
-    ocean.mv_circuits,ocean.mvc_pct = opt_readjust_circuits(ocean,ocean.mv_circuits,ocean.mvc_pct)
+    ocean.mv_circuits=opt_updateMVocean(ocean)
+    ocean_clean=deepcopy(ocean)
+    ocean=ocean_clean
+    ocean.hv_circuits,ocean.hvc_pct= opt_readjust_circuits(ocean,ocean.hv_circuits[1:length(ocean.hv_circuits)],ocean.hvc_pct)
+    ocean.mv_circuits,ocean.mvc_pct = opt_readjust_circuits(ocean,ocean.mv_circuits[1:length(ocean.mv_circuits)],ocean.mvc_pct)
     #ocean.mv_circuits=ocean.hv_circuits
     #ocean.mv_circuits,ocean.hv_circuits=check_ids(ocean.mv_circuits,ocean.hv_circuits)
     #ppf_saveSystem(ocean,"clean_ocean7")
@@ -35,8 +35,8 @@ function main()
 #c[224]=deepcopy(circuits)
 #ch=deepcopy(circuitsHV)
 #cm=deepcopy(circuitsMV)
-    circuitsHV,ocean.hvc_pct= opt_readjust_circuits(ocean,circuitsHV,ocean.hvc_pct)
-    circuitsMV,ocean.hvc_pct= opt_readjust_circuits(ocean,circuitsMV,ocean.hvc_pct)
+    circuits,ocean.hvc_pct= opt_readjust_circuits(ocean,circuits,ocean.hvc_pct)
+    #circuitsMV,ocean.hvc_pct= opt_readjust_circuits(ocean,circuits,ocean.hvc_pct)
     #@time circuits,ocean.hvc_pct=opt_readjust_circuits(ocean,circuits,ocean.hvc_pct)
     #circuits_old0=deepcopy(circuits)
     #circuits=circuits_old0
@@ -52,6 +52,9 @@ function main()
     #best_fullMVHV_syss,mvhv_circuits=opt_rollUp(ocean,mvhv_circuits)
     #bsf_mvhv=combineAndrank(best_fullMV_syss,best_fullHV_syss,best_fullMVHV_syss)
     #ppf_saveCircuit(bsf_mvhv,"bsf_mvhv")
+    temp=Array{circuit,1}()
+    push!(temp,ocean.hv_circuits[1][1])
+    pushfirst!(circuits, temp)
     @time FR,circuits=opt_rollUp(circuits)
     return ocean, circuits,FR
 end
@@ -77,7 +80,7 @@ for i=1:length(ocean.mv_circuits)
     end
 end
 ocean=load("Zero_size/tempfiles/data/solutions/clean_ocean.jld2")
-bsf_mvhv=load("Zero_size/tempFiles/data/circuits/circ_bsf_mvhv2.jld2")["circuits"]
+bsf_mvhv=load("Zero_size/tempFiles/data/circuits/circ_circuits24_4.jld2")["circuits"]
 #25.499868+0.12514786+41.13849
 
 circuits_old=deepcopy(circuits)
@@ -88,8 +91,8 @@ ppf_printIt(ocean,fr[1])
 ppf_cbl_count(ocean.mv_circuits)
 ppf_printCost(bsf_mvhv)
 partial_sets_15=deepcopy(Q_2bd)
-ppf_equipment_OSS_MOG(ocean,bsf_mvhv[1])
-ppf_equipment_OSS_MOG(ocean,fr[1])
+ppf_equipment_OSS_MOG(ocean,FR[1])
+ppf_equipment_OSS_MOG(ocean,FR[1])
 #615.003-mv, 615.3868-hv,615.1236 -mhv
 mvc=ocean.mv_circuits
 ocean

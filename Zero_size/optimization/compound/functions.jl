@@ -5,7 +5,7 @@ circ=hv_orig=#
 
 #kept each loop
 function opt_set()
-    return 1
+    return 10
 end
 #number returned as aft circuits
 function opt_setCompPart()
@@ -289,7 +289,7 @@ end
 
 function opt_decomposeLO_soloMV(forward, aft_bn, circset,ocn,nsb_sum_bn)
     #forward=mv_findFwdOSS(forward,aft,ocn,nsb_sum_bn)
-    forward,ocn.hvc_pct=opt_circOptMV(forward,ocn,ocn.hvc_pct)
+    #forward,ocn.hvc_pct=opt_circOptMV(forward,ocn,ocn.hvc_pct)
     #single_parent,ocn.hvc_pct=opt_circOpt(single_parent,ocn,ocn.hvc_pct)
     Q_2bd=opt_buildDaBDQ(aft_bn, circset,forward,ocn)
     cs=circuit[]
@@ -317,7 +317,8 @@ function opt_decomposeLO_soloMV(forward, aft_bn, circset,ocn,nsb_sum_bn)
             opt_ttlMvCirc(single_parent)
             #nsb_sum_int=round(Int32,top_bin2dec(nsb_sum_bn))
 
-            #single_parent,ocn.hvc_pct=opt_circOpt(single_parent,ocn,ocn.hvc_pct)
+            single_parent,ocn.hvc_pct=opt_circOpt(single_parent,ocn,ocn.hvc_pct)
+            println(string(ocn.hvc_pct)*"%")
             #push!(circs[round(Int,single_parent.decimal)],deepcopy(single_parent))
             insert_and_dedup!(cs,deepcopy(single_parent))
         end

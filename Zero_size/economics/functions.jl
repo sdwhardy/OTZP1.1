@@ -243,6 +243,17 @@ function cst_mvSingleCble(cabl,S,ks,wp)
 end
 
 #################################### hv Cables Only ############################
+#=l=50
+S=1500
+wp=ocean.owpps[1].wnd
+ks=ocean.finance
+cdkv=ocean.eqp_data.cbls400kV
+cb=cbl()#create 1 object of type cbl_costs
+cb.costs.ttl=Inf#Initialize to very high total for comparison
+cbls_all=eqpF_cbls_caps(deepcopy(cdkv),l)#returns all base data available for kv cables
+cbls_2use=eqpF_cbl_sel(cbls_all,S,l)
+vlue=cbls_2use[7]
+vlue=cst_hvSingleCbleo2o(vlue,S,ks,wp)=#
 #Finds which HV cable from oss 2 oss and returns it with cost  oss 2 oss
 function cstF_HvCblo2o(l,S,wp,ks,cd220)
     cb=cbl()#create 1 object of type cbl_costs

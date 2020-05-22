@@ -1,49 +1,43 @@
 
-################################################################################
-#################################### EENS ######################################
-function eensF_eqp_eens(eqp, S, ks, wp)
-    cpt_tbl=eensF_eqp_cpt(eqp,S)#make capacity probability table
+function cost_eens(eqp,ks)
+    cp_tbl=cap_prob_table(eqp)#make capacity probability table
     eens_all=[]#Create eens array
     eens=0.0
 
-    for i=1:length(cpt_tbl[:,1])#loop through rows of cpt
-        ratio_curt=cpt_tbl[i,1]/S#find PU curtailment ratio
-        diff=wp.pu.-ratio_curt#find closest PU of wind power series to PU curtail ratio
+    for i=1:length(cp_tbl[:,1])#loop through rows of cpt
+        ratio_curt=cp_tbl[i,1]/eqp.mva#find PU curtailment ratio
+        diff=eqp.wnd.pu.-ratio_curt#find closest PU of wind power series to PU curtail ratio
         #i_min=argmin(sqrt.((diff[:]).^2))diff[5240]
         i_min=argmin(abs.((diff[:])))
 #i_min=argmin(diff[:])
         if ratio_curt>=1#check if curt ratio is at or above full power and set ce=curtailed energy to 0
-            ce=wp.ce[1]
+            ce=eqp.wnd.ce[1]
         elseif ratio_curt<=0#check if curt ratio is at or below zero power and set ce to max
-            ce=wp.ce[length(wp.ce)]
-        elseif i_min < length(diff) && diff[i_min]<0#if curt ratio is a mid point interpolate ce
-            ce=eensF_intPole(ratio_curt,wp.pu[i_min],wp.pu[i_min+1],wp.ce[i_min],wp.ce[i_min+1])
+            ce=eqp.wnd.ce[length(eqp.wnd.ce)]
+        #interpolation is not needed it is already accurate to several decimal points
+        #=elseif i_min < length(diff) && diff[i_min]<0#if curt ratio is a mid point interpolate ce
+            ce=interpolate(ratio_curt,eqp.wnd.pu[i_min],eqp.wnd.pu[i_min+1],eqp.wnd.ce[i_min],eqp.wnd.ce[i_min+1])
         elseif i_min > 1 && diff[i_min]>0
-            ce=eensF_intPole(ratio_curt,wp.pu[i_min-1],wp.pu[i_min],wp.ce[i_min-1],wp.ce[i_min])
+            ce=interpolate(ratio_curt,eqp.wnd.pu[i_min-1],eqp.wnd.pu[i_min],eqp.wnd.ce[i_min-1],eqp.wnd.ce[i_min])=#
         else#if exact match occurs
-            ce=wp.ce[i_min]
+            ce=eqp.wnd.ce[i_min]
         end
 
-        push!(eens_all, ce*S*cpt_tbl[i,2])#multiply PU curtailed energy with max power and availability, then store
+        push!(eens_all, ce*eqp.mva*cp_tbl[i,2])#multiply PU curtailed energy with max power and availability, then store
     end
-    eens=sum(eens_all)*ks.life*ks.E_op#sum all eens and multiply by cost factors
+    eens=sum(eens_all)*npv_years()*ks.E_op#sum all eens and multiply by cost factors
     return eens
 end
 
 
 #The calculation of equipment level capacity probability table **
-function eensF_eqp_cpt(eqp,S)
-    #Calculate failure rate for entire length if cable
-    #Was doing this Twice!!!
-    #=if typeof(eqp)==typeof(cbl())
-        eqp.reliability.fr=(eqp.reliability.fr/100.0)*eqp.length
-    end=#
+function cap_prob_table(eqp)
     #Calculate Availability of eqiupment
-    A_eqp=1.0/(1.0+eqp.reliability.fr*(eqp.reliability.mttr*30.0*24.0/8760.0))
+    A_eqp=1.0/(1.0+eqp.relia.fr*(eqp.relia.mttr*30.0*24.0/8760.0))
     #Create combinatorial matrix of 0s and 1s
     clms=trunc(Int,eqp.num)
     rows=trunc(Int, 2.0^clms)
-    empty_tbl=eensF_blankTbl(rows,clms)
+    empty_tbl=blank_table(rows,clms)
     #Create blank power and availability tables
     PWR_tbl=zeros(Float32,rows,1)
     AVL_tbl=ones(Float32,rows,1)
@@ -54,7 +48,7 @@ function eensF_eqp_cpt(eqp,S)
         #the availability is multiplied
             if trunc(Int,empty_tbl[j,k])==1
                 AVL_tbl[j]=AVL_tbl[j]*A_eqp
-                PWR_tbl[j]=min(S,PWR_tbl[j]+eqp.mva)
+                PWR_tbl[j]=min(eqp.mva,PWR_tbl[j]+eqp.elec.mva)
         #if 0 the equipment is broken and no power is transmitted
             else
                 AVL_tbl[j]=AVL_tbl[j]*(1-A_eqp)
@@ -76,7 +70,7 @@ function eensF_eqp_cpt(eqp,S)
     if sum(tbl_c2) > 1.0001 || sum(tbl_c2) < 0.9999
         println("sum is: "*string(sum(tbl_c2)))
         error("probability does not sum to 1")
-    elseif maximum(tbl_c1) > S && minimum(tbl_c1) > 1
+    elseif maximum(tbl_c1) > eqp.mva && minimum(tbl_c1) > 1
         error("power is not correct")
     else
       return [tbl_c1 tbl_c2]
@@ -84,7 +78,7 @@ function eensF_eqp_cpt(eqp,S)
 end
 
 #creates a blank capacity probability table **
-function eensF_blankTbl(rows,clms)
+function blank_table(rows,clms)
     XFM_CBL=trunc.(Int8,zeros(rows,clms))
 #=create all combinations ie
 transpose(
@@ -113,7 +107,7 @@ transpose(
 end
 
 #linearly interpolates 2 points of graph **
-function eensF_intPole(true_x,min_x,max_x,min_y,max_y)
+function interpolate(true_x,min_x,max_x,min_y,max_y)
     slope=(max_y-min_y)/(max_x-min_x)
     b=min_y-slope*min_x
     true_y=slope*true_x+b
