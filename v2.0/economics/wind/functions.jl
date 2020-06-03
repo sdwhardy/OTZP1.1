@@ -51,22 +51,31 @@ function wndF_conEng(graph,wnd)
     return nothing
 end
 
+#check
 #**Totals wind profiles of set
 function find_netWind(wnds)
     wind_sum=wind()
-    wind_sum.pu=zeros(Float32,length(wnds[1].pu))
-    wind_sum.ce=zeros(Float32,length(wnds[1].ce))
-    wind_sum.delta=0
-    wind_sum.lf=0
-    for w in wnds
-        wind_sum.pu=(wind_sum.pu.+w.pu)
-        wind_sum.ce=(wind_sum.ce.+w.ce)
-        wind_sum.delta=(wind_sum.delta+w.delta)
-        wind_sum.lf=(wind_sum.lf+w.lf)
+    if (length(wnds)>0)
+        wind_sum.pu=zeros(Float32,8759)
+        wind_sum.ce=zeros(Float32,8759)
+        wind_sum.delta=0
+        wind_sum.lf=0
+        true_length=0
+        for w in wnds
+            if (length(w.pu)>0)
+                wind_sum.pu=(wind_sum.pu.+w.pu)
+                wind_sum.ce=(wind_sum.ce.+w.ce)
+                wind_sum.delta=(wind_sum.delta+w.delta)
+                wind_sum.lf=(wind_sum.lf+w.lf)
+                true_length=true_length+1
+            end
+        end
+        if true_length!=0
+            wind_sum.pu=wind_sum.pu./true_length
+            wind_sum.ce=wind_sum.ce./true_length
+            wind_sum.delta=wind_sum.delta/true_length
+            wind_sum.lf=wind_sum.lf/true_length
+        end
     end
-    wind_sum.pu=wind_sum.pu./length(wnds)
-    wind_sum.ce=wind_sum.ce./length(wnds)
-    wind_sum.delta=wind_sum.delta/length(wnds)
-    wind_sum.lf=wind_sum.lf/length(wnds)
     return wind_sum
 end

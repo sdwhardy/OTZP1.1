@@ -3,6 +3,33 @@
 ################################################################################
 ################################# Cables #######################################
 ################################################################################
+function set_cables_per_km_cost(kbles,km_mva_set)
+    ks=get_Cost_Data()
+    for km_mva in km_mva_set
+        for kbl66 in kbles["66.0"][string(km_mva[2])]
+            c1=kbl66.costs.ttl
+            c0=deepcopy(mvac_cable(kbl66.mva,kbl66.length-1,kbl66.wnd,kbles["66.0"][string(km_mva[2])],ks)).costs.ttl
+            kbl66.costs.perkm_ttl=deepcopy(c1-c0)
+        end
+        for kbl220 in kbles["220.0"][string(km_mva[2])]
+            c1=kbl220.costs.ttl
+            c0=deepcopy(hvac_cable(kbl220.mva,kbl220.length-1,kbl220.wnd,kbles["220.0"][string(km_mva[2])],ks)).costs.ttl
+            kbl220.costs.perkm_ttl=deepcopy(c1-c0)
+        end
+        for kbl400 in kbles["400.0"][string(km_mva[2])]
+            c1=kbl400.costs.ttl
+            c0=deepcopy(hvac_cable(kbl400.mva,kbl400.length-1,kbl400.wnd,kbles["400.0"][string(km_mva[2])],ks)).costs.ttl
+            kbl400.costs.perkm_ttl=deepcopy(c1-c0)
+        end
+        for kbl300 in kbles["300.0"][string(km_mva[2])]
+            c1=kbl300.costs.ttl
+            c0=deepcopy(hvdc_cable(kbl300.mva,kbl300.length-1,kbl300.wnd,kbles["300.0"][string(km_mva[2])],ks)).costs.ttl
+            kbl300.costs.perkm_ttl=deepcopy(c1-c0)
+        end
+    end
+    return kbles
+end
+
 function get_cable_table(km_mva_set,wnd)
     ks=get_Cost_Data()
     cable_tables=Array{Array{Array{cable,1},1},1}()
@@ -268,14 +295,16 @@ end
 ################################################################################
 ############################# Database Bits ####################################
 ################################################################################
-#km_mva=km_mva_set[1]
+
 #checks if HVDC is cheapest option for longest ranges at each power for a PCC connection
 function check4hvdc(equipment_database,km_mva_set,wnd,kv)
     hvdc_bit=false
     for km_mva in km_mva_set
-        eqps=optimal_mog2pcc(km_mva[1],km_mva[2],kv,wnd,equipment_database)
-        if (haskey(eqps,"cable"))
-            if (eqps["cable"].elec.volt==300.0)
+        eqps=optimal_mog2pcc_wMOG(km_mva[1],km_mva[2],kv,wnd,equipment_database)
+        cheapest=argmin([eqps["300.0"]["cost"],eqps["220.0"]["cost"],eqps["400.0"]["cost"]])
+        cheapest_connection_2pcc=[eqps["300.0"],eqps["220.0"],eqps["400.0"]][cheapest]
+        if (haskey(cheapest_connection_2pcc,"cable"))
+            if (cheapest_connection_2pcc["cable"].elec.volt==300.0)
                 hvdc_bit=true
             end
         end
@@ -287,9 +316,11 @@ end
 function check4mpc_ac(equipment_database,km_mva_set,wnd,kv)
     mpc_bit=false
     for km_mva in km_mva_set
-        eqps=optimal_mog2pcc(km_mva[1],km_mva[2],kv,wnd,equipment_database)
-        if (haskey(eqps,"cable"))
-            if (eqps["cable"].mpc_ac==true)
+        eqps=optimal_mog2pcc_wMOG(km_mva[1],km_mva[2],kv,wnd,equipment_database)
+        cheapest=argmin([eqps["300.0"]["cost"],eqps["220.0"]["cost"],eqps["400.0"]["cost"]])
+        cheapest_connection_2pcc=[eqps["300.0"],eqps["220.0"],eqps["400.0"]][cheapest]
+        if (haskey(cheapest_connection_2pcc,"cable"))
+            if (cheapest_connection_2pcc["cable"].mpc_ac==true)
                 mpc_bit=true
             end
         end
@@ -301,9 +332,11 @@ end
 function check4hvac(equipment_database,km_mva_set,wnd,kv)
     hvac_bit=false
     for km_mva in km_mva_set
-        eqps=optimal_mog2pcc(1,km_mva[2],kv,wnd,equipment_database)
-        if (haskey(eqps,"plat_aft_ac"))
-            if (eqps["plat_aft_ac"].acdc=="ac")
+        eqps=optimal_mog2pcc_wMOG(1,km_mva[2],kv,wnd,equipment_database)
+        cheapest=argmin([eqps["300.0"]["cost"],eqps["220.0"]["cost"],eqps["400.0"]["cost"]])
+        cheapest_connection_2pcc=[eqps["300.0"],eqps["220.0"],eqps["400.0"]][cheapest]
+        if (haskey(cheapest_connection_2pcc,"plat_aft_ac"))
+            if (cheapest_connection_2pcc["plat_aft_ac"].acdc=="ac")
                 hvac_bit=true
             end
         end

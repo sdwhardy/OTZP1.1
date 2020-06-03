@@ -15,9 +15,9 @@ ocean.database=get_equipment_tables(km_mva_set,ocean.owpps[1].wnd,220.0)
 ocean.owpps=find_max_mv_transmission(ocean.owpps,ocean.database)
 con=optimal_owpp2pcc(ocean.owpps[1],pcc,ocean.database)
 km=euclidian_distance(ocean.owpps[1].node.xy,pcc.node.xy)
-ocean.owpps[1].mva=2500.0
-ocean.owpps[1].node.xy.y=240
-km_mva_set[1]=(250.0,7500.0)
+ocean.owpps[1].mva=500.0
+ocean.owpps[1].node.xy.y=250
+km_mva_set[1]=(250.0,500.0)
 km_mva_set[2]=(250.0,10000.0)
 km_mva_set[3]=(250.0,1900.0)
 km_mva_set[4]=(250.0,2000.0)
@@ -30,7 +30,7 @@ conv=ocean.database["converters"]["600.0"]["offshore"]
 conv=adjust_base_hvdc_offshore_converter(conv,ks)
 
 #150km and 1400MW should match result in reference costs excel HV test sheet
-dc1400=hvdc_canditate_mog2pcc(190.0,1500.0,220.0,ocean.owpps[1].wnd,ocean.database,ks)
+dc1400=hvdc_canditate_mog2pcc(250.0,500.0,220.0,ocean.owpps[1].wnd,ocean.database,ks)
 print_hvdc_canditate_mog2pcc_result(dc1400)
 println()
 ac1400=hvac_canditate_mog2pcc(190.0,1500.0,220.0,ocean.owpps[1].wnd,ocean.database,ks)

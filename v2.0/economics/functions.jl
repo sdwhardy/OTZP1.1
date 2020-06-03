@@ -28,7 +28,8 @@ function cost_hvac_cable(cbl,ks)
     #cost of expected energy not served
     cbl.costs.eens=cost_eens(cbl,ks)
     #totals the cable cost
-    cbl.costs.ttl,cbl.costs.perkm_ttl=cost_cbl_sum(cbl)
+    cbl.costs.ttl=cost_cbl_sum(cbl)
+    cbl.costs.grand_ttl=cbl.costs.ttl
     return cbl
 end
 
@@ -46,7 +47,7 @@ function cost_mvac_cable(cbl,ks)
     #cost of expected energy not served
     cbl.costs.eens=cost_eens(cbl,ks)
     #totals the cable cost
-    cbl.costs.ttl,cbl.costs.perkm_ttl=cost_cbl_sum(cbl)
+    cbl.costs.ttl=cost_cbl_sum(cbl)
     return cbl
 end
 #calculates the cost of a given hvdc cable
@@ -60,7 +61,7 @@ function cost_hvdc_cable(cbl,ks)
     #cost of expected energy not served
     cbl.costs.eens=cost_eens(cbl,ks)
     #totals the cable cost
-    cbl.costs.ttl,cbl.costs.perkm_ttl=cost_cbl_sum(cbl)
+    cbl.costs.ttl=cost_cbl_sum(cbl)
     return cbl
 end
 
@@ -119,13 +120,13 @@ end
 function cost_sg_hvac(cbl)
     sg=0
     if (cbl.elec.volt==400.0)
-        sg=2*cbl.num*4.545
+        sg=2*4.545
     elseif (cbl.elec.volt==220.0)
-        sg=2*cbl.num*3.09
+        sg=2*3.09
     elseif (cbl.elec.volt==132.0)
-        sg=2*cbl.num*2.4
+        sg=2*2.4
     elseif (cbl.elec.volt==66.0)
-        sg=2*cbl.num*1.8
+        sg=2*1.8
     else
         println(cbl.size)
         println(cbl.num)
@@ -142,9 +143,14 @@ end
 
 #sums all cable costs and returns the total**
 function cost_cbl_sum(cbl)
-    ttl=cbl.costs.rlc+cbl.costs.qc+cbl.costs.cpx_i+cbl.costs.cpx_p+cbl.costs.cm+cbl.costs.eens+cbl.costs.sg
-    return ttl, ttl/cbl.length
+    ttl=cbl.costs.rlc+cbl.costs.cpx_i+cbl.costs.cpx_p+cbl.costs.cm+cbl.costs.qc+cbl.costs.eens+cbl.costs.sg
+    if (ttl==NaN)
+        ttl=Inf
+    end
+    cbl.costs.grand_ttl=ttl
+    return ttl
 end
+
 ################################# Converters ###################################
 #totals the cost of HVDC converter
 function cost_conv_sum(conv)

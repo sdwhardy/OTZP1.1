@@ -3,11 +3,15 @@ include("functions.jl")
 ################################################################################
 ########################### Finding MV max distance ############################
 ################################################################################
+#=owpps=ocean.owpps
+database=ocean.database=#
+
 function find_max_mv_transmission(owpps,database)
     ks=get_Cost_Data()
     for owpp in owpps
         pnt0=0.001
-        pnt1=deepcopy(database["cables"]["66.0"][string(owpp.mva)][length(database["cables"]["66.0"][string(owpp.mva)])].length)
+        #pnt1=deepcopy(database["cables"]["66.0"][string(owpp.mva)][length(database["cables"]["66.0"][string(owpp.mva)])].length)
+        pnt1=50
         mv_cable_pnt0=deepcopy(mvac_cable(owpp.mva,pnt0,owpp.wnd,database["cables"]["66.0"][string(owpp.mva)],ks))
         mv_cable_pnt1=deepcopy(mvac_cable(owpp.mva,pnt1,owpp.wnd,database["cables"]["66.0"][string(owpp.mva)],ks))
         plat=platform()
@@ -24,6 +28,12 @@ function find_max_mv_transmission(owpps,database)
         hv_cable_pnt0=deepcopy(hvac_cable(owpp.mva,pnt0,owpp.wnd,database["cables"][hv_c][string(owpp.mva)],ks))
         if (mv_cable_pnt0.costs.ttl<hv_cable_pnt0.costs.ttl+plat.costs.ttl)
             hv_cable_pnt1=deepcopy(hvac_cable(owpp.mva,pnt1,owpp.wnd,database["cables"][hv_c][string(owpp.mva)],ks))
+            #if AC cable range is maxed out this backs it up to a feasible distance
+            while (hv_cable_pnt1.costs.ttl==Inf)
+                pnt1=pnt1-25
+                hv_cable_pnt1=deepcopy(hvac_cable(owpp.mva,pnt1,owpp.wnd,database["cables"][hv_c][string(owpp.mva)],ks))
+                mv_cable_pnt1=deepcopy(mvac_cable(owpp.mva,pnt1,owpp.wnd,database["cables"]["66.0"][string(owpp.mva)],ks))
+            end
             np=pnt1
             if (mv_cable_pnt1.costs.ttl>hv_cable_pnt1.costs.ttl+plat.costs.ttl)
                 while (pnt1-pnt0>1)
@@ -76,7 +86,7 @@ function get_equipment_tables(km_mva_set,wnd,kv)
     #final bits sets
     bits=Dict([("hvdc", hvdc_bit), ("mpc_ac", mpc_bit), ("hvac", hvac_bit)])
     push!(database,"bits"=>bits)
-
+    database["cables"]=set_cables_per_km_cost(database["cables"],km_mva_set)
     return database
 end
 
@@ -141,16 +151,19 @@ cbl=deepcopy(database["cables"]["220.0"][string(mva)][6])=#
 function hvac_cable(mva,km,wnd,cable_array,ks)
     cbl=cable()
     cbl.costs.ttl=Inf
+    cbl.costs.grand_ttl=Inf
     for cbl0 in cable_array
         if (km<=cbl0.length+0.01)#+0.01 is just to be certain floating point error does not occur
             cbl=deepcopy(cbl0)
             break
         end
     end
-    cbl.wnd=wnd
-    cbl.length=km
-    cbl.elec.mva=get_newQ_Capacity(cbl.elec.freq,km,cbl.elec.volt,cbl.elec.farrad,cbl.elec.amp)
-    cbl=cost_hvac_cable(cbl,ks)
+    if (cbl.size!=0.0)
+        cbl.wnd=wnd
+        cbl.length=km
+        cbl.elec.mva=get_newQ_Capacity(cbl.elec.freq,km,cbl.elec.volt,cbl.elec.farrad,cbl.elec.amp)
+        cbl=cost_hvac_cable(cbl,ks)
+    end
     return cbl
 end
 
@@ -158,16 +171,23 @@ end
 function mvac_cable(mva,km,wnd,cable_array,ks)
     cbl=cable()
     cbl.costs.ttl=Inf
+    cbl.costs.grand_ttl=Inf
     for cbl0 in cable_array
         if (km<=cbl0.length+0.001)#+0.01 is just to be certain floating point error does not occur
             cbl=deepcopy(cbl0)
             break
         end
     end
-    cbl.elec.mva=get_newQ_Capacity(cbl.elec.freq,km,cbl.elec.volt,cbl.elec.farrad,cbl.elec.amp)
-    cbl.wnd=wnd
-    cbl.length=km
-    cbl=cost_mvac_cable(cbl,ks)
+    if (cbl.size!=0.0)
+        cbl.elec.mva=get_newQ_Capacity(cbl.elec.freq,km,cbl.elec.volt,cbl.elec.farrad,cbl.elec.amp)
+        cbl.wnd=wnd
+        cbl.length=km
+        cbl=cost_mvac_cable(cbl,ks)
+        if (cbl.length<0.01)
+            cbl.costs.ttl=0
+            cbl.costs.grand_ttl=0
+        end
+    end
     return cbl
 end
 

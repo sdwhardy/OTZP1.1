@@ -46,9 +46,13 @@ function length_power_set(owpps)
             push!(km_mva_set,deepcopy(power_pair))
         end
     end
-    for (index,length_power) in enumerate(km_mva_set)
+    #=for (index,length_power) in enumerate(km_mva_set)
         km=owpps[length_power[1]].mv_zone
         km_mva_set[index]=(km*1.1,length_power[2])#gives 10% margin of upper limit for cable sizes in look up table
+    end=#
+    for (index,length_power) in enumerate(km_mva_set)
+        km=owpps[length(owpps)].mv_zone
+        km_mva_set[index]=(km,length_power[2])#sets longest range for each power level
     end
     return km_mva_set
 end
