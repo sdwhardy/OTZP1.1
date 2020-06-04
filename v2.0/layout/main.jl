@@ -3,6 +3,7 @@ include("functions.jl")
 #pcc,owpps,offset=utm_gps2xy(pcs[2],owps,32,true)
 #main ocean layout function
 function ocean_layout(pcc,owpps,offset)
+    println("Laying out the Offshore Region...")
     ocean=eez()#builds eez
     ocean.offset=offset#saves the offset
     ocean.pcc=pcc
@@ -10,9 +11,19 @@ function ocean_layout(pcc,owpps,offset)
     ocean.owpps=order_owpps(ocean.owpps,pcc)
     ocean=number_buses(ocean)
     ocean.sys=get_SystemData()
+    println("Building Equipment Reference Table...")
     km_mva_set=length_power_set(ocean.owpps)
     ocean.database=get_equipment_tables(km_mva_set,ocean.owpps[1].wnd,pcc.kV)
+    println("Finding Max MV Range...")
     ocean.owpps=find_max_mv_transmission(ocean.owpps,ocean.database)
+    println("Finding Basis Set Tb...")
+    @time B=make_set_B(ocean.owpps,pcc)
+    @time ocean=make_set_Tb(ocean.owpps,ocean.pcc,B,ocean)
+    println("Optimizing Tb CIrcuits...")
+    save("v2.0/tempfiles/ocean/b4Opt_tnep_ocean.jld2", "ocean",ocean)
+    @time ocean.hv_circuits=finalize_circuits_layout(ocean.hv_circuits,ocean)
+    @time ocean.mv_circuits=finalize_circuits_layout(ocean.mv_circuits,ocean)
+    save("v2.0/tempfiles/ocean/greedy_tnep_ocean.jld2", "ocean",ocean)
     return ocean
 end
 

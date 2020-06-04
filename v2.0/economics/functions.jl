@@ -48,6 +48,7 @@ function cost_mvac_cable(cbl,ks)
     cbl.costs.eens=cost_eens(cbl,ks)
     #totals the cable cost
     cbl.costs.ttl=cost_cbl_sum(cbl)
+    cbl.costs.grand_ttl=cbl.costs.ttl
     return cbl
 end
 #calculates the cost of a given hvdc cable
@@ -62,13 +63,15 @@ function cost_hvdc_cable(cbl,ks)
     cbl.costs.eens=cost_eens(cbl,ks)
     #totals the cable cost
     cbl.costs.ttl=cost_cbl_sum(cbl)
+    cbl.costs.grand_ttl=cbl.costs.ttl
     return cbl
 end
 
 #CAPEX of cables
 function capex_cable(cbl,lay)
     cpx_p=cbl.length*cbl.num*cbl.costs.perkm_cpx#1.775 is installation cost per core per km ref: North Sea Grid Final Report Annex
-    cpx_i=cbl.length*cbl.num*lay#1.775=DC, 1.905=HVAC, 1.69=MVAC
+    k=0.985^(cbl.num)
+    cpx_i=cbl.length*cbl.num*lay*k#1.775=DC, 1.905=HVAC, 1.69=MVAC
     return cpx_p,cpx_i
 end
 

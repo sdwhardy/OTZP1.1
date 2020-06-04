@@ -3,28 +3,59 @@
 ################################################################################
 ################################# Cables #######################################
 ################################################################################
+#=kbles=database["cables"]
+km_mva=km_mva_set[16]
+kbl66=kbles["66.0"][string(km_mva[2])][1]=#
 function set_cables_per_km_cost(kbles,km_mva_set)
+    eps=10^-2
     ks=get_Cost_Data()
     for km_mva in km_mva_set
         for kbl66 in kbles["66.0"][string(km_mva[2])]
             c1=kbl66.costs.ttl
             c0=deepcopy(mvac_cable(kbl66.mva,kbl66.length-1,kbl66.wnd,kbles["66.0"][string(km_mva[2])],ks)).costs.ttl
+            #c0=deepcopy(mvac_cable(kbl66.mva,1,kbl66.wnd,kbles["66.0"][string(km_mva[2])],ks)).costs.ttl
+            #c1=deepcopy(mvac_cable(kbl66.mva,2,kbl66.wnd,kbles["66.0"][string(km_mva[2])],ks)).costs.ttl
             kbl66.costs.perkm_ttl=deepcopy(c1-c0)
+            #kbl66.mx_rng=kbl66.length
+            #if (length(kbles["66.0"][string(km_mva[2])])>1)
+                #kbl66.mx_rng=kbles["66.0"][string(km_mva[2])][length(kbles["66.0"][string(km_mva[2])])-1].length
+            #else
+                kbl66.mx_rng=kbl66.length+eps
+            #end
         end
         for kbl220 in kbles["220.0"][string(km_mva[2])]
             c1=kbl220.costs.ttl
             c0=deepcopy(hvac_cable(kbl220.mva,kbl220.length-1,kbl220.wnd,kbles["220.0"][string(km_mva[2])],ks)).costs.ttl
+            #c0=deepcopy(hvac_cable(kbl220.mva,1,kbl220.wnd,kbles["220.0"][string(km_mva[2])],ks)).costs.ttl
+            #c1=deepcopy(hvac_cable(kbl220.mva,2,kbl220.wnd,kbles["220.0"][string(km_mva[2])],ks)).costs.ttl
             kbl220.costs.perkm_ttl=deepcopy(c1-c0)
+            #kbl220.mx_rng=kbl220.length
+            #if (length(kbles["220.0"][string(km_mva[2])])>1)
+                #kbl220.mx_rng=kbles["220.0"][string(km_mva[2])][length(kbles["220.0"][string(km_mva[2])])-1].length
+            #else
+                kbl220.mx_rng=kbl220.length+eps
+            #end
         end
         for kbl400 in kbles["400.0"][string(km_mva[2])]
             c1=kbl400.costs.ttl
             c0=deepcopy(hvac_cable(kbl400.mva,kbl400.length-1,kbl400.wnd,kbles["400.0"][string(km_mva[2])],ks)).costs.ttl
+            #c0=deepcopy(hvac_cable(kbl400.mva,1,kbl400.wnd,kbles["400.0"][string(km_mva[2])],ks)).costs.ttl
+            #c1=deepcopy(hvac_cable(kbl400.mva,2,kbl400.wnd,kbles["400.0"][string(km_mva[2])],ks)).costs.ttl
             kbl400.costs.perkm_ttl=deepcopy(c1-c0)
+            #kbl400.mx_rng=kbl400.length
+            #if (length(kbles["400.0"][string(km_mva[2])])>1)
+            #    kbl400.mx_rng=kbles["400.0"][string(km_mva[2])][length(kbles["400.0"][string(km_mva[2])])-1].length
+            #else
+                kbl400.mx_rng=kbl400.length+eps
+            #end
         end
         for kbl300 in kbles["300.0"][string(km_mva[2])]
             c1=kbl300.costs.ttl
             c0=deepcopy(hvdc_cable(kbl300.mva,kbl300.length-1,kbl300.wnd,kbles["300.0"][string(km_mva[2])],ks)).costs.ttl
+            #c0=deepcopy(hvdc_cable(kbl300.mva,1,kbl300.wnd,kbles["300.0"][string(km_mva[2])],ks)).costs.ttl
+            #c1=deepcopy(hvdc_cable(kbl300.mva,2,kbl300.wnd,kbles["300.0"][string(km_mva[2])],ks)).costs.ttl
             kbl300.costs.perkm_ttl=deepcopy(c1-c0)
+            kbl300.mx_rng=kbl300.length+eps
         end
     end
     return kbles
@@ -188,17 +219,39 @@ function optimal_ac_cable(cbl0,cbl_data,km,ks)
     cbl0.costs.ttl=Inf
     for cd in cbl_data
         num=1
+        exception_66kv=false
         cap_at_km=get_newQ_Capacity(cbl0.elec.freq,km,cd[1],cd[4]*10^-9,cd[5])
         #max number of cables in parallel = 12
-        max_in_parallel=12
-        if (cap_at_km/cbl0.mva>1/max_in_parallel)
+        max_in_parallel=12#if changing check economics main function mvac_cable(mva,km,wnd,cable_array,ks)
+        if (cap_at_km/cbl0.mva>1/max_in_parallel || (cbl.elec.volt==66.0 && cbl0.mva<=2000))
             while ((cbl0.mva>num*cap_at_km) && num<max_in_parallel)
                 num=deepcopy(num+1)
+            end
+            if ((cbl.elec.volt==66.0 && cbl0.mva>num*cap_at_km))
+                num=1
+                exception_66kv=true
+                cbl0.mva=cbl0.mva/2
+                while ((cbl0.mva>num*cap_at_km) && num<max_in_parallel)
+                    num=deepcopy(num+1)
+                end
             end
             fillOut_cable_struct_ac(cbl0,cd,km,num)
             #cbl0=cost_hvac_cable_o2o(cbl0,ks)
             if (cbl0.elec.volt==66.0)
                 cbl0=cost_mvac_cable(cbl0,ks)
+                if (exception_66kv==true)
+                    cbl0.num=cbl0.num*2
+                    cbl0.mva=cbl0.mva*2
+                    cbl0.costs.perkm_cpx=cbl0.costs.perkm_cpx*2
+                    cbl0.costs.sg=cbl0.costs.sg*2
+                    cbl0.costs.cpx_p=cbl0.costs.cpx_p*2
+                    cbl0.costs.cpx_i=cbl0.costs.cpx_i*2
+                    cbl0.costs.rlc=cbl0.costs.rlc*2
+                    cbl0.costs.cm=cbl0.costs.cm*2
+                    cbl0.costs.eens=cbl0.costs.eens*2
+                    cbl0.costs.ttl=cbl0.costs.ttl*2
+                    cbl0.costs.grand_ttl=cbl0.costs.ttl
+                end
             elseif (cbl0.elec.volt==220.0 || cbl0.elec.volt==400.0)
                 cbl0=cost_hvac_cable(cbl0,ks)
             else

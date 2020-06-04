@@ -160,8 +160,9 @@ mutable struct cable
    reactors::Array{Int32}
    plat::platform
    mpc_ac::Bool
+   mx_rng::Float32
 end
-cable()=cable(0.0,0.0,node[],0.0,0.0,reliability(),elec_cbl(),costs_cbl(),wind(),Int32[],platform(),false)
+cable()=cable(0.0,0.0,node[],0.0,0.0,reliability(),elec_cbl(),costs_cbl(),wind(),Int32[],platform(),false,0.0)
 
 
 ###################################################################

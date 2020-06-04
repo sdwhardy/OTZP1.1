@@ -175,6 +175,7 @@ function create_oss_node(mva,wnd,connect_bus,ocn)
     return oss
 end
 
+
 function owpps2oss(hv_connections,oss_location,circ,ocn,hv_only)
     #find base pcc connection to start
     #record the transmission voltage and copy variables
@@ -789,7 +790,6 @@ function owpp2pcc(circ,ocn)
         #lay the cable
         push!(mv_cable0.path,circ.mog[1].node)
         push!(circ.MVcbls,mv_cable0)
-        push!(owpp2pcc_connection["cable"].path,circ.mog[1].node)
         push!(owpp2pcc_connection["cable"].path,circ.pcc.node)
         push!(circ.PCCcbls,owpp2pcc_connection["cable"])
         #add the converter onshore
@@ -823,12 +823,7 @@ end
 
 #Builds a 0km size cable from the OWPP to the OSS
 function add_0km_66kVcable_owpp2oss(mva,wnd,source_node,database,ks)
-    mv_cable0=deepcopy(mvac_cable(mva,1,wnd,database["cables"]["66.0"][string(mva)],ks))
-    mv_cable0.length=0.0
-    if (mv_cable0.costs.ttl==Inf)
-        mv_cable0.costs.perkm_ttl=10^9
-    end
-    mv_cable0.costs.grand_ttl=0.0
+    mv_cable0=deepcopy(mvac_cable(mva,0,wnd,database["cables"]["66.0"][string(mva)],ks))
     push!(mv_cable0.path,source_node)
     return mv_cable0
 end

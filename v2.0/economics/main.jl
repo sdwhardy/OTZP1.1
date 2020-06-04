@@ -59,6 +59,7 @@ end
 ################################################################################
 ############################## Finding lookup table ############################
 ################################################################################
+
 function get_equipment_tables(km_mva_set,wnd,kv)
     cable_database=get_cable_table(km_mva_set,wnd)
     xfo_database,conv_database=get_xfoConv_table(km_mva_set,wnd)
@@ -166,7 +167,12 @@ function hvac_cable(mva,km,wnd,cable_array,ks)
     end
     return cbl
 end
-
+#=ocn.database["cables"]
+mva=kbl66.mva
+km=kbl66.length-1
+wnd=kbl66.wnd
+cable_array=kbles["66.0"][string(km_mva[2])]
+cbl=deepcopy(cable_array[1])=#
 #finds the mvac cable using the look up table
 function mvac_cable(mva,km,wnd,cable_array,ks)
     cbl=cable()
@@ -178,14 +184,36 @@ function mvac_cable(mva,km,wnd,cable_array,ks)
             break
         end
     end
-    if (cbl.size!=0.0)
+    max_in_parallel=12#if changing check economics/database/functions function optimal_ac_cable(cbl0,cbl_data,km,ks)
+    if (cbl.num>max_in_parallel && cbl.size!=0.0)#66kv up to 2000MW eception
+        cbl.mva=cbl.mva/2
+        cbl.num=cbl.num/2
+        cbl.costs.perkm_cpx=cbl.costs.perkm_cpx/2
         cbl.elec.mva=get_newQ_Capacity(cbl.elec.freq,km,cbl.elec.volt,cbl.elec.farrad,cbl.elec.amp)
         cbl.wnd=wnd
         cbl.length=km
         cbl=cost_mvac_cable(cbl,ks)
-        if (cbl.length<0.01)
-            cbl.costs.ttl=0
-            cbl.costs.grand_ttl=0
+        cbl.num=cbl.num*2
+        cbl.mva=cbl.mva*2
+        cbl.costs.perkm_cpx=cbl.costs.perkm_cpx*2
+        cbl.costs.sg=cbl.costs.sg*2
+        cbl.costs.cpx_p=cbl.costs.cpx_p*2
+        cbl.costs.cpx_i=cbl.costs.cpx_i*2
+        cbl.costs.rlc=cbl.costs.rlc*2
+        cbl.costs.cm=cbl.costs.cm*2
+        cbl.costs.eens=cbl.costs.eens*2
+        cbl.costs.ttl=cbl.costs.ttl*2
+        cbl.costs.grand_ttl=cbl.costs.ttl
+    elseif (cbl.size!=0.0)
+        cbl.elec.mva=get_newQ_Capacity(cbl.elec.freq,km,cbl.elec.volt,cbl.elec.farrad,cbl.elec.amp)
+        cbl.wnd=wnd
+        cbl.length=km
+        cbl=cost_mvac_cable(cbl,ks)
+        if (cbl.costs.ttl==Inf)
+            cbl.costs.perkm_ttl=10^9
+            cbl.costs.grand_ttl=0.0
+        else
+            cbl.costs.grand_ttl=cbl.costs.ttl
         end
     end
     return cbl

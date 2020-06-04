@@ -282,18 +282,157 @@ end
 
 #cs1=ocn.mv_circuits[255][1]
 #cs1=finalize_cables(cs1,new_coords,ocn)
+#=tst=deepcopy(ocn.hv_circuits[i][1])
+new_coords=finalize_mog_location(tst,10e-2)
+tst,new_size=finalize_cables(tst,new_coords,ocn,ks)
+
+new_cable=deepcopy(mvac_cable(250.0,1,tst.owpps[1].wnd,ocn.database["cables"][string(66.0)][string(250.0)],ks))=#
 ####################### readjust circuit ###############
-function finalize_circuit_layout(circs,ocn)
+function finalize_circuits_layout(circs,ocn)
     ks=get_Cost_Data()
     for (i0,cs0) in enumerate(circs)
         for (i1,cs1) in enumerate(cs0)
-            new_coords=finalize_mog_location(cs1,10e-2)
-            cs1=finalize_cables(cs1,new_coords,ocn,ks)
+            circs[i0][i1]=finalize_circuit_layout(cs1,ocn,ks)
         end
     end
     return circs
 end
 
+function finalize_circuit_layout(cs1,ocn,ks)
+    orig=deepcopy(cs1)
+    if ((length(cs1.mog)>0) && (length(cs1.MVcbls)>1))
+        new_coords=finalize_mog_location(cs1,10e-2)
+        cs1,new_size=finalize_cables(cs1,new_coords,ocn,ks)
+        if (new_size==true)
+            laps=0
+            bsf=deepcopy(cs1)
+            while (laps<5 && new_size==true)
+                new_coords=finalize_mog_location(cs1,10e-2)
+                cs1,new_size=finalize_cables(cs1,new_coords,ocn,ks)
+                if (cs1.cost<bsf.cost)
+                    println(string(cs1.decimal)*" new best: "*string(cs1.cost))
+                    bsf=deepcopy(cs1)
+                end
+                laps=laps+1
+            end
+            cs1=deepcopy(bsf)
+        end
+    end
+    if (orig.cost<cs1.cost)
+        println(string(cs1.decimal)*" falling back on original layout.")
+        cs1=deepcopy(orig)
+    end
+    return cs1
+end
+
+function finalize_cables(circ,co_ords,ocn,ks)
+    new_size=false
+    for mg_i=1:1:length(circ.mog)
+        circ.mog[mg_i].node.xy.x=deepcopy(co_ords[1][mg_i])
+        circ.mog[mg_i].node.xy.y=deepcopy(co_ords[2][mg_i])
+    end
+    for oss_i=1:1:length(circ.oss)
+        circ.oss[oss_i].node.xy.x=deepcopy(co_ords[3][oss_i])
+        circ.oss[oss_i].node.xy.y=deepcopy(co_ords[4][oss_i])
+    end
+    for mv_c in circ.MVcbls
+        mv_c,new_size=update_MVcable(mv_c,ocn,ks,new_size)
+    end
+
+    for hv_c in circ.HVcbls
+        if (hv_c.elec.volt==300.0)
+            hv_c,new_size=update_HVDCcable(hv_c,ocn,ks,new_size)
+        elseif (hv_c.mpc_ac==true)
+            hv_c,new_size=update_MPCACcable(hv_c,ocn,ks,new_size)
+        else
+            hv_c,new_size=update_HVACcable(hv_c,ocn,ks,new_size)
+        end
+    end
+
+    for hv_c in circ.PCCcbls
+        if (hv_c.elec.volt==300.0)
+            hv_c,new_size=update_HVDCcable(hv_c,ocn,ks,new_size)
+        elseif (hv_c.mpc_ac==true)
+            hv_c,new_size=update_MPCACcable(hv_c,ocn,ks,new_size)
+        else
+            hv_c,new_size=update_HVACcable(hv_c,ocn,ks,new_size)
+        end
+    end
+    for hv_c in circ.O2Ocbls
+        if (hv_c.elec.volt==300.0)
+            hv_c,new_size=update_HVDCcable(hv_c,ocn,ks,new_size)
+        elseif (hv_c.mpc_ac==true)
+            hv_c,new_size=update_MPCACcable(hv_c,ocn,ks,new_size)
+        else
+            hv_c,new_size=update_HVACcable(hv_c,ocn,ks,new_size)
+        end
+    end
+    circ=total_circuit_cost(circ)
+    return circ,new_size
+end
+
+function update_MVcable(mv_c,ocn,ks,new_size)
+    mv_c.length=euclidian_distance(mv_c.path[1].xy,mv_c.path[2].xy)
+    new_cable=deepcopy(mvac_cable(mv_c.mva,mv_c.length,mv_c.wnd,ocn.database["cables"][string(mv_c.elec.volt)][string(mv_c.mva)],ks))
+    if (new_cable.num != mv_c.num || new_cable.size != mv_c.size)
+        new_size=true
+    end
+    new_cable.costs.grand_ttl=new_cable.costs.ttl
+    mv_c.relia=deepcopy(new_cable.relia)
+    mv_c.costs=deepcopy(new_cable.costs)
+    mv_c.elec=deepcopy(new_cable.elec)
+    mv_c.size=deepcopy(new_cable.size)
+    mv_c.num=deepcopy(new_cable.num)
+    return mv_c,new_size
+end
+
+function update_HVACcable(hv_c,ocn,ks,new_size)
+    hv_c.length=euclidian_distance(hv_c.path[1].xy,hv_c.path[2].xy)
+    new_cable=deepcopy(hvac_cable(hv_c.mva,hv_c.length,hv_c.wnd,ocn.database["cables"][string(hv_c.elec.volt)][string(hv_c.mva)],ks))
+    if (new_cable.num != hv_c.num || new_cable.size != hv_c.size)
+        new_size=true
+    end
+    hv_c.relia=deepcopy(new_cable.relia)
+    new_cable.costs.grand_ttl=new_cable.costs.ttl
+    hv_c.costs=deepcopy(new_cable.costs)
+    hv_c.elec=deepcopy(new_cable.elec)
+    hv_c.size=deepcopy(new_cable.size)
+    hv_c.num=deepcopy(new_cable.num)
+    hv_c.reactors=deepcopy(new_cable.reactors)
+    return hv_c,new_size
+end
+
+function update_HVDCcable(hv_c,ocn,ks,new_size)
+    hv_c.length=euclidian_distance(hv_c.path[1].xy,hv_c.path[2].xy)
+    new_cable=deepcopy(hvdc_cable(hv_c.mva,hv_c.length,hv_c.wnd,ocn.database["cables"][string(hv_c.elec.volt)][string(hv_c.mva)],ks))
+    if (new_cable.num != hv_c.num || new_cable.size != hv_c.size)
+        new_size=true
+    end
+    hv_c.relia=deepcopy(new_cable.relia)
+    new_cable.costs.grand_ttl=new_cable.costs.ttl
+    hv_c.costs=deepcopy(new_cable.costs)
+    hv_c.elec=deepcopy(new_cable.elec)
+    hv_c.size=deepcopy(new_cable.size)
+    hv_c.num=deepcopy(new_cable.num)
+    return hv_c,new_size
+end
+
+function update_MPCACcable(hv_c,ocn,ks,new_size)
+    hv_c.length=euclidian_distance(hv_c.path[1].xy,hv_c.path[2].xy)/2
+    new_cable=deepcopy(hvac_cable(hv_c.mva,hv_c.length,hv_c.wnd,ocn.database["cables"][string(hv_c.elec.volt)][string(hv_c.mva)],ks))
+    if (new_cable.num != hv_c.num || new_cable.size != hv_c.size)
+        new_size=true
+    end
+    hv_c.relia=deepcopy(new_cable.relia)
+    new_cable.costs.grand_ttl=new_cable.costs.ttl*2+hv_c.plat.costs.ttl
+    hv_c.costs=deepcopy(new_cable.costs)
+    hv_c.elec=deepcopy(new_cable.elec)
+    hv_c.size=deepcopy(new_cable.size)
+    hv_c.num=deepcopy(new_cable.num)
+    hv_c.reactors=deepcopy(new_cable.reactors)
+    return hv_c,new_size
+end
+#=NOTE ORIGINAL AND FUNCTIONAL b4 new size
 function finalize_cables(circ,co_ords,ocn,ks)
     for mg_i=1:1:length(circ.mog)
         circ.mog[mg_i].node.xy.x=deepcopy(co_ords[1][mg_i])
@@ -342,7 +481,6 @@ end
 function update_MVcable(mv_c,ocn,ks)
     mv_c.length=euclidian_distance(mv_c.path[1].xy,mv_c.path[2].xy)
     new_cable=deepcopy(mvac_cable(mv_c.mva,mv_c.length,mv_c.wnd,ocn.database["cables"][string(mv_c.elec.volt)][string(mv_c.mva)],ks))
-    new_cable.costs.grand_ttl=new_cable.costs.ttl
     mv_c.costs=deepcopy(new_cable.costs)
     mv_c.elec=deepcopy(new_cable.elec)
     mv_c.size=deepcopy(new_cable.size)
@@ -383,8 +521,17 @@ function update_MPCACcable(hv_c,ocn,ks)
     hv_c.num=deepcopy(new_cable.num)
     hv_c.reactors=deepcopy(new_cable.reactors)
     return hv_c
-end
+end=#
 
+#=ks=get_Cost_Data()
+tst=deepcopy(ocn.hv_circuits[45][1])
+new_coords=finalize_mog_location(ocn.hv_circuits[45][1],10e-2)
+plot_circuit(tst)
+for os in tst.mog
+    println(os.node.xy)
+end
+new_coords=finalize_mog_location(tst,10e-2)
+tst=finalize_cables(tst,new_coords,ocn,ks)=#
 function finalize_mog_location(topology,epsilon)
 
     mog_xys=Array{Tuple{xy,Int64},1}()
@@ -447,6 +594,7 @@ function finalize_mog_location(topology,epsilon)
                 break
             end
         end
+
         for (i,mg) in enumerate(mog_xys)
             if (mg[2]==mv_c.path[length(mv_c.path)].num)
                 push!(connections,(mv_c.path[1].xy.x, mv_c.path[1].xy.y, MOG_x[i], MOG_y[i], mv_c.costs.perkm_ttl))
@@ -456,27 +604,39 @@ function finalize_mog_location(topology,epsilon)
         for (i,os) in enumerate(oss_xys)
             if (os[2]==mv_c.path[length(mv_c.path)].num)
                 push!(connections,(mv_c.path[1].xy.x, mv_c.path[1].xy.y, OSS_x[i], OSS_y[i], mv_c.costs.perkm_ttl))
-                @NLconstraint(m,sqrt(abs(connections[length(connections)][1]-connections[length(connections)][3])^2+abs(connections[length(connections)][2]-connections[length(connections)][4])^2+epsilon) <= (mv_rng))
+                @NLconstraint(m,sqrt(abs(connections[length(connections)][1]-connections[length(connections)][3])^2+abs(connections[length(connections)][2]-connections[length(connections)][4])^2+epsilon) <= (mv_c.length+epsilon))#(mv_c.length+epsilon))
             end
         end
     end
 
     #PCC_connections=Array{Tuple{VariableRef,VariableRef,Float64,Float64,Float64},1}()
     for pcc_c in topology.PCCcbls
+        if (pcc_c.mpc_ac==true)
+            mp_ac=2
+        else
+            mp_ac=1
+        end
         for (i,mg) in enumerate(mog_xys)
             if (mg[2]==pcc_c.path[1].num)
                 push!(connections,(MOG_x[i], MOG_y[i], pcc_c.path[length(pcc_c.path)].xy.x, pcc_c.path[length(pcc_c.path)].xy.y, pcc_c.costs.perkm_ttl))
+                @NLconstraint(m,sqrt(abs(connections[length(connections)][1]-connections[length(connections)][3])^2+abs(connections[length(connections)][2]-connections[length(connections)][4])^2+epsilon) <= (mp_ac*pcc_c.mx_rng))
             end
         end
         for (i,os) in enumerate(oss_xys)
             if (os[2]==pcc_c.path[length(pcc_c.path)].num)
                 push!(connections,(OSS_x[i], OSS_y[i], pcc_c.path[length(pcc_c.path)].xy.x, pcc_c.path[length(pcc_c.path)].xy.y, pcc_c.costs.perkm_ttl))
+                @NLconstraint(m,sqrt(abs(connections[length(connections)][1]-connections[length(connections)][3])^2+abs(connections[length(connections)][2]-connections[length(connections)][4])^2+epsilon) <= (mp_ac*pcc_c.mx_rng))
             end
         end
     end
 
     #HV_connections=Array{Tuple{VariableRef,VariableRef,VariableRef,VariableRef,Float64},1}()
     for hv_c in topology.HVcbls
+        if (hv_c.mpc_ac==true)
+            mp_ac=2
+        else
+            mp_ac=1
+        end
         tail_x=VariableRef
         tail_y=VariableRef
         head_x=VariableRef
@@ -494,9 +654,15 @@ function finalize_mog_location(topology,epsilon)
             end
         end
         push!(connections,(tail_x, tail_y, head_x, head_y, hv_c.costs.perkm_ttl))
+        @NLconstraint(m,sqrt(abs(connections[length(connections)][1]-connections[length(connections)][3])^2+abs(connections[length(connections)][2]-connections[length(connections)][4])^2+epsilon) <= (mp_ac*hv_c.mx_rng))
     end
     #o2o_connections=Array{Tuple{VariableRef,VariableRef,VariableRef,VariableRef,Float64},1}()
     for o2o_c in topology.O2Ocbls
+        if (o2o_c.mpc_ac==true)
+            mp_ac=2
+        else
+            mp_ac=1
+        end
         tail_x=VariableRef
         tail_y=VariableRef
         head_x=VariableRef
@@ -513,6 +679,7 @@ function finalize_mog_location(topology,epsilon)
         end
 
         push!(connections,(tail_x, tail_y, head_x, head_y, o2o_c.costs.perkm_ttl))
+        @NLconstraint(m,sqrt(abs(connections[length(connections)][1]-connections[length(connections)][3])^2+abs(connections[length(connections)][2]-connections[length(connections)][4])^2+epsilon) <= (mp_ac*o2o_c.mx_rng))
     end
 
     @NLobjective(m, Min,sum(sqrt(((abs(connections[i][1]-connections[i][3])^2+abs(connections[i][2]-connections[i][4])^2)+epsilon))*connections[i][5] for i in 1:length(connections)))
