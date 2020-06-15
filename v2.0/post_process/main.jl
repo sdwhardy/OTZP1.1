@@ -8,14 +8,15 @@ function plot_ocean(ocn)
 end
 
 
-function plot_circuit(circ)
-    plotly()
-    p=plot()
+function plot_circuit(p,circ)
+    #plotly()
+    #p=plot()
     p=plot_PCCnOWPP(p,circ)
     p=plot_OSSnLINES(p,circ)
-    p
-    gui()
+    #p
+    #gui()
 	print_circuit_Details(circ)
+	return p
 end
 
 
@@ -62,7 +63,7 @@ function plot_OSSnLINES(p,circ)#eex or bus as arg
 	tx=Tuple[]
 
 	for (i,oss) in enumerate(circ.oss)
-		txt=text(string(""),15,:red,:right)
+		txt=text(string(oss.node.num),15,:red,:right)
 		push!(tx,(oss.node.xy.x,oss.node.xy.y,txt))
 	end
 	xs=[x[1] for x in tx]
@@ -72,7 +73,7 @@ function plot_OSSnLINES(p,circ)#eex or bus as arg
 	ys=Float32[]
 	tx=Tuple[]
 	for (i,oss) in enumerate(circ.mog)
-		txt=text(string(""),15,:black,:right)
+		txt=text(string(oss.node.num),15,:black,:right)
 		push!(tx,(oss.node.xy.x,oss.node.xy.y,txt))
 	end
 	xs=[x[1] for x in tx]
@@ -93,7 +94,7 @@ function plot_PCCnOWPP(p,ocn)#eex or bus as arg
 
 
     for (i,owpp) in enumerate(ocn.owpps)
-        txt=text(string(i),15,:blue,:left)
+        txt=text(string(owpp.node.num),15,:blue,:left)
         push!(tx,(owpp.node.xy.x,owpp.node.xy.y,txt))
     end
 
@@ -209,6 +210,10 @@ function print_circuit_Details(circ)
 	println()
 	print("MVcbls: ")
 	for mv_cbl in circ.MVcbls
+		print(mv_cbl.path[1].num)
+		print(" to - ")
+		print(mv_cbl.path[2].num)
+		print(" - ")
 		print(mv_cbl.length)
 		print("km - ")
 		print(mv_cbl.elec.volt)
@@ -226,6 +231,10 @@ function print_circuit_Details(circ)
 	println()
 	print("HVcbls: ")
     for hv_cbl in circ.HVcbls
+		print(hv_cbl.path[1].num)
+		print(" to - ")
+		print(hv_cbl.path[2].num)
+		print(" - ")
 		print(hv_cbl.length)
 		print("km - ")
 		print(hv_cbl.elec.volt)
@@ -241,6 +250,10 @@ function print_circuit_Details(circ)
 		println()
 		if (hv_cbl.mpc_ac==true)
 			print("Mid Point Compensation: ")
+			print(hv_cbl.path[1].num)
+			print(" to - ")
+			print(hv_cbl.path[2].num)
+			print(" - ")
 			print(hv_cbl.plat.acdc)
 			print(" - ")
 			print(hv_cbl.plat.mva)
@@ -253,6 +266,10 @@ function print_circuit_Details(circ)
 	println()
 	print("O2Ocbls: ")
     for hv_cbl in circ.O2Ocbls
+		print(hv_cbl.path[1].num)
+		print(" to - ")
+		print(hv_cbl.path[2].num)
+		print(" - ")
 		print(hv_cbl.length)
 		print("km - ")
 		print(hv_cbl.elec.volt)
@@ -268,6 +285,10 @@ function print_circuit_Details(circ)
 		println()
 		if (hv_cbl.mpc_ac==true)
 			print("Mid Point Compensation: ")
+			print(hv_cbl.path[1].num)
+			print(" to - ")
+			print(hv_cbl.path[2].num)
+			print(" - ")
 			print(hv_cbl.plat.acdc)
 			print(" - ")
 			print(hv_cbl.plat.mva)
@@ -280,6 +301,10 @@ function print_circuit_Details(circ)
 	println()
 	print("PCCcbls: ")
     for hv_cbl in circ.PCCcbls
+		print(hv_cbl.path[1].num)
+		print(" to - ")
+		print(hv_cbl.path[2].num)
+		print(" - ")
 		print(hv_cbl.length)
 		print("km - ")
 		print(hv_cbl.elec.volt)
@@ -295,6 +320,10 @@ function print_circuit_Details(circ)
 		println()
 		if (hv_cbl.mpc_ac==true)
 			print("Mid Point Compensation: ")
+			print(hv_cbl.path[1].num)
+			print(" to - ")
+			print(hv_cbl.path[2].num)
+			print(" - ")
 			print(hv_cbl.plat.acdc)
 			print(" - ")
 			print(hv_cbl.plat.mva)
@@ -307,9 +336,10 @@ function print_circuit_Details(circ)
 
     #total transformer and converter costs
 	println()
-	print("MOGs: ")
+
     for ss in circ.mog
-		println()
+		print("MOGs: ")
+		println(string(ss.node.num)*": ")
 		print("transformers: ")
         for xfo in ss.xfmrs
 			print(xfo.num)
@@ -344,10 +374,11 @@ function print_circuit_Details(circ)
     end
     #totals transformers and converters and platform costs
 	println()
-	print("OSSs: ")
+
     for ss in circ.oss
         #transformers per ss
-		println()
+		print("OSSs: ")
+		println(string(ss.node.num)*": ")
 		print("transformers: ")
         for xfo in ss.xfmrs
 			print(xfo.num)

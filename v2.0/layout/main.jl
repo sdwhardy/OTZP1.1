@@ -20,10 +20,8 @@ function ocean_layout(pcc,owpps,offset)
     @time B=make_set_B(ocean.owpps,pcc)
     @time ocean=make_set_Tb(ocean.owpps,ocean.pcc,B,ocean)
     println("Optimizing Tb CIrcuits...")
-    save("v2.0/tempfiles/ocean/b4Opt_tnep_ocean.jld2", "ocean",ocean)
     @time ocean.hv_circuits=finalize_circuits_layout(ocean.hv_circuits,ocean)
     @time ocean.mv_circuits=finalize_circuits_layout(ocean.mv_circuits,ocean)
-    save("v2.0/tempfiles/ocean/greedy_tnep_ocean.jld2", "ocean",ocean)
     return ocean
 end
 

@@ -231,7 +231,8 @@ end
 #depth ref A review of foundations of offshore wind energy convertors: Current status and future perspectives
 #AC platform incremental capex
 function capex_plat_ac(plat,ks)
-    plat.costs.cpx=ks.pac_e*plat.mva#*(plat.depth/15)#15m set as base depth
+    plat.costs.cpx=ks.pac_e*plat.mva#*(plat.depth/15)#15m set as base depth - original with ks.pac_e=16
+    #plat.costs.cpx=ks.pac_e*plat.mva^1.3#new to reflect better the base cost
     return plat.costs.cpx
 end
 

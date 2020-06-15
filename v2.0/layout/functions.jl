@@ -132,7 +132,7 @@ function make_set_TbHV(ocn,circ)
         push!(xys,deepcopy(owp.node.xy))
     end
     #find the location that minimizes connection distance
-    oss_locationHV = oss_location_HV(xys,circ.base,circ.pcc)
+    oss_locationHV=oss_location_HV(xys,circ.base,circ.pcc)
     hv_connections=mog2pcc_possibilities_noMOG(oss_locationHV,circ,ocn)
     #circ=owpps2oss(hv_connections,oss_locationHV,circ,ocn,true)
     circ=owpps2oss(hv_connections,oss_locationHV,circ,ocn,true)

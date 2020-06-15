@@ -1,95 +1,128 @@
 include("functions.jl")
-ocean2=deepcopy(ocn)
-ocn=deepcopy(ocean2)
-greedy_search(ocn)
+#=ocn=deepcopy(ocean)
 i=7
 beta=D[1]
+r=greedy_search(ocn)
+original=originals[1]
+circuits_set=deepcopy(TH)
+original=originals[1]
+tbeta=tbetas[1]=#
 function greedy_search(ocn)
-    #make a copy of Tb_hv and Tb_mv into one set
-    circuits_set=ocn.hv_circuits
-    begin_at=0
-    for (i,c) in enumerate(ocn.mv_circuits)
-        if (begin_at==0 && c[1].decimal>6)
-            begin_at=copy(i)
-        end
-        if (circuits_set[i][1].id != c[1].id)
-            push!(circuits_set[i],ocn.mv_circuits[i][1])
-        end
-    end
+    circuits_set, begin_at = pre_filter_circuits(ocn.hv_circuits,ocn.mv_circuits)
+    ks=get_Cost_Data()
 
     for i=begin_at:1:length(circuits_set)
         #decimal of index j
         j=circuits_set[i][1].decimal
-        println("rank: "*string(j))
+        println(" owpps: "*string(circuits_set[i][1].binary)*" ("*string(j)*")")
         #binary of index j
         j_bn=circuits_set[i][1].binary
         #Set D
         D=findall(x->x==1,j_bn)
         #proceed if enough OWPPs are included for breakdown
         if (length(D)>2)
-            #copy original hv topology
-            hv_orig=deepcopy(ocn.hv_circuits[i][1])
-            #copy original mv topology
-            mv_orig=deepcopy(ocn.mv_circuits[i][1])
+            #copy originals hv topology
+            originals=circuit[]
+            for circ in circuits_set[i]
+                push!(originals,deepcopy(circ))
+            end
             #index beta
+            TH_jbeta=circuits_set[i]
+            println("old circ "*string(circuits_set[i][1].decimal)*" costs: "*string(circuits_set[i][1].cost))
             for beta in D
                 beta_n_below,above_beta=split_j_at_beta(j_bn,beta[2])
                 beta2gamma=findall(x->x==1,above_beta)#number of OWPPs above beta
                 #proceed if more than 2
+                tbetas=circuit[]
                 if (length(beta2gamma)>1)
-                    forwardHV,hv_remMV=copy_below_beta_equipment(deepcopy(hv_orig),beta_n_below,ocn,beta[2])
-                    forwardMV,mv_remMV=copy_below_beta_equipment(deepcopy(mv_orig),beta_n_below,ocn,beta[2])
+                    for original in originals
+                        tbeta_temp,remMV=copy_below_beta_equipment(deepcopy(original),beta_n_below,ocn,beta[2])
                     #Adjust MV OSS position if MV cable removed
-                    if (mv_remMV==true)
-                        forwardMV=add_temporary_hv_connections(forwardMV,ocn,beta[2])
-                        forwardMV=finalize_circuit_layout(forwardMV,ocn,ks)
-                        plot_circuit(forwardMV)
-                        forwardMV,mv_remMV=copy_below_beta_equipment(forwardMV,beta_n_below,ocn,beta[2])
-                        identical=false
-                    else#if MV cable not removed check if HV and MV base are identical
-                        #NOTE stopped here above works but needds to be tested with higher numbers of HV/MV/...cables
-                        identical=check_pair(forwardHV,forwardMV)
+                        if (remMV==true)
+                            tbeta_temp=add_temporary_hv_connections(tbeta_temp,ocn,beta[2],ks)
+                            tbeta_temp=finalize_circuit_layout(tbeta_temp,ocn,ks)
+                            tbeta_temp,remMV=copy_below_beta_equipment(tbeta_temp,beta_n_below,ocn,beta[2])
+                        end
+                        if (length(tbetas)>1)
+                            if (check_if_identical(tbetas[1],tbeta_temp)==false)
+                                push!(tbetas,tbeta_temp)
+                            end
+                        else
+                            push!(tbetas,tbeta_temp)
+                        end
                     end
+
                     #decompose circuits
-                    if (identical==false)
-                    #if (length(circuits_set[i])>1)
-                        forwardHVTemp=[]
-                        forwardMVTemp=[]
-                        forwardHVTemp=opt_decomposeLO_solo(forwardHV, i_min_sum_bn, deepcopy(circuits_set),ocn,nsb_sum_bn)
-                        forwardMVTemp=opt_decomposeLO_soloMV(forwardMV, i_min_sum_bn, deepcopy(circuits_set),ocn,nsb_sum_bn)
-                        #if ((length(forwardHVTemp))>ceil(Int,opt_set()))
-                        forwardHVTemp=opt_unicOnly(forwardHVTemp)
-                            #forwardHVTemp=forwardHVTemp[1:ceil(Int,opt_set())]
-                        #else
-                        #end
-                        #if ((length(forwardMVTemp))>ceil(Int,opt_set()))
-                        forwardMVTemp=opt_unicOnly(forwardMVTemp)
-                            #forwardMVTemp=forwardMVTemp[1:ceil(Int,opt_set())]
-                        #else
-                        #end
-                        rnk=round(Int,forwardHV.decimal)
-                        for ch in forwardHVTemp
-                            insert_and_dedup!(circuits_set[i],deepcopy(ch))
-                        end
-                        for cm in forwardMVTemp
-                            insert_and_dedup!(circuits_set[i],deepcopy(cm))
-                        end
-                        #circuits_set[round(Int,forwardHV.decimal)]=opt_unicOnly(circuits_set[round(Int,forwardHV.decimal)])
-                        #circuits_set[round(Int,forwardHV.decimal)]=circuits_set[round(Int,forwardHV.decimal)][1:1]
-                        #println("circuits_set: "*string(length(circuits_set[round(Int,forwardHV.decimal)])))
-
-                        #circuits_set[i]=keep_unic(circuits_set[i])
-                    else
-                        forwardTemp=opt_decomposeLO_solo(forwardHV, i_min_sum_bn, deepcopy(circuits_set),ocn,nsb_sum_bn)
-                        forwardTemp=opt_unicOnly(forwardTemp)
-                        for cm in forwardTemp
-                            insert_and_dedup!(circuits_set[i],deepcopy(cm))
-                        end
+                    tH_mvhvs=Vector{Array{circuit,1}}()
+                    for (tbeta_1,tbeta) in enumerate(tbetas)
+                        tH_mvhv=find_tH(tbeta, beta_n_below, above_beta, deepcopy(circuits_set[1:i-1]),ocn,ks)
+                        push!(tH_mvhvs,tH_mvhv)
                     end
 
+                    for tH_mvhv in tH_mvhvs
+                        for tH in tH_mvhv
+                            if (is_a_unique_entry(tH, TH_jbeta))
+                                insert_and_dedup!(TH_jbeta, tH)
+                                #TH_jbeta=adjust_length_of_q(TH_jbeta,length_of_THs_i())
+                            end
+                        end
+                    end
+                end
+            end
+            if (i<length(circuits_set))
+                println("length_b4: "*string(length(TH_jbeta)))
+                TH_jbeta=check_circuits_2_keep(TH_jbeta,circuits_set[i+1:length(circuits_set)],ocn)
+                println("length_afta: "*string(length(TH_jbeta)))
+            end
+            circuits_set[i]=TH_jbeta
+            println("new circ "*string(circuits_set[i][1].decimal)*" costs: "*string(circuits_set[i][1].cost))
+        end
+    end
+    return circuits_set
+end
+
+function check_circuits_2_keep(TH_jbeta,circuits_set,ocn)
+    TH_jbeta2_keep=TH_jbeta[1:1]
+    base_aft_mog=TH_jbeta[1].mog[1].node
+    base_cost=TH_jbeta[1].cost
+    base_1s=findall(x->x==1,TH_jbeta[1].binary)
+    forward_circs=Vector{Array{circuit,1}}()
+    for circuit in circuits_set
+        circ_1s=findall(x->x==1,circuit[1].binary)
+        if issubset(base_1s,circ_1s)
+            push!(forward_circs,circuit)
+        end
+    end
+
+    for th_jb in TH_jbeta[2:length(TH_jbeta)]
+        keep=false
+        cost_dif=th_jb.cost-base_cost
+        for mog_circs in forward_circs
+            for mog_circ in mog_circs
+                km_dif=euclidian_distance(mog_circ.mog[length(mog_circ.mog)].node.xy,base_aft_mog.xy)-euclidian_distance(mog_circ.mog[length(mog_circ.mog)].node.xy,th_jb.mog[length(th_jb.mog)].node.xy)
+                if ((cost_dif-km_dif*th_jb.PCCcbls[length(th_jb.PCCcbls)].costs.perkm_ttl)<=0)
+                    keep=true
+                    @goto shes_a_keeper_son
                 end
             end
         end
+        if (keep==true)
+            @label shes_a_keeper_son
+            push!(TH_jbeta2_keep,th_jb)
+        end
     end
-    return begin_at, circuits_set
+
+    return TH_jbeta2_keep
 end
+
+
+#=save("v2.0/tempfiles/ocean/tH_hv.jld2", "tH_hv",tH_hv)
+save("v2.0/tempfiles/ocean/tH_mv.jld2", "tH_mv",tH_mv)
+
+for (i,t) in enumerate(tH_mv)
+    println(string(i)*" - "*string(t.cost))
+end
+plotly()
+p=plot()
+plot_circuit(p,tH_mv[5])
+gui()=#

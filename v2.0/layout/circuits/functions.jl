@@ -42,6 +42,49 @@ function owpp_dc_to_oss(km,owpp,oss_location,database,ks,hv_only)
     end
     return owpp2oss_connectionHVDC
 end
+
+function oss_dc_to_oss(km,oss,wnd_power,database,ks)
+    #option 1 66-platform
+    owpp2oss_connectionHVDC=Dict{String,Any}()
+    push!(owpp2oss_connectionHVDC,("cost"=>Inf))#cost
+    if (database["bits"]["hvdc"]==true)
+        cable_dc=deepcopy(hvdc_cable(oss.mva,km,oss.wnd,database["cables"]["300.0"][string(oss.mva)],ks))
+        #platform
+        plat_base=platform()
+        plat_base.acdc="ac"
+        plat_base.mva=oss.mva
+        plat_base.wnd=oss.wnd
+        plat_base=cost_ac_platform(plat_base,ks)
+        #hvdc platform
+        plat_dc=platform()
+        plat_dc.acdc="dc"
+        plat_dc.mva=oss.mva
+        plat_dc.wnd=oss.wnd
+        plat_dc=cost_dc_platform(plat_dc,ks)
+        plat_dc=adjust_base_dc_platform(plat_dc,ks)
+        #aft candidate transformers
+        xfos=set_oss_transformers(300.0,wnd_power,database,ks)
+        xfo_cost=0
+        for xfo in xfos
+            xfo_cost=xfo_cost+xfo.costs.ttl
+        end
+        #converter
+        conv=set_oss_converters(300.0,wnd_power,database,ks)
+        if (length(conv)==0)
+            conv=[converter()]
+            conv[1].costs.ttl=0.0
+        end
+        #totals and organizes mv equipment
+        owpp2oss_connectionHVDC_cost=plat_base.costs.ttl+plat_dc.costs.ttl+xfo_cost+conv[1].costs.ttl+cable_dc.costs.ttl
+        push!(owpp2oss_connectionHVDC,("plat_aft_ac"=>plat_base))#aft platform
+        push!(owpp2oss_connectionHVDC,("plat_aft_dc"=>plat_dc))#aft platform
+        push!(owpp2oss_connectionHVDC,("conv_aft"=>conv[1]))#xfo_for
+        push!(owpp2oss_connectionHVDC,("xfo_aft"=>xfos))#xfo_for
+        push!(owpp2oss_connectionHVDC,("cable"=>cable_dc))#cable
+        push!(owpp2oss_connectionHVDC,("cost"=>owpp2oss_connectionHVDC_cost))#cost
+    end
+    return owpp2oss_connectionHVDC
+end
 ########################## AC Connection OWPP to OSS ###########################
 #finds best AC (HV or MV) connection from MVAC to HVAC OSS
 function owpp_ac_to_oss(km,owpp,oss_location,database,ks,hv_only)
@@ -68,6 +111,7 @@ function owpp_ac_to_oss(km,owpp,oss_location,database,ks,hv_only)
     push!(owpp2oss_connectionHVACs,("66.0"=>owpp2oss_connectionMVAC))
     return owpp2oss_connectionHVACs
 end
+
 ####################### MVAC connection cost OWPP to OSS #############################
 #cost function
 function owpp_mvac_to_oss(owpp,km,database,ks)
@@ -104,7 +148,7 @@ function owpp_hvac_to_oss(owpp,km,database,ks)
         plat_aft.acdc="ac"
         plat_aft.mva=owpp.mva
         plat_aft.wnd=owpp.wnd
-        plat_aft=cost_ac_platform(plat_aft,ks)
+        plat_aft=cost_ac_platform(plat_aft,ks)#OK
         plat_aft=adjust_base_ac_platform(plat_aft,ks)
 
         #totals
@@ -127,6 +171,60 @@ function owpp_hvac_to_oss(owpp,km,database,ks)
     push!(dict_ac_connection,("400.0"=>dict_ac_connection400))
     return dict_ac_connection
 end
+
+function oss_hvac_to_oss(oss,wnd_power,km,database,ks)
+    dict_ac_connection220=Dict{String,Any}()
+    dict_ac_connection400=Dict{String,Any}()
+    push!(dict_ac_connection220,("cost"=>Inf))#xfo_for
+    push!(dict_ac_connection400,("cost"=>Inf))#xfo_for
+    if (database["bits"]["hvac"]==true)
+        #build candidate cables
+        cable_220=deepcopy(hvac_cable(oss.mva,km,oss.wnd,database["cables"]["220.0"][string(oss.mva)],ks))
+        cable_400=deepcopy(hvac_cable(oss.mva,km,oss.wnd,database["cables"]["400.0"][string(oss.mva)],ks))
+        cable_220.costs.grand_ttl=cable_220.costs.ttl
+        cable_400.costs.grand_ttl=cable_400.costs.ttl
+        #if mid point compensation is checked look for cheaper cable options
+        cable_220,cable_400=check4beter_mpc_ac_cables(oss.mva,km,database,oss.wnd,cable_220,cable_400,ks)
+        #aft candidate transformers
+        xfo_aft220s=set_oss_transformers(220.0,wnd_power,database,ks)
+        xfo_aft400s=set_oss_transformers(400.0,wnd_power,database,ks)
+        xfo220_cost=0
+        xfo400_cost=0
+        for xfo220 in xfo_aft220s
+            xfo220_cost=xfo220_cost+xfo220.costs.ttl
+        end
+        for xfo400 in xfo_aft400s
+            xfo400_cost=xfo400_cost+xfo400.costs.ttl
+        end
+
+        #platform
+        plat_aft=platform()
+        plat_aft.acdc="ac"
+        plat_aft.mva=oss.mva
+        plat_aft.wnd=oss.wnd
+        plat_aft=cost_ac_platform(plat_aft,ks)#would need to be changed
+        plat_aft=adjust_base_ac_platform(plat_aft,ks)
+
+        #totals
+        owpp2oss_connection220_cost=plat_aft.costs.ttl+xfo220_cost+cable_220.costs.grand_ttl
+        owpp2oss_connection400_cost=plat_aft.costs.ttl+xfo400_cost+cable_400.costs.grand_ttl
+
+        #totals and organize hv equipment
+        push!(dict_ac_connection220,("plat_aft_ac"=>plat_aft))#aft platform
+        push!(dict_ac_connection220,("xfo_aft"=>xfo_aft220s))#aft platform
+        push!(dict_ac_connection220,("cable"=>cable_220))#cable
+        push!(dict_ac_connection220,("cost"=>owpp2oss_connection220_cost[1]))#cost
+
+        push!(dict_ac_connection400,("plat_aft_ac"=>plat_aft))#aft platform
+        push!(dict_ac_connection400,("xfo_aft"=>xfo_aft400s))#aft platform
+        push!(dict_ac_connection400,("cable"=>cable_400))#cable
+        push!(dict_ac_connection400,("cost"=>owpp2oss_connection400_cost[1]))#cost
+    end
+    dict_ac_connection=Dict{String,Dict{String,Any}}()
+    push!(dict_ac_connection,("220.0"=>dict_ac_connection220))
+    push!(dict_ac_connection,("400.0"=>dict_ac_connection400))
+    return dict_ac_connection
+end
 ############# checks for Mid -point compensation ####################
 #check if HVAC mid-point compensation is better option
 function check4beter_mpc_ac_cables(mva,km,database,wnd,cable_220,cable_400,ks)
@@ -137,9 +235,11 @@ function check4beter_mpc_ac_cables(mva,km,database,wnd,cable_220,cable_400,ks)
         cable_400mpc.mpc_ac=true
         #platform
         #compensation
-        cable_220mpc.plat.mva=mva
+        #NOTE CHANGE PLAT COST 5
+        #cable_220mpc.plat.mva=mva
+        cable_220mpc.plat.mva=mva/2
         cable_220mpc.plat.wnd=wnd
-        cable_220mpc.plat=cost_ac_platform(cable_220mpc.plat,ks)
+        cable_220mpc.plat=cost_ac_platform(cable_220mpc.plat,ks)#would need to be changed
         cable_220mpc.plat=adjust_base_ac_platform(cable_220mpc.plat,ks)
         cable_400mpc.plat=cable_220mpc.plat
         #total cost
@@ -160,6 +260,13 @@ end
 function owpp_acdc_to_oss(km,owpp,oss_location,database,ks,hv_only)
     owpp2oss_connections=owpp_ac_to_oss(km,owpp,oss_location,database,ks,hv_only)
     owpp2oss_connections_dc=owpp_dc_to_oss(km,owpp,oss_location,database,ks,hv_only)
+    push!(owpp2oss_connections,("300.0"=>owpp2oss_connections_dc))
+    return owpp2oss_connections
+end
+
+function oss_acdc_to_oss(km,oss,wnd_power,database,ks)
+    owpp2oss_connections=oss_hvac_to_oss(oss,wnd_power,km,database,ks)
+    owpp2oss_connections_dc=oss_dc_to_oss(km,oss,wnd_power,database,ks)
     push!(owpp2oss_connections,("300.0"=>owpp2oss_connections_dc))
     return owpp2oss_connections
 end
@@ -205,6 +312,46 @@ function find_optimal_circuit(lengths_owpps,aft_cons,for_cons,ocn,topo,ks)
     candidates=build_candidates(in_nodes,out_nodes,ocn.database,ks)
     sol=solve_tnep(in_nodes,candidates,out_nodes,ks)
     topo=build_solution_circuit_owpps2mog(lengths_owpps,topo,sol,aft_cons,for_cons,ocn,ks)
+    return topo
+end
+
+function find_optimal_circuitO2O(lengths_owpps,aft_cons,for_cons,ocn,topo,ks)
+    in_nodes=build_input_nodes(aft_cons)
+    out_nodes=build_output_nodes(for_cons)
+    candidates=build_candidates(in_nodes,out_nodes,ocn.database,ks)
+    sol=solve_tnep(in_nodes,candidates,out_nodes,ks)
+    topo=build_solution_circuit_oss2mog(lengths_owpps,topo,sol,aft_cons,for_cons,ocn,ks)
+    return topo
+end
+
+function build_solution_circuit_oss2mog(lengths_owpps,topo,sol,aft_cons,for_cons,ocn,ks)
+    #Attach output circuit
+    wnd_power=create_wind_and_power_dict()
+    #Attach inputs
+    inputs=sol["input"]
+    for kv in ["66.0","220.0","400.0","300.0"]
+        for input in inputs[kv]
+            topo,wnd_power=best_oss2oss(aft_cons[input[2]][kv],topo,lengths_owpps[input[2]][2],ocn.database,ks,wnd_power,ocn)
+        end
+    end
+
+    #build platform, transformers, converters and lay export cable
+    output=sol["output"]
+    if haskey(output,"220.0")
+        topo.mog[1].kV=220.0
+    elseif haskey(output,"400.0")
+        topo.mog[1].kV=400.0
+    elseif haskey(output,"300.0")
+        topo.mog[1].kV=300.0
+        #find converters
+        topo.mog[1].conv=set_oss_convertersO2O(topo.mog[1].kV,wnd_power,ocn.database,ks)
+    else
+        println("Mondai ga arimasu!")
+    end
+    #find transformers
+    topo.mog[1].xfmrs=set_oss_transformers(topo.mog[1].kV,wnd_power,ocn.database,ks)
+    #set platform structure
+    topo=set_mog_platformO2O(topo,ks)
     return topo
 end
 
@@ -259,9 +406,18 @@ function set_mog_platform(topo,ks)
     #platform
     plat_base=platform()
     plat_base.acdc="ac"
-    plat_base.mva=topo.PCCcbls[1].mva
+    #NOTE CHANGE PLAT COST 3
+    #plat_base.mva=topo.PCCcbls[1].mva
+    #for
+    xfo_mva=0
+    for xfo in topo.mog[1].xfmrs
+        xfo_mva=xfo_mva+xfo.mva
+    end
+    no_xfo_mva=topo.PCCcbls[1].mva-xfo_mva
+    plat_base.mva=xfo_mva+no_xfo_mva/2
+    ########################
     plat_base.wnd=topo.PCCcbls[1].wnd
-    plat_base=cost_ac_platform(plat_base,ks)
+    plat_base=cost_ac_platform(plat_base,ks)#need to be changed
     if (length(topo.mog[1].conv)>0)
         #hvdc platform
         plat_dc=platform()
@@ -273,6 +429,37 @@ function set_mog_platform(topo,ks)
         topo.mog[1].plat=[plat_base,plat_dc]
     else
         plat_base=adjust_base_ac_platform(plat_base,ks)
+        topo.mog[1].plat=[plat_base]
+    end
+    return topo
+end
+
+function set_mog_platformO2O(topo,ks)
+    #find platform
+    #platform
+    plat_base=platform()
+    plat_base.acdc="ac"
+    #NOTE CHANGE PLAT COST 2
+    #plat_base.mva=topo.mva
+    #for
+    xfo_mva=0
+    for xfo in topo.mog[1].xfmrs
+        xfo_mva=xfo_mva+xfo.mva
+    end
+    no_xfo_mva=topo.mva-xfo_mva
+    plat_base.mva=xfo_mva+no_xfo_mva/2
+    ########################
+    plat_base.wnd=topo.wnd
+    plat_base=cost_ac_platform(plat_base,ks)#would need to be changed
+    if (length(topo.mog[1].conv)>0)
+        #hvdc platform
+        plat_dc=platform()
+        plat_dc.acdc="dc"
+        plat_dc.mva=topo.mog[1].conv[1].mva
+        plat_dc.wnd=topo.mog[1].conv[1].wnd
+        plat_dc=cost_dc_platform(plat_dc,ks)
+        topo.mog[1].plat=[plat_base,plat_dc]
+    else
         topo.mog[1].plat=[plat_base]
     end
     return topo
@@ -620,7 +807,9 @@ function build_candidates(in_nodes,out_nodes,database,ks)
                 if (kv_out=="220.0" || kv_out=="400.0")#AC feeder
                     if (kv_in==kv_out)#No transformation
                         #push!(power_cost,("cost"=>0.0))
-                        push!(power_cost,("cost"=>plat_ac.costs.ttl))
+                        #NOTE CHANGE PLAT COST 1
+                        push!(power_cost,("cost"=>plat_ac.costs.ttl/2))
+                        #push!(power_cost,("cost"=>plat_ac.costs.ttl))
                         push!(candidates[kv_in*kv_out],deepcopy(power_cost))
                     elseif (kv_in=="300.0")#DC input
                     else#transformer required
@@ -630,7 +819,9 @@ function build_candidates(in_nodes,out_nodes,database,ks)
                 else
                     if (kv_in=="300.0")
                         #push!(power_cost,("cost"=>0.0))
-                        push!(power_cost,("cost"=>plat_ac.costs.ttl))
+                        #NOTE CHANGE PLAT COST 4
+                        push!(power_cost,("cost"=>plat_ac.costs.ttl/2))
+                        #push!(power_cost,("cost"=>plat_ac.costs.ttl))
                         push!(candidates[kv_in*kv_out],deepcopy(power_cost))
                     else
                         push!(power_cost,("cost"=>plat_ac.costs.ttl+plat_dc.costs.ttl+xfo.costs.ttl+conv.costs.ttl))
@@ -846,6 +1037,21 @@ function aft_connection_AC_equipment(connection,connect_bus,ocn)
     return oss
 end
 
+
+function aft_connection_AC_equipmentO2O(connection,oss,ocn)
+    #create an OSS bus
+    oss.kV=connection["cable"].elec.volt
+    #build the platform
+    oss.plat=[]
+    push!(oss.plat,connection["plat_aft_ac"])
+    #place the transformers
+    oss.xfmrs=[]
+    oss.xfmrs=connection["xfo_aft"]
+    #attach the cable
+    push!(connection["cable"].path,oss.node)
+    return oss
+end
+
 function aft_connection_DC_equipment(connection,connect_bus,ocn)
     oss=bus()
     oss.kV=connection["cable"].elec.volt
@@ -866,6 +1072,22 @@ function aft_connection_DC_equipment(connection,connect_bus,ocn)
     return oss
 end
 
+function aft_connection_DC_equipmentO2O(connection,oss,ocn)
+    oss.kV=connection["cable"].elec.volt
+    #build the platform
+    oss.plat=[]
+    push!(oss.plat,connection["plat_aft_ac"])
+    push!(oss.plat,connection["plat_aft_dc"])
+    #place the transformers
+    oss.xfmrs=[]
+    oss.xfmrs=connection["xfo_aft"]
+    #place the converters
+    oss.conv=[]
+    push!(oss.conv,connection["conv_aft"])
+    #attach the cable
+    push!(connection["cable"].path,oss.node)
+    return oss
+end
 
 #returns the final cost of the circuit
 function total_circuit_cost(circ)
@@ -1117,6 +1339,29 @@ function hvdc_canditate_mog2pcc_wMOG(km,mva,kv_forward,wnd,database,ks)
     return dict_dc_connection
 end
 
+function best_oss2oss(cheapest_connection_2mog,circ,oss,database,ks,wnd_power,ocn)
+    if (cheapest_connection_2mog["cable"].elec.volt==300.0)
+        #DC transfer
+        #build OSS
+        push!(circ.oss,aft_connection_DC_equipmentO2O(cheapest_connection_2mog,oss,ocn))
+        #lay the cable
+        push!(cheapest_connection_2mog["cable"].path,circ.mog[1].node)
+        push!(circ.O2Ocbls,cheapest_connection_2mog["cable"])
+        #track the wind
+        wnd_power=track_wind_and_power(wnd_power,cheapest_connection_2mog["cable"])
+    elseif (cheapest_connection_2mog["cable"].elec.volt!=66.0)
+        #Builtd the OSS
+        push!(circ.oss,aft_connection_AC_equipmentO2O(cheapest_connection_2mog,oss,ocn))
+        #lay the cable
+        push!(cheapest_connection_2mog["cable"].path,circ.mog[1].node)
+        push!(circ.O2Ocbls,cheapest_connection_2mog["cable"])
+        #track the wind
+        wnd_power=track_wind_and_power(wnd_power,cheapest_connection_2mog["cable"])
+    else
+    end
+    return circ,wnd_power
+end
+
 function best_owpp2oss(cheapest_connection_2oss,circ,owp,database,ks,wnd_power,ocn)
     if (cheapest_connection_2oss["cable"].elec.volt==300.0)
         #DC transfer
@@ -1172,6 +1417,19 @@ function set_oss_converters(hv,wnd_power,database,ks)
         conv.wnd=wnd
         conv=cost_hvdc_oss(conv,ks)
         conv=adjust_base_hvdc_offshore_converter(conv,ks)
+        return [conv]
+    else
+        return []
+    end
+end
+
+function set_oss_convertersO2O(hv,wnd_power,database,ks)
+    mva=wnd_power["66.0"]["mva"]+wnd_power["220.0"]["mva"]+wnd_power["400.0"]["mva"]
+    if (mva>0.0)
+        wnd=find_netWind([find_netWind(wnd_power["66.0"]["wind"]),find_netWind(wnd_power["220.0"]["wind"]),find_netWind(wnd_power["400.0"]["wind"])])
+        conv=deepcopy(database["converters"][string(mva)]["offshore"])
+        conv.wnd=wnd
+        conv=cost_hvdc_oss(conv,ks)
         return [conv]
     else
         return []

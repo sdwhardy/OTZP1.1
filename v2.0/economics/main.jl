@@ -50,7 +50,18 @@ function find_max_mv_transmission(owpps,database)
                 end
             end
         end
-        owpp.mv_zone=deepcopy(np)
+        ############### addition #########
+        # Account for collector circuit###
+        ###### 6MW/km square assumed######
+        #### Diameter of area travelled###
+        collector=2*sqrt((owpp.mva/6)/pi)
+        np_minus_collector=np-collector
+        if (np_minus_collector<0)
+            np_minus_collector=0
+        end
+        owpp.mv_zone=deepcopy(np_minus_collector)
+        ##################################
+        #owpp.mv_zone=deepcopy(np)
         owpp.kV=66.0
     end
     return owpps
@@ -100,7 +111,7 @@ function xfo_oss(xfo0,ks,xfo_data)
     xfo.costs.ttl=Inf
     xfo.mva=xfo0.mva
     for xd in xfo_data
-        if ((xd+10<=xfo0.mva) && (3*xd>xfo0.mva))
+        if ((xd+10<=xfo0.mva) && (6*xd>xfo0.mva))
             xfo0.num=1
             xfo0.elec.mva=xd
             while ((xfo0.num*xfo0.elec.mva)<xfo0.mva)
@@ -121,7 +132,7 @@ function xfo_pcc(xfo0,ks,xfo_data)
     xfo.costs.ttl=Inf
     xfo.mva=xfo0.mva
     for xd in xfo_data
-        if ((xd+10<=xfo0.mva) && (3*xd>xfo0.mva))
+        if ((xd+10<=xfo0.mva) && ((3*xd>xfo0.mva) || ((xfo0.mva>2250) && (6*xd>xfo0.mva))))
             xfo0.num=1
             xfo0.elec.mva=xd
             while ((xfo0.num*xfo0.elec.mva)<xfo0.mva)
@@ -163,6 +174,7 @@ function hvac_cable(mva,km,wnd,cable_array,ks)
         cbl.wnd=wnd
         cbl.length=km
         cbl.elec.mva=get_newQ_Capacity(cbl.elec.freq,km,cbl.elec.volt,cbl.elec.farrad,cbl.elec.amp)
+        cbl=get_cbl_failure_data(cbl)
         cbl=cost_hvac_cable(cbl,ks)
     end
     return cbl
@@ -192,6 +204,7 @@ function mvac_cable(mva,km,wnd,cable_array,ks)
         cbl.elec.mva=get_newQ_Capacity(cbl.elec.freq,km,cbl.elec.volt,cbl.elec.farrad,cbl.elec.amp)
         cbl.wnd=wnd
         cbl.length=km
+        cbl=get_cbl_failure_data(cbl)
         cbl=cost_mvac_cable(cbl,ks)
         cbl.num=cbl.num*2
         cbl.mva=cbl.mva*2
@@ -208,6 +221,7 @@ function mvac_cable(mva,km,wnd,cable_array,ks)
         cbl.elec.mva=get_newQ_Capacity(cbl.elec.freq,km,cbl.elec.volt,cbl.elec.farrad,cbl.elec.amp)
         cbl.wnd=wnd
         cbl.length=km
+        cbl=get_cbl_failure_data(cbl)
         cbl=cost_mvac_cable(cbl,ks)
         if (cbl.costs.ttl==Inf)
             cbl.costs.perkm_ttl=10^9

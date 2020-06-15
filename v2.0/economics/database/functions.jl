@@ -209,6 +209,7 @@ function optimal_hvdc_cable(cbl0,cbl_data,km,ks)
     return cbl
 end
 
+############################## Change made here ########################### Temporary kana???
 #returns the optimal cable for a hvac for the look up table
 function optimal_ac_cable(cbl0,cbl_data,km,ks)
     cbl=cable()
@@ -216,9 +217,23 @@ function optimal_ac_cable(cbl0,cbl_data,km,ks)
     cbl.elec.volt=cbl_data[1][1]
     cbl.length=km
     cbl.mva=cbl0.mva
+    ##########################
+    #=if (cbl0.elec.volt==66.0)
+        cbl.mva=cbl0.mva*1.333
+    else
+        cbl.mva=cbl0.mva
+    end=#
+    ##########################
     cbl0.costs.ttl=Inf
     for cd in cbl_data
-        num=1
+        #num=1
+        ######################
+        if (cbl0.elec.volt==66.0)
+            num=6
+        else
+            num=1
+        end
+        ######################
         exception_66kv=false
         cap_at_km=get_newQ_Capacity(cbl0.elec.freq,km,cd[1],cd[4]*10^-9,cd[5])
         #max number of cables in parallel = 12

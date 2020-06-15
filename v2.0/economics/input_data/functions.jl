@@ -17,23 +17,28 @@ function get_Cost_Data()
     ks.cf=30#Capitalization factor
     ks.FC_bld=10#Build cost
     ks.p2e=1.16#pounds/euro exchange
-    #the cost of laying cables varies greatly - the original number is directly from North grid, but entso-e's number is less than half this, DTU tech catalogue is around whats given
-    #the value for HVAC is half of highest end in North Sea, MVAC is half of lowest end - the dat ais very uncertain.
+    #the cost of laying cables varies greatly - the original number is directly from North grid, but entso-e's number is less than half this, DTU tech catalogue is closer to high end entso-e
+    #used high end of entso-e
     #HVDC is per cable therefore is *2, while AC is for a 3 phase cable
-    ks.ldc=1.775/2#Cost of laying a single core DC cable
-    ks.lac=2.12/2#Cost of laying a single 3 phase AC cable
-    ks.lmac=1.69/2#Cost of laying a single 3 phase AC cable
-    #ks.lmac=1.905/2#Cost of laying a single 3 phase AC cable
+    ks.ldc=1.035#Cost of laying a single core DC cable
+    ks.lac=0.805#Cost of laying a single 3 phase AC cable
+    ks.lmac=0.805#Cost of laying a single 3 phase AC cable
+    #ks.ldc=1.775#Cost of laying a single core DC cable
+    #ks.lac=1.905#Cost of laying a single 3 phase AC cable
+    #ks.lmac=1.69#Cost of laying a single 3 phase AC cable
+    #ks.lmac=1.905#Cost of laying a single 3 phase AC cable
     ks.npv=1.04#discount rate - not used calc is done inline change at npv_hours(), npv_years()
     ks.opx_c=0.025#OPEX percent
     ks.opx_pl=0.02#dc cable
     ks.opx_x=0.0015#Offshore transformer
-    ks.opx_co=0.02#onshore transformer
-    ks.opx_cp=0.007#ac platform
+    ks.opx_co=0.02#offshore converter
+    ks.opx_cp=0.007#onshore converter
     ks.conv_c=0.0589#c value of converter cost
     ks.conv_d=54.895#fixed construction converter cost
-    ks.pac_e=0.105#e value of ac platform cost
-    ks.pac_f=16#f value of ac platform cost
+    ks.pac_e=0.085#e value of ac platform cost
+    #ks.pac_e=0.105
+    #ks.pac_f=16#f value of ac platform cost
+    ks.pac_f=25#new value to reflect better the base construction cost - note the variable cost function is also changed for this value see
     ks.pdc_g=0.125#g value of dc platform cost
     ks.pdc_h=165#h value of dc platform cost
     return ks
@@ -131,11 +136,11 @@ end
 function  get_Xfo_Data()
     xfos=Array{Float32,1}()
     push!(xfos,10)
-    for i=50:10:1500
+    for i=50:10:1000
         push!(xfos,i)
     end
-    push!(xfos,2500)
-    push!(xfos,5000)
+    #push!(xfos,2500)
+    #push!(xfos,5000)
     return xfos
 end
 
